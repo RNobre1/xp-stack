@@ -1,22 +1,108 @@
 ---
 name: bootstrap
-description: Scaffold um novo projeto com o stack XP/Akita completo — copia CLAUDE.md.template, templates de tasks e pesquisas, agents, settings de projeto. Usa cp -n (nao-sobrescritivo) para respeitar arquivos existentes. Invoque com /xp-stack:bootstrap em qualquer projeto novo.
+description: Scaffold a new project with the XP stack — creates CLAUDE.md, docs/tasks/_template/, docs/pesquisas/_template/, and .claude/settings.json without overwriting existing files. Asks before touching an existing CLAUDE.md. Invoke explicitly with /xp-stack:bootstrap.
 disable-model-invocation: true
 allowed-tools:
   - Bash(bash *)
-  - Bash(mkdir *)
   - Bash(cp *)
+  - Bash(cp -n *)
+  - Bash(cp -rn *)
+  - Bash(mkdir *)
+  - Bash(mkdir -p *)
+  - Bash(test *)
+  - Bash(ls *)
+  - Bash(pwd)
+  - Bash(cat *)
+  - AskUserQuestion
 ---
 
-# Bootstrap
+# XP Stack Bootstrap
 
-```!
-bash ${CLAUDE_SKILL_DIR}/scripts/scaffold.sh "$(pwd)"
+Scaffold a project with the XP stack. Never overwrites existing files silently.
+
+## Environment detection (preprocessed)
+
+**Current directory:** !`pwd`
+
+**CLAUDE.md status:** !`test -f "$(pwd)/CLAUDE.md" && echo "EXISTS" || echo "ABSENT"`
+
+**Existing structure:**
+!`ls -la "$(pwd)/.claude" 2>/dev/null || echo "No .claude directory"`
+!`ls -la "$(pwd)/docs" 2>/dev/null || echo "No docs directory"`
+
+## Your task as the agent running this skill
+
+Follow these steps IN ORDER. Don't skip ahead.
+
+### Step 1: Collect project info
+
+Use `AskUserQuestion` with these 3 questions (in one batched call):
+
+1. **Question**: "What is the project name?" (the user will likely answer via Other with a kebab-case name)
+   - **header**: "Name"
+   - **options**: "my-api", "acme-web", "data-pipeline" — plus the automatic Other
+   - **multiSelect**: false
+
+2. **Question**: "What is the primary tech stack?"
+   - **header**: "Stack"
+   - **options**: "React + TypeScript + Vite", "Python + FastAPI", "Node.js + Express", "Go" — plus Other
+   - **multiSelect**: false
+
+3. **Question**: "Describe the project in one sentence."
+   - **header**: "Description"
+   - **options**: "General-purpose web app", "API service", "CLI tool", "Library/SDK" — plus Other for custom text
+   - **multiSelect**: false
+
+Store the answers as `$project_name`, `$project_stack`, `$project_description` (conceptually — use the values in the bash call below).
+
+### Step 2: Handle existing CLAUDE.md
+
+Look at the **CLAUDE.md status** from the environment detection above.
+
+**If ABSENT**: set `$claude_md_action = "create"` and skip to Step 3.
+
+**If EXISTS**: Ask via `AskUserQuestion`:
+- **Question**: "A CLAUDE.md already exists in this directory. What should we do?"
+- **header**: "Existing"
+- **options**:
+  - "Keep existing and skip CLAUDE.md creation (Recommended)" -> `skip`
+  - "Rename existing to CLAUDE.md.bak and create new" -> `backup`
+  - "Abort the bootstrap entirely" -> `abort`
+- **multiSelect**: false
+
+Store the chosen action as `$claude_md_action`.
+
+### Step 3: Run the scaffold script
+
+Call via Bash tool (replace the variables with the collected values):
+
+```
+bash ${CLAUDE_SKILL_DIR}/scripts/scaffold.sh "$(pwd)" "PROJECT_NAME_HERE" "PROJECT_STACK_HERE" "PROJECT_DESCRIPTION_HERE" "CLAUDE_MD_ACTION_HERE"
 ```
 
-Arquivos copiados pelo preamble acima.
+The script handles the 4 CLAUDE.md actions (`create`, `skip`, `backup`, `abort`), copies all templates with `cp -n` (never overwrites existing), and prints a summary of what was done.
 
-NOTA: scaffold.sh real sera evoluido a partir do POC em plugins/poc-bootstrap/ —
-ver task write-bootstrap-skill. O POC validou empiricamente que !command +
-${CLAUDE_SKILL_DIR} funciona (branch feat/poc-bootstrap, 5/5 testes green,
-invocacao empirica confirmada). O scaffold.sh atual e placeholder minimo.
+### Step 4: Report to the user
+
+Summarize what was created / skipped. Tell them:
+1. Read the new `CLAUDE.md` — it's the canonical source of truth for the project.
+2. Fill in the stack-specific sections (tech stack details, env vars, directory structure, lessons learned).
+3. Start their first task with the `task-decomposition` skill.
+
+## What the scaffold script does
+
+- Creates `CLAUDE.md` from the template, substituting `{{PROJECT_NAME}}`, `{{PROJECT_STACK}}`, `{{PROJECT_DESCRIPTION}}` with the collected values
+- Copies `templates/docs-tasks-template/` to `docs/tasks/_template/` (recursive, no-clobber)
+- Copies `templates/docs-pesquisas-template/` to `docs/pesquisas/_template/` (recursive, no-clobber)
+- Creates `.claude/settings.json` from the template (no-clobber)
+- Uses `cp -n` / `cp -rn` throughout — **never overwrites existing files**
+
+## Idempotency guarantee
+
+Running this skill multiple times in the same directory does not modify files created in previous runs. The script always uses no-clobber copies. If the user wants to reset, they delete the files manually first.
+
+## Limits
+
+- **Only writes under `$(pwd)`** — never touches `~/.claude/` global, never touches other repos.
+- **Never modifies `$(pwd)/.git`** — the scaffold only creates source files, git is untouched.
+- **Never installs dependencies** — if the stack needs `npm install` or equivalent, the user runs it after.
