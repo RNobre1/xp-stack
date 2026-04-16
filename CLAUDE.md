@@ -76,14 +76,22 @@ claude --plugin-dir ./plugins/xp-stack
 **Razao:** hipotese grade D (sem validacao empirica), risco de sobrescrever configs do usuario.
 **Status:** diferido ate POC proprio. Regras globais ficam como skill content inline.
 
+### ADR-004: Curadoria — extracao de conteudo portavel vs especifico
+**Decisao:** extrair apenas conteudo portavel (metodologia universal) do O Agente; agents e skills dizem "read the project's CLAUDE.md" em vez de hardcodar convencoes.
+**Razao:** o plugin deve ser instalavel em qualquer stack (TypeScript, Python, Go, bash). Refs a Supabase, WhatsApp, Evolution API, Vitest paths, entidades de dominio foram removidas.
+**Excluidos:** agents strategist/antigravity-prompt/migration (especificos do workflow O Agente), memory files com refs a ADRs/PRs/pessoas/servicos especificos.
+**Incluidos:** 4 agents (researcher, research-critic, tdd, reviewer) + 4 skills (akita-xp-rules, tdd-conventions, task-decomposition, research-cycle).
+**Ref:** /tmp/claude-craft-curadoria.md (gerado em 2026-04-15 pelo orquestrador no repo O Agente).
+
 ## Estado atual
 
 - [x] POC bootstrap empirico (feat/poc-bootstrap)
 - [x] Marketplace structure (feat/marketplace-structure) — manifests, CI, skeleton
-- [ ] extract-portable-skills — extrair conteudo real do O Agente
+- [x] extract-portable-skills (feat/extract-portable-skills) — conteudo curado substituiu placeholders em 4 agents + 4 skills
 - [ ] write-bootstrap-skill — evoluir scaffold.sh a partir do POC
 - [ ] poc-mcp-userconfig — validar userConfig sensitive no Linux
 
 ## Licoes aprendidas
 
-_(nenhuma por enquanto — registrar aqui conforme surgirem)_
+- **Curadoria > copia-cola (2026-04-15):** na extract-portable-skills, separar "metodologia universal" de "convencoes do stack" exige decisao ativa. Regras puras (TDD, pair programming, YAGNI, conventional commits) foram para skills; convencoes de teste (Vitest paths, jsdom, portugues em describes) foram descartadas. Agents aprenderam a ler o `CLAUDE.md` do projeto receptor em vez de assumir stack.
+- **disable-model-invocation oculta da listagem (2026-04-15):** skills com `disable-model-invocation: true` (ex: bootstrap) nao aparecem quando o modelo lista skills carregadas, mas sao carregadas pelo plugin — sao invocadas apenas via `/xp-stack:bootstrap` explicito pelo usuario. Validar contagem via `ls plugins/xp-stack/skills/`, nao pela listagem do modelo.
