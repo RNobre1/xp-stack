@@ -1,30 +1,123 @@
-# {{PROJECT_NAME}}
+# CLAUDE.md
 
-> {{PROJECT_DESCRIPTION}}
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Stack
+**This file is the absolute source of truth for the project.** Read it at the start of every session and confirm understanding before any action. Every relevant technical decision must be recorded here.
 
-- **Linguagem/Framework:** {{STACK}}
-- **Testes:** TODO
-- **CI/CD:** TODO
-- **Deploy:** TODO
+---
 
-## Arquitetura
+## Project
 
-TODO: descrever arquitetura do projeto.
+- **Name:** {{PROJECT_NAME}}
+- **Stack:** {{PROJECT_STACK}}
+- **Description:** {{PROJECT_DESCRIPTION}}
 
-## Estrutura de diretorios
+## Methodology: Pair Programming (Akita/XP)
 
-TODO: descrever estrutura de diretorios.
+This project follows strict **Pair Programming**: the user is the **Architect/Pilot** (defines direction and decisions), the AI is the **Executor Agent** (implements incrementally and safely).
 
-## Variaveis de ambiente
+### Non-negotiable principles
 
-TODO: listar variaveis necessarias.
+1. **No architectural hallucination** — User defines skeleton; AI fills incrementally.
+2. **Absolute TDD** — Tests first, code only to make a failing test pass.
+3. **Transparency** — Destructive actions (migrations, packages, deletions) require explicit approval.
+4. **Correction with record** — Errors documented in Lessons Learned below.
+5. **YAGNI** — One task at a time. No speculative code.
+6. **Conventional Commits** — `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.
 
-## Decisoes tecnicas (ADRs)
+See the `xp-stack:akita-xp-rules` skill for full rules.
 
-TODO: registrar decisoes conforme forem tomadas.
+### Development cycle (sequential phases)
 
-## Licoes aprendidas
+When starting or expanding a module:
 
-TODO: documentar incidentes e correcoes.
+1. **Foundation** — Draft architecture, data modeling, directory structure in this file. No practical code in this phase.
+2. **Tests** — Write 100% test scenarios (TDD) for planned features.
+3. **Implementation** — Code strictly to make tests pass. Focus on correctness; zero premature optimization.
+4. **Refactoring** — With tests passing, refactor, apply Design Patterns, optimize.
+5. **Integration** — Create presentation layer (components, endpoints).
+6. **CI/CD** — Configure linters, automatic tests, deploy scripts.
+
+### Task decomposition
+
+Non-trivial features are decomposed into `docs/tasks/{feature-slug}/`. See `xp-stack:task-decomposition` skill for the full workflow and `docs/tasks/_template/` for the scaffolding.
+
+### Research cycle
+
+Non-trivial decisions (heavy library choice, architectural trade-off, product hypothesis, complex incident) must be backed by formal research in `docs/pesquisas/{slug}.md`. See `xp-stack:research-cycle` skill.
+
+---
+
+## Tech stack
+
+{{PROJECT_STACK}}
+
+> **TODO (Pilot):** Fill in the details — versions, key dependencies, build tools, test runner, deployment target.
+
+## Environment variables
+
+> **TODO (Pilot):** List required env vars with descriptions.
+
+```
+EXAMPLE_API_KEY=   # Description of what this is for
+EXAMPLE_DB_URL=    # ...
+```
+
+## Directory structure
+
+> **TODO (Pilot):** Document the top-level directory structure and naming conventions.
+
+```
+src/
+docs/
+tests/
+.claude/         # Claude Code settings and skills (local)
+```
+
+## Commands
+
+> **TODO (Pilot):** List the most important commands for this project.
+
+```bash
+# Development
+# ...
+
+# Testing
+# ...
+
+# Build
+# ...
+
+# Deploy
+# ...
+```
+
+## Data model
+
+> **TODO (Pilot):** Document the main data entities and their relationships. Link to migration files or schema definitions if applicable.
+
+## External services and APIs
+
+> **TODO (Pilot):** List consumed APIs and their integration points.
+
+---
+
+## Technical decisions (ADRs)
+
+> Record significant architectural decisions here. Keep them short: context, decision, consequences.
+
+1. **Example: Adopted XP Stack via `RNobre1/claude-craft` plugin** — _{{date}}_ — Provides skills, agents, and templates for rigorous AI-assisted development. See the plugin's README and this project's `xp-stack:akita-xp-rules` skill.
+
+## Lessons learned
+
+> When the AI makes a mistake and the Pilot corrects it, the correction is recorded here to prevent repetition. Append entries; never edit the past.
+
+---
+
+## Do not
+
+- Bypass the TDD flow (write production code before tests)
+- Execute state-changing commands without explicit approval
+- Add speculative code or abstractions "for the future"
+- Modify files outside the declared scope of the current task
+- Touch `~/.claude/` global without explicit approval
