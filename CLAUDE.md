@@ -89,13 +89,20 @@ claude --plugin-dir ./plugins/xp-stack
 **Validacao empirica:** Fase 2 de T3 executou scaffold.sh via shell-direct nos 4 modos em dirs isolados `/tmp/bootstrap-empirical-{A,B,C,D}` (4/4 PASS em 2026-04-16). Cobertura estrutural: 11/11 em `bootstrap_test.sh`. Regressao: 37/37 (marketplace 9 + skeleton 12 + scaffold 5 + bootstrap 11).
 **Limite conhecido:** a camada runtime/interativa (SKILL.md consumida pelo Claude Code + `AskUserQuestion` batched + resolucao de `${CLAUDE_SKILL_DIR}`) NAO foi validada nesta sessao — sera validada no primeiro teste de aceitacao em projeto real e registrada no MEMORY.md global. Autorizacao: T3 linha 92 + decisao do Piloto em 2026-04-16 (duplicaria teste de aceitacao imediato).
 
+### ADR-006: v0.1.1 — fixes cosmeticos pos primeiro self-test empirico
+**Decisao:** patch com 5 ajustes textuais/config apos self-test do v0.1.0 em projeto real (betflow, 2026-04-16). Todos fixes foram identificados na Parte 7 do self-test como WARN (nao FAIL).
+**Mudancas:** (1) Rule 3 de akita-xp-rules reformulada de "Contained Environment" para "Isolated Execution Context (container OR host workspace)" — remove ambiguidade. (2) research-cycle esclarece distincao entre "5 skill flow steps" vs "7 researcher agent internal phases". (3) CLAUDE.md.template adiciona secao "Testing conventions" referenciando xp-stack:tdd-conventions (antes so mencionava 3 das 4 skills regulares). (4) .mcp.json esvaziado — stubs supabase/slack/notion removidos, causavam 3 errors cosmeticos em projetos sem essas creds. (5) README atualizado de "skeleton com placeholders" para "V0.1.1 funcional" + nota explicita sobre bootstrap ser one-shot manual.
+**Validacao:** self-test completo em betflow (17 PASS / 5 WARN / 0 FAIL). Todos os WARNs viraram fixes nesta versao. Regressao esperada apos patch: 37/37 testes bash verdes (sem mudanca estrutural nos testes).
+**Ref:** `/tmp/plugin-update-2026-04-16.md` (spec gerada no repo origem O Agente via `docs/update-plugin-prompt.md`). Primeiro uso real do fluxo de sync O-Agente → claude-craft.
+
 ## Estado atual
 
 - [x] POC bootstrap empirico (feat/poc-bootstrap)
 - [x] Marketplace structure (feat/marketplace-structure) — manifests, CI, skeleton
 - [x] extract-portable-skills (feat/extract-portable-skills) — conteudo curado substituiu placeholders em 4 agents + 4 skills
 - [x] write-bootstrap-skill (feat/write-bootstrap-skill) — 2026-04-16 — 3 tasks (T1 templates, T2 scaffold.sh, T3 SKILL.md+empirico), 37/37 testes verdes, 4/4 cenarios empiricos PASS
-- [ ] poc-mcp-userconfig — validar userConfig sensitive no Linux
+- [x] v0.1.1 patch (feat/plugin-update-2026-04-16) — 2026-04-16 — 5 fixes cosmeticos pos self-test em betflow (ADR-006)
+- [ ] ~~poc-mcp-userconfig~~ — **DISPENSADO** na v0.1.1 ao remover stubs MCP do plugin. MCPs passam a ser configurados pelo usuario fora do plugin via `claude mcp add`, entao a validacao de `userConfig sensitive` no keychain Linux deixa de ser pre-requisito pro plugin. Se o plugin voltar a declarar MCPs com userConfig no futuro, este POC volta como pendente.
 
 ## Licoes aprendidas
 
