@@ -2,7 +2,7 @@
 
 > **Sessao:** unica (sequencial apos T2)
 > **Branch:** `feat/write-bootstrap-skill`
-> **Status:** `[ ] Planning` `[ ] In progress` `[ ] Tests passing` `[ ] Ready for review`
+> **Status:** `[x] Planning` `[x] In progress` `[x] Tests passing` `[x] Ready for review`
 
 ---
 
@@ -127,25 +127,124 @@ claude --plugin-dir /home/rnobre/dev/claude-craft/plugins/xp-stack
 
 ## Log de execucao
 
-> Preenchido durante execucao.
-
 ### Fase 1 — SKILL.md reescrita
-- **Commit hash:** {{preencher}}
-- **Regressao:** {{4 suites de teste — X/X cada}}
+- **Commit hash:** `11362ea` (feat(skill): bootstrap SKILL.md com AskUserQuestion + 4 modos CLAUDE.md)
+- **Regressao (2026-04-16):** 37/37 verde — marketplace 9/9, skeleton 12/12, scaffold 5/5, bootstrap 11/11
 
-### Fase 2 — Validacao empirica
-- **Cenario 1 (create dir vazio):** {{output real, arquivos criados, substituicoes validadas}}
-- **Cenario 2 (skip):** {{MARKER preservado? sim/nao}}
-- **Cenario 3 (backup):** {{.bak criado? MARKER onde?}}
-- **Cenario 4 (abort):** {{nada criado? exit 0?}}
+### Fase 2 — Validacao empirica (modo fallback)
+
+**Modo de validacao:** invocacao shell direta do `scaffold.sh` via bash nos 4 modos, em diretorios isolados `/tmp/bootstrap-empirical-{A,B,C,D}`. A camada runtime/interativa (SKILL.md consumida pelo Claude Code + AskUserQuestion batched) NAO e validada aqui — fica como follow-up no primeiro teste de aceitacao em projeto real (proxima sessao, registrar no MEMORY.md global quando concluido). Razao do fallback: autorizado pelo T3 linha 92 ("alternativa se interatividade for problematica") e confirmado pelo Piloto nesta sessao (2026-04-16) — a validacao runtime seria duplicacao do teste em projeto real que ocorre logo em seguida.
+
+#### Cenario A — create em dir vazio (2026-04-16)
+
+**Comando:**
+```
+bash scripts/scaffold.sh /tmp/bootstrap-empirical-A "test-api" "Python + FastAPI" "API de teste empirico" "create"
+```
+
+**Output (stdout + stderr):**
+```
+Created: /tmp/bootstrap-empirical-A/CLAUDE.md
+Created: /tmp/bootstrap-empirical-A/docs/tasks/_template/README.md
+Created: /tmp/bootstrap-empirical-A/docs/tasks/_template/TEMPLATE-overview.md
+Created: /tmp/bootstrap-empirical-A/docs/tasks/_template/TEMPLATE-progress.md
+Created: /tmp/bootstrap-empirical-A/docs/tasks/_template/TEMPLATE-task.md
+Created: /tmp/bootstrap-empirical-A/docs/tasks/_template/TEMPLATE-terminal-prompts.md
+Created: /tmp/bootstrap-empirical-A/docs/pesquisas/_template/TEMPLATE-pesquisa.md
+Created: /tmp/bootstrap-empirical-A/.claude/settings.json
+Bootstrap complete. Target: /tmp/bootstrap-empirical-A
+```
+
+**Verificacoes:**
+- `ls -laR` pos-execucao mostra `CLAUDE.md` (4116 bytes), `docs/tasks/_template/` com 5 arquivos, `docs/pesquisas/_template/TEMPLATE-pesquisa.md` (6283 bytes), `.claude/settings.json` (347 bytes) — 8 arquivos criados.
+- `grep -c "{{PROJECT_NAME}}\|{{PROJECT_STACK}}\|{{PROJECT_DESCRIPTION}}" CLAUDE.md` → `0` (zero placeholders remanescentes).
+- Substituicoes efetivas: `test-api` (1 match), `Python + FastAPI` (2 matches), `API de teste empirico` (1 match).
+
+**Status:** PASS.
+
+#### Cenario B — skip preserva CLAUDE.md existente (2026-04-16)
+
+**Setup:** criado `CLAUDE.md` pre-existente com linha `PRE_EXISTING_MARKER_XYZ`.
+
+**Comando:**
+```
+bash scripts/scaffold.sh /tmp/bootstrap-empirical-B "ignored-name" "ignored-stack" "ignored-desc" "skip"
+```
+
+**Output:**
+```
+Skipped: CLAUDE.md (kept existing)
+Created: /tmp/bootstrap-empirical-B/docs/tasks/_template/README.md
+...[5 templates tasks]
+Created: /tmp/bootstrap-empirical-B/docs/pesquisas/_template/TEMPLATE-pesquisa.md
+Created: /tmp/bootstrap-empirical-B/.claude/settings.json
+Bootstrap complete. Target: /tmp/bootstrap-empirical-B
+```
+
+**Verificacoes:**
+- `grep -q "PRE_EXISTING_MARKER_XYZ" CLAUDE.md` → match encontrado (preservado).
+- `grep -q "ignored-name" CLAUDE.md` → ausente (skip honrado, nao substituiu placeholders em CLAUDE.md existente).
+- `docs/tasks/_template/`, `docs/pesquisas/_template/`, `.claude/settings.json` criados.
+
+**Status:** PASS.
+
+#### Cenario C — backup renomeia para .bak e cria novo (2026-04-16)
+
+**Setup:** criado `CLAUDE.md` com `PRE_EXISTING_MARKER_XYZ`.
+
+**Comando:**
+```
+bash scripts/scaffold.sh /tmp/bootstrap-empirical-C "new-project" "Go" "Nova descricao" "backup"
+```
+
+**Output:**
+```
+Backup: /tmp/bootstrap-empirical-C/CLAUDE.md -> /tmp/bootstrap-empirical-C/CLAUDE.md.bak
+Created: /tmp/bootstrap-empirical-C/CLAUDE.md
+...[demais templates]
+Bootstrap complete. Target: /tmp/bootstrap-empirical-C
+```
+
+**Verificacoes:**
+- `CLAUDE.md.bak` existe (115 bytes, contem marker original).
+- `grep -q "PRE_EXISTING_MARKER_XYZ" CLAUDE.md.bak` → match.
+- `grep -q "PRE_EXISTING_MARKER_XYZ" CLAUDE.md` → ausente (recriado).
+- Substituicoes efetivas em CLAUDE.md novo: `new-project`, `Go`, `Nova descricao` — todos encontrados.
+- Placeholders remanescentes: 0.
+
+**Status:** PASS.
+
+#### Cenario D — abort nao faz nada (2026-04-16)
+
+**Setup:** dir vazio.
+
+**Comando:**
+```
+bash scripts/scaffold.sh /tmp/bootstrap-empirical-D "any" "any" "any" "abort"
+```
+
+**Output:**
+```
+Bootstrap aborted by user. Nothing done.
+```
+
+**Verificacoes:**
+- Exit code: `0` (graceful abort).
+- `ls -A /tmp/bootstrap-empirical-D | wc -l` → `0` (nenhum arquivo criado).
+
+**Status:** PASS.
+
+#### Resumo Fase 2
+
+4/4 cenarios PASS. Comportamento do scaffold.sh empiricamente consistente com `bootstrap_test.sh` (11/11) e com o design da spec. **Follow-up pendente:** validar a camada de integracao com o Claude Code runtime (AskUserQuestion batched + `${CLAUDE_SKILL_DIR}` + carregamento da SKILL.md pelo plugin system) no primeiro teste de aceitacao em projeto real — registrar outcome no MEMORY.md global quando concluido.
 
 ### Fase 3 — Documentacao
-- **ADR-005 adicionada em CLAUDE.md:** {{link para commit}}
-- **Estado atual atualizado:** {{link para commit}}
+- **ADR-005 adicionada em CLAUDE.md:** commit desta fase (ver git log).
+- **Estado atual atualizado:** `[x] write-bootstrap-skill` marcado no mesmo commit.
 
 ### Incidentes / desvios
 
-{{preencher}}
+- **Desvio (2026-04-16):** Fase 2 executada em modo fallback shell-direct em vez de invocacao interativa `claude --plugin-dir`. Autorizado pelo T3 linha 92 + decisao explicita do Piloto na sessao. Cobertura runtime/AskUserQuestion vira no teste de aceitacao em projeto real — nao faz sentido duplicar agora.
 
 ---
 

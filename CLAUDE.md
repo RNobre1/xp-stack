@@ -83,15 +83,24 @@ claude --plugin-dir ./plugins/xp-stack
 **Incluidos:** 4 agents (researcher, research-critic, tdd, reviewer) + 4 skills (akita-xp-rules, tdd-conventions, task-decomposition, research-cycle).
 **Ref:** /tmp/claude-craft-curadoria.md (gerado em 2026-04-15 pelo orquestrador no repo O Agente).
 
+### ADR-005: Bootstrap skill final — design e limite da validacao empirica
+**Decisao:** a skill `bootstrap` usa `AskUserQuestion` batched (3 perguntas em 1 chamada: nome + stack + descricao) seguido de uma segunda chamada condicional (acao sobre CLAUDE.md existente: skip/backup/abort) e entao invoca `bash ${CLAUDE_SKILL_DIR}/scripts/scaffold.sh` com 5 argumentos posicionais. O script aceita 4 modos de `CLAUDE_MD_ACTION` (create, skip, backup, abort), substitui placeholders via `sed -e "s|{{PROJECT_NAME}}|...|g"` com pipe como delimitador, e usa loop manual `cp` + `test -e` (em vez de `cp -rn`) para portabilidade entre BSD e GNU coreutils.
+**Razao:** batched questions economizam roundtrips; a pergunta condicional sobre CLAUDE.md existente reduz risco de sobrescrever trabalho do usuario; pipe como sed delimiter evita conflito com paths; loop manual e `cp -n` garantem idempotencia sem depender de flags GNU-especificas.
+**Validacao empirica:** Fase 2 de T3 executou scaffold.sh via shell-direct nos 4 modos em dirs isolados `/tmp/bootstrap-empirical-{A,B,C,D}` (4/4 PASS em 2026-04-16). Cobertura estrutural: 11/11 em `bootstrap_test.sh`. Regressao: 37/37 (marketplace 9 + skeleton 12 + scaffold 5 + bootstrap 11).
+**Limite conhecido:** a camada runtime/interativa (SKILL.md consumida pelo Claude Code + `AskUserQuestion` batched + resolucao de `${CLAUDE_SKILL_DIR}`) NAO foi validada nesta sessao — sera validada no primeiro teste de aceitacao em projeto real e registrada no MEMORY.md global. Autorizacao: T3 linha 92 + decisao do Piloto em 2026-04-16 (duplicaria teste de aceitacao imediato).
+
 ## Estado atual
 
 - [x] POC bootstrap empirico (feat/poc-bootstrap)
 - [x] Marketplace structure (feat/marketplace-structure) — manifests, CI, skeleton
 - [x] extract-portable-skills (feat/extract-portable-skills) — conteudo curado substituiu placeholders em 4 agents + 4 skills
-- [ ] write-bootstrap-skill — evoluir scaffold.sh a partir do POC
+- [x] write-bootstrap-skill (feat/write-bootstrap-skill) — 2026-04-16 — 3 tasks (T1 templates, T2 scaffold.sh, T3 SKILL.md+empirico), 37/37 testes verdes, 4/4 cenarios empiricos PASS
 - [ ] poc-mcp-userconfig — validar userConfig sensitive no Linux
 
 ## Licoes aprendidas
 
 - **Curadoria > copia-cola (2026-04-15):** na extract-portable-skills, separar "metodologia universal" de "convencoes do stack" exige decisao ativa. Regras puras (TDD, pair programming, YAGNI, conventional commits) foram para skills; convencoes de teste (Vitest paths, jsdom, portugues em describes) foram descartadas. Agents aprenderam a ler o `CLAUDE.md` do projeto receptor em vez de assumir stack.
 - **disable-model-invocation oculta da listagem (2026-04-15):** skills com `disable-model-invocation: true` (ex: bootstrap) nao aparecem quando o modelo lista skills carregadas, mas sao carregadas pelo plugin — sao invocadas apenas via `/xp-stack:bootstrap` explicito pelo usuario. Validar contagem via `ls plugins/xp-stack/skills/`, nao pela listagem do modelo.
+- **Validacao empirica shell-direct vs runtime-interativo (2026-04-16):** de dentro de uma sessao Claude Code nao e possivel spawnar outro `claude --plugin-dir` interativo para validar `AskUserQuestion`. O fallback legitimo e invocar o script alvo (scaffold.sh) via shell em dirs isolados — valida o mecanismo deterministico. A camada runtime (SKILL.md + AskUserQuestion + `${CLAUDE_SKILL_DIR}`) fica para o primeiro teste de aceitacao em projeto real; registrar outcome no MEMORY.md global. Documentar o desvio explicitamente no log de execucao da task e no ADR, nao esconder.
+- **sed com pipe como delimitador (2026-04-16):** `sed -e "s|{{X}}|$VAR|g"` evita conflito com paths contendo `/`. Padrao adotado em scaffold.sh para placeholders de CLAUDE.md.template. Limitacao conhecida: se o valor contem `|` literal, quebra — documentar no T3 se aparecer na pratica.
+- **Loop manual cp + test -e em vez de cp -rn (2026-04-16):** BSD coreutils nao suporta `cp -rn` com a mesma semantica de GNU. Para garantir idempotencia portavel em scaffold.sh, usar loop `for f in "$SRC"/*; do [ ! -e "$DST/$(basename $f)" ] && cp "$f" "$DST/"; done`. Mais verboso, mais portavel, e explicito sobre intencao.
