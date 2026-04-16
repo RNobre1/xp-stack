@@ -1,0 +1,64 @@
+---
+tipo: pesquisa
+titulo: "{{TITULO}}"
+status: em-andamento
+metodologia_tier: {{TIER}}
+---
+
+# {{TITULO}}
+
+## 1. Contexto
+
+TODO
+
+## 2. Pergunta central
+
+TODO
+
+## 3. Sub-perguntas
+
+| # | Sub-pergunta | Escopo de busca |
+|---|---|---|
+
+## 4. Metodologia aplicada
+
+TODO
+
+## 5. Fontes consultadas
+
+| # | URL | Tipo | Qualidade | Notas |
+|---|---|---|---|---|
+
+## 6. Sintese
+
+TODO
+
+## 7. Claims triangulados
+
+| Claim | Fontes que confirmam | Status | Evidence grade |
+|---|---|---|---|
+
+## 8. Alternativas consideradas
+
+| Alternativa | Por que nao foi escolhida |
+|---|---|
+
+## 9. Limitacoes conhecidas
+
+TODO
+
+## 10. Decisao sugerida
+
+TODO
+
+## 11. Follow-ups
+
+TODO
+
+## 12. Log de revisao adversarial
+
+TODO
+
+## 13. Referencias
+
+TODO

@@ -1,0 +1,30 @@
+# {{PROJECT_NAME}}
+
+> {{PROJECT_DESCRIPTION}}
+
+## Stack
+
+- **Linguagem/Framework:** {{STACK}}
+- **Testes:** TODO
+- **CI/CD:** TODO
+- **Deploy:** TODO
+
+## Arquitetura
+
+TODO: descrever arquitetura do projeto.
+
+## Estrutura de diretorios
+
+TODO: descrever estrutura de diretorios.
+
+## Variaveis de ambiente
+
+TODO: listar variaveis necessarias.
+
+## Decisoes tecnicas (ADRs)
+
+TODO: registrar decisoes conforme forem tomadas.
+
+## Licoes aprendidas
+
+TODO: documentar incidentes e correcoes.
