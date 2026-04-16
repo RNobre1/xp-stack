@@ -273,10 +273,17 @@ test_scaffold_skip_preserves_claude_md() {
 
   echo "PRE_EXISTING_CONTENT" > "$target/CLAUDE.md"
 
-  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "skip" >/dev/null 2>&1
+  local output
+  output=$(bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "skip" 2>&1)
 
   if ! grep -q "PRE_EXISTING_CONTENT" "$target/CLAUDE.md"; then
     fail_case "scaffold_skip_preserves_claude_md" "CLAUDE.md foi modificado (PRE_EXISTING perdido)"
+    rm -rf "$target"
+    return
+  fi
+  # Evita falso-positivo do placeholder: o scaffold real emite "Skipped"
+  if ! printf '%s' "$output" | grep -q "Skipped"; then
+    fail_case "scaffold_skip_preserves_claude_md" "output sem 'Skipped' — scaffold nao distingue modo skip (placeholder?)"
     rm -rf "$target"
     return
   fi
@@ -328,8 +335,8 @@ test_scaffold_abort_does_nothing() {
   local target
   target=$(mktemp -d)
 
-  local exit_code
-  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "abort" >/dev/null 2>&1
+  local output exit_code
+  output=$(bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "abort" 2>&1)
   exit_code=$?
 
   if [ "$exit_code" -ne 0 ]; then
@@ -349,6 +356,13 @@ test_scaffold_abort_does_nothing() {
   fi
   if [ -d "$target/.claude" ]; then
     fail_case "scaffold_abort_does_nothing" ".claude/ foi criado (abort nao respeitado)"
+    rm -rf "$target"
+    return
+  fi
+  # Evita falso-positivo do placeholder (que nao cria nada pra nenhum input):
+  # o scaffold real emite "aborted" no stdout para distinguir o modo abort
+  if ! printf '%s' "$output" | grep -qi "abort"; then
+    fail_case "scaffold_abort_does_nothing" "output sem 'abort' — scaffold nao distingue modo abort (placeholder?)"
     rm -rf "$target"
     return
   fi
