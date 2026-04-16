@@ -2,7 +2,7 @@
 
 > **Sessao:** Terminal 1 de 1
 > **Branch:** `feat/poc-bootstrap` (branch dedicada criada antes dos Writes; merge strategy pos-POC decidida na hora)
-> **Status:** `[ ] Planejando` `[ ] Em execucao` `[ ] Testes passando` `[ ] Pronto para revisao`
+> **Status:** `[x] Testes passando` `[x] Pronto para revisao` — T1 concluida 2026-04-15
 
 ---
 
@@ -183,14 +183,15 @@ scaffold.sh
 > Preenchido durante a execucao pela sessao que roda a task. Deixe rastro do raciocinio, nao so dos commits.
 
 - **Desvio de convencao (ex-ante):** `PROGRESS.md` omitido desta pasta de tasks. Justificativa: YAGNI pra POC de 2h com 2 tasks — o Log de execucao interno dos T-files cobre o mesmo papel que PROGRESS.md teria. Registro explicito aqui pra qualquer futuro leitor nao "corrigir" a falta criando burocracia onde nao precisa. Se o POC expandir alem de 2 tasks, a decisao pode ser revisitada.
-- **Fase 1 (red):** _a preencher_
-- **Fase 2 (green):** _a preencher_
-- **Fase 3 (refactor):** _a preencher_
-- **Fase 4 (verificacao):** _a preencher_
+- **Fase 1 (red):** 5 cenarios escritos em `tests/scaffold_test.sh` + SENTINEL.md criado. Executado `bash tests/scaffold_test.sh`: `Results: 0 passed, 5 failed` — todos falham por scaffold.sh ausente (exit 127, "Arquivo ou diretorio inexistente"). RED genuino. shellcheck: "not installed, skipping static analysis". Commit `e088058`.
+- **Fase 2 (green):** scaffold.sh implementado (~30 linhas, `set -euo pipefail`, `cp -rn`, `mkdir -p`, arg validation com exit 64). plugin.json minimo (name, version, description, author). SKILL.md com `!command` fenced block + `${CLAUDE_SKILL_DIR}`. .gitignore criado. `bash tests/scaffold_test.sh`: `Results: 5 passed, 0 failed`. Commit `ef1a316`.
+- **Fase 3 (refactor):** shellcheck nao instalado — pulo registrado explicitamente no output do test runner ("shellcheck not installed, skipping static analysis"). Nenhuma refatoracao necessaria: scaffold.sh ja e minimo, test runner limpo. Sem commit (nao houve mudanca).
+- **Fase 4 (verificacao):** 5/5 PASS. `grep -n CLAUDE_SKILL_DIR scaffold.sh` = 0 matches ✓. `grep -n CLAUDE_SKILL_DIR SKILL.md` = 1 match (preamble) ✓. `git status --short` limpo ✓. Checagem manual: `bash scaffold.sh /tmp/poc-manual-$$` copiou SENTINEL.md corretamente, cleanup executado. Referencia cruzada com Vercel plugin.json: schema `author: {name}` alinha com formato real observado.
 
 ### Incidentes / desvios
 
-_a preencher — qualquer coisa nao-obvia. Exemplos plausiveis: shellcheck instalado e encontrou issue; `cp -rn` do Fedora 43 com comportamento divergente do esperado; docs oficial pediu campo nao mencionado na pesquisa; etc._
+1. **plugin.json schema confirmado pelo Vercel plugin.** Read de `/home/rnobre/.claude/plugins/cache/claude-plugins-official/vercel/0.40.0/.claude-plugin/plugin.json` mostrou `author` como objeto `{name, url}`, `commands` e `agents` como arrays. Nosso plugin.json com `author: {name}` alinha. `skills` array nao e necessario — auto-discovery funciona (confirmado pelo debug do T2: "Loaded 1 skills from plugin poc-bootstrap default directory").
+2. **Fedora 43 coreutils `cp -rn` funciona corretamente.** Cenarios 2, 3 e 5 validaram que `-n` no-clobber e respeitado com `-r` recursivo nesta versao do coreutils. Nao houve o gotcha temido de `-n` ignorado em presenca de `-r`.
 
 ---
 

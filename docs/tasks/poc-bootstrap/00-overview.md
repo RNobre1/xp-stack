@@ -1,7 +1,7 @@
 # POC bootstrap empirico — Overview
 
 **Data:** 2026-04-15
-**Status:** Em planejamento
+**Status:** CONCLUIDO em 2026-04-15 — RESULTADO: valida hipotese
 **Objetivo:** Validar empiricamente que uma skill Claude Code pode executar `bash ${CLAUDE_SKILL_DIR}/scripts/scaffold.sh "$(pwd)"` via shell injection `!command` e copiar arquivos do diretorio da skill pro cwd do receptor. O resultado deste POC decide se a secao 10 de `docs/pesquisas/replicar-stack-claude-code.md` (no repo O Agente) se mantem ou precisa ser reestruturada.
 
 ---
@@ -25,8 +25,8 @@ A pesquisa `replicar-stack-claude-code.md` (secoes 6.2, 9 e 11) propos distribui
 
 | Task | Nome | Dependencia | Estimativa | Status |
 |------|------|------------|------------|--------|
-| [T1](T1-scaffold-skeleton.md) | Plugin skeleton + scaffold.sh com testes unitarios puro-bash | Nenhuma | P (~1h) | [ ] Pendente |
-| [T2](T2-empirical-invocation.md) | Invocacao real via `claude --plugin-dir` e verificacao filesystem | T1 | M (~1h) | [ ] Pendente |
+| [T1](T1-scaffold-skeleton.md) | Plugin skeleton + scaffold.sh com testes unitarios puro-bash | Nenhuma | P (~1h) | [x] Concluida 2026-04-15 (e088058, ef1a316) |
+| [T2](T2-empirical-invocation.md) | Invocacao real via `claude --plugin-dir` e verificacao filesystem | T1 | M (~1h) | [x] Concluida 2026-04-15 |
 
 Total estimado: **~2h**, consistente com a estimativa original da secao 11 da pesquisa. Sem paralelismo — POC tem uma unica linha de validacao.
 
@@ -40,9 +40,9 @@ Nenhuma por enquanto. Se T1 ou T2 revelar arestas (ex: `${CLAUDE_SKILL_DIR}` nao
 
 ## Criterios de sucesso do POC
 
-- [ ] **T1 passa:** `bash tests/scaffold_test.sh` exit 0, 5 cenarios verdes (`happy_path_copies_sentinel`, `idempotent_no_clobber`, `preserves_existing_file`, `missing_arg_fails`, `path_with_spaces`).
-- [ ] **T2 passa:** `claude --plugin-dir ./plugins/poc-bootstrap` carrega o plugin sem erro; invocacao da skill executa o `!command` preamble; `SENTINEL.md` (arquivo marcador em `templates/`) aparece no cwd alvo. Segunda invocacao no mesmo cwd nao altera nada.
-- [ ] Tudo documentado no log de execucao de cada T-file com comandos verbatim e output verbatim da sessao Claude Code usada pra validar.
+- [x] **T1 passa:** `bash tests/scaffold_test.sh` exit 0, 5/5 cenarios verdes. Commits: `e088058` (red), `ef1a316` (green).
+- [x] **T2 passa:** Plugin carregado via `--plugin-dir`, skill auto-descoberta ("Loaded 1 skills from plugin poc-bootstrap default directory"), `!command` preamble executado, `SENTINEL.md` copiado pro cwd alvo com conteudo correto (`POC_SENTINEL_FILE` presente). Segunda invocacao: idempotency PASS (mtime inalterado: 1776303243). Nota: requer `--dangerously-skip-permissions` em `-p` mode; em modo interativo (uso real), usuario aprova Bash normalmente.
+- [x] Tudo documentado nos logs de execucao de T1 e T2 com comandos verbatim, output bruto, debug log e analise de 4 incidentes de teste.
 
 ## Criterios de falha (bloqueante — parar e revisar a pesquisa)
 
