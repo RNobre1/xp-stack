@@ -1,0 +1,155 @@
+name: Validate Plugins
+
+on:
+  push:
+    branches: [main, "feat/*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-marketplace:
+    name: Validate marketplace.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check marketplace.json syntax
+        run: jq empty .claude-plugin/marketplace.json
+
+      - name: Validate required fields
+        run: |
+          jq -e '.name' .claude-plugin/marketplace.json > /dev/null
+          jq -e '.owner.name' .claude-plugin/marketplace.json > /dev/null
+          jq -e '.plugins | type == "array"' .claude-plugin/marketplace.json > /dev/null
+
+      - name: Validate plugin entries
+        run: |
+          count=$(jq '.plugins | length' .claude-plugin/marketplace.json)
+          for ((i = 0; i < count; i++)); do
+            name=$(jq -r ".plugins[$i].name" .claude-plugin/marketplace.json)
+            desc=$(jq -r ".plugins[$i].description" .claude-plugin/marketplace.json)
+            source=$(jq -r ".plugins[$i].source" .claude-plugin/marketplace.json)
+            if [ "$name" = "null" ] || [ "$desc" = "null" ] || [ "$source" = "null" ]; then
+              echo "FAIL: plugins[$i] missing required field (name=$name, desc=$desc, source=$source)"
+              exit 1
+            fi
+            echo "OK: $name"
+          done
+
+      - name: Check for duplicate names
+        run: |
+          dupes=$(jq -r '.plugins[].name' .claude-plugin/marketplace.json | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "FAIL: duplicate plugin names: $dupes"
+            exit 1
+          fi
+
+      - name: Validate local source directories exist
+        run: |
+          count=$(jq '.plugins | length' .claude-plugin/marketplace.json)
+          for ((i = 0; i < count; i++)); do
+            source=$(jq -r ".plugins[$i].source" .claude-plugin/marketplace.json)
+            if [[ "$source" == ./* ]]; then
+              if [ ! -d "$source" ]; then
+                echo "FAIL: directory not found: $source"
+                exit 1
+              fi
+              if [ ! -f "$source/.claude-plugin/plugin.json" ]; then
+                echo "FAIL: plugin.json not found in $source/.claude-plugin/"
+                exit 1
+              fi
+              echo "OK: $source"
+            fi
+          done
+
+  validate-plugins:
+    name: Validate plugin manifests
+    runs-on: ubuntu-latest
+    needs: validate-marketplace
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plugin.json files
+        run: |
+          for pjson in plugins/*/. claude-plugin/plugin.json; do
+            [ -f "$pjson" ] || continue
+            echo "Validating: $pjson"
+
+            # JSON syntax
+            if ! jq empty "$pjson" 2>/dev/null; then
+              echo "FAIL: invalid JSON in $pjson"
+              exit 1
+            fi
+
+            # Required fields
+            name=$(jq -r '.name // empty' "$pjson")
+            if [ -z "$name" ]; then
+              echo "FAIL: missing 'name' in $pjson"
+              exit 1
+            fi
+
+            # author must be object if present
+            author_type=$(jq -r '.author | type' "$pjson" 2>/dev/null)
+            if [ "$author_type" != "null" ] && [ "$author_type" != "object" ]; then
+              echo "FAIL: 'author' must be object in $pjson (got $author_type)"
+              exit 1
+            fi
+
+            echo "OK: $name"
+          done
+
+  validate-frontmatter:
+    name: Validate YAML frontmatter
+    runs-on: ubuntu-latest
+    needs: validate-marketplace
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check skill frontmatter
+        run: |
+          found=0
+          for skillmd in plugins/*/skills/*/SKILL.md; do
+            [ -f "$skillmd" ] || continue
+            found=1
+            echo "Checking: $skillmd"
+            if ! head -1 "$skillmd" | grep -q '^---$'; then
+              echo "FAIL: $skillmd missing frontmatter delimiter"
+              exit 1
+            fi
+            # extract frontmatter and check for description
+            fm=$(sed -n '2,/^---$/p' "$skillmd" | head -n -1)
+            if ! echo "$fm" | grep -q 'description:'; then
+              echo "FAIL: $skillmd missing 'description' in frontmatter"
+              exit 1
+            fi
+            echo "OK"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "WARN: no SKILL.md files found (expected during early skeleton phase)"
+          fi
+
+      - name: Check agent frontmatter
+        run: |
+          found=0
+          for agentmd in plugins/*/agents/*.md; do
+            [ -f "$agentmd" ] || continue
+            found=1
+            echo "Checking: $agentmd"
+            if ! head -1 "$agentmd" | grep -q '^---$'; then
+              echo "FAIL: $agentmd missing frontmatter delimiter"
+              exit 1
+            fi
+            fm=$(sed -n '2,/^---$/p' "$agentmd" | head -n -1)
+            if ! echo "$fm" | grep -q 'name:'; then
+              echo "FAIL: $agentmd missing 'name' in frontmatter"
+              exit 1
+            fi
+            if ! echo "$fm" | grep -q 'description:'; then
+              echo "FAIL: $agentmd missing 'description' in frontmatter"
+              exit 1
+            fi
+            echo "OK"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "WARN: no agent .md files found (expected during early skeleton phase)"
+          fi

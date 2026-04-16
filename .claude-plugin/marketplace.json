@@ -1,0 +1,17 @@
+{
+  "name": "claude-craft",
+  "description": "Marketplace do stack metodologico XP/Akita para Claude Code — TDD absoluto, pair programming, pesquisa formal, task decomposition, conventional commits.",
+  "owner": {
+    "name": "Meteora Digital",
+    "email": "vinicius@meteoradigital.com.br"
+  },
+  "plugins": [
+    {
+      "name": "xp-stack",
+      "description": "Stack completo de metodologia XP/Akita para Claude Code: agents (researcher, tdd, reviewer), skills (bootstrap, research-cycle, task-decomposition), templates de projeto, e stubs MCP.",
+      "source": "./plugins/xp-stack",
+      "category": "developer-tools",
+      "tags": ["methodology", "tdd", "xp", "pair-programming", "bootstrap"]
+    }
+  ]
+}
