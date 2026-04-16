@@ -1,6 +1,6 @@
 # T1 — Manifests (marketplace.json + plugin.json) + CI + testes de validacao
 
-**Status:** [ ]
+**Status:** [x] Concluida 2026-04-15 (d5771aa RED, 4eab597 GREEN)
 **Dependencia:** Nenhuma
 **Estimativa:** P (~40min)
 

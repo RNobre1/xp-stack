@@ -1,7 +1,7 @@
 # Marketplace Structure — Overview
 
 **Data:** 2026-04-15
-**Status:** EM ANDAMENTO
+**Status:** CONCLUIDO em 2026-04-15
 **Objetivo:** Transformar o repo `RNobre1/claude-craft` de POC isolado em marketplace Claude Code funcional, seguindo a estrutura definida na secao 10 da pesquisa `replicar-stack-claude-code.md` (O Agente). O plugin `xp-stack` sera o unico plugin listado, com skeleton completo (dirs + placeholders) pronto para receber conteudo real nas tasks subsequentes (`extract-portable-skills`, `write-bootstrap-skill`).
 
 ---
@@ -103,9 +103,9 @@ RNobre1/claude-craft/
 
 | Task | Nome | Dependencia | Estimativa | Status |
 |------|------|------------|------------|--------|
-| [T1](T1-manifests-ci.md) | Manifests (marketplace.json + plugin.json) + CI + testes de validacao | Nenhuma | P (~40min) | [ ] |
-| [T2](T2-plugin-skeleton.md) | Skeleton completo do plugin xp-stack (dirs + placeholders com frontmatter valido) | T1 | M (~40min) | [ ] |
-| [T3](T3-meta-load-test.md) | CLAUDE.md + README + LICENSE + validacao empirica (load test via `claude --plugin-dir`) | T2 | P (~30min) | [ ] |
+| [T1](T1-manifests-ci.md) | Manifests (marketplace.json + plugin.json) + CI + testes de validacao | Nenhuma | P (~40min) | [x] Concluida (d5771aa, 4eab597) |
+| [T2](T2-plugin-skeleton.md) | Skeleton completo do plugin xp-stack (dirs + placeholders com frontmatter valido) | T1 | M (~40min) | [x] Concluida (73c2f06, 293e57a) |
+| [T3](T3-meta-load-test.md) | CLAUDE.md + README + LICENSE + validacao empirica (load test via `claude --plugin-dir`) | T2 | P (~30min) | [x] Concluida (c054d8b) |
 
 Total estimado: **~2h**, consistente com estimativa da secao 11 da pesquisa.
 
@@ -113,12 +113,12 @@ Total estimado: **~2h**, consistente com estimativa da secao 11 da pesquisa.
 
 ## Criterios de sucesso
 
-- [ ] `bash tests/marketplace_test.sh` — exit 0 (T1)
-- [ ] `bash tests/skeleton_test.sh` — exit 0 (T2)
-- [ ] `claude --plugin-dir ./plugins/xp-stack` carrega plugin e lista skills com namespace `xp-stack:` (T3)
-- [ ] GitHub Actions CI passa em push da branch (T1)
-- [ ] `CLAUDE.md` existe na raiz com conteudo conforme Regra 1 do CLAUDE.md global (T3)
-- [ ] `plugins/poc-bootstrap/` intacto (nenhum arquivo alterado)
+- [x] `bash tests/marketplace_test.sh` — exit 0, 9/9 green (T1)
+- [x] `bash tests/skeleton_test.sh` — exit 0, 12/12 green (T2)
+- [x] `claude --plugin-dir ./plugins/xp-stack` carrega plugin, 5 skills + 4 agents com namespace `xp-stack:` (T3)
+- [ ] GitHub Actions CI passa em push da branch (pendente push)
+- [x] `CLAUDE.md` existe na raiz com conteudo conforme Regra 1 do CLAUDE.md global (T3)
+- [x] `plugins/poc-bootstrap/` intacto (nenhum arquivo alterado, scaffold_test.sh 5/5 green)
 
 ## Criterios de falha
 

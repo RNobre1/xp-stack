@@ -1,6 +1,6 @@
 # T3 — CLAUDE.md + README + LICENSE + validacao empirica (load test)
 
-**Status:** [ ]
+**Status:** [x] Concluida 2026-04-15
 **Dependencia:** T2 (skeleton completo deve existir)
 **Estimativa:** P (~30min)
 
@@ -124,4 +124,43 @@ CLAUDE_CODE_DEBUG=1 claude --plugin-dir ./plugins/xp-stack \
 
 ## Resultados empiricos (preenchido durante execucao)
 
-_Pendente — sera preenchido com output verbatim apos execucao._
+### Comando executado
+
+```bash
+CLAUDE_CODE_DEBUG=1 claude --plugin-dir ./plugins/xp-stack \
+  -p "What skills and agents are available from the xp-stack plugin? List them." \
+  --dangerously-skip-permissions
+```
+
+### Output (verbatim, resumido)
+
+Plugin reconhecido. Claude Code listou:
+
+**5 Skills** (invocaveis via `/xp-stack:<name>`):
+- akita-xp-rules
+- bootstrap (disable-model-invocation: true, shell-only)
+- research-cycle
+- task-decomposition
+- tdd-conventions
+
+**4 Agents** (model: sonnet):
+- researcher
+- research-critic
+- tdd
+- reviewer
+
+Todas as descriptions extraidas corretamente do frontmatter YAML dos placeholders.
+
+### Debug log
+
+`CLAUDE_CODE_DEBUG=1` nao produziu output em stderr nesta versao do Claude Code (log vazio). A evidencia empirica e o output correto da invocacao acima — plugin carregado, skills e agents reconhecidos com namespace e descriptions corretos.
+
+### Verificacoes
+
+1. **plugin_loads** — PASS: plugin reconhecido, 5 skills + 4 agents listados.
+2. **skills_discoverable** — PASS: namespace `xp-stack:` correto (akita-xp-rules, bootstrap, research-cycle, task-decomposition, tdd-conventions).
+3. **no_poc_interference** — PASS: apenas xp-stack carregado (poc-bootstrap nao mencionado).
+
+### Regressao
+
+26/26 testes green apos T3: marketplace 9/9, skeleton 12/12, POC scaffold 5/5.

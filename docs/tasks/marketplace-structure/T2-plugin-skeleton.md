@@ -1,6 +1,6 @@
 # T2 — Skeleton completo do plugin xp-stack
 
-**Status:** [ ]
+**Status:** [x] Concluida 2026-04-15 (73c2f06 RED, 293e57a GREEN)
 **Dependencia:** T1 (manifests + CI devem existir)
 **Estimativa:** M (~40min)
 
