@@ -27,6 +27,10 @@ This project follows strict **Pair Programming**: the user is the **Architect/Pi
 
 See the `xp-stack:akita-xp-rules` skill for full rules.
 
+### Testing conventions
+
+Every feature follows the **TDD flow** (RED → GREEN → REFACTOR): write the failing test first, implement minimum code to make it pass, then refactor with the safety net in place. Cover the appropriate test types from the pyramid (unit, integration, E2E, contract, regression) for the project's stack. See the `xp-stack:tdd-conventions` skill for the full pyramid and workflow.
+
 ### Development cycle (sequential phases)
 
 When starting or expanding a module:
