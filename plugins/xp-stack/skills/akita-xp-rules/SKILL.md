@@ -26,7 +26,7 @@ We operate in **Pair Programming**: the user is the **Architect/Pilot** who defi
 
 ## Rule 3: Isolation, Security and Permissions (AI Jail)
 
-- **Contained Environment:** AI executions must be strictly limited to the project's isolated environment. The AI must not attempt to access systems or directories outside this scope.
+- **Isolated Execution Context:** AI executions must be strictly limited to the project's scope — whether running inside a container (Docker, dev container) or directly on the host workspace. The AI must not attempt to access systems or directories outside this scope, regardless of the execution mode. If the project's `CLAUDE.md` specifies container vs host workspace preference, respect it.
 - **Transparency and Approval:** Before executing destructive or globally impactful actions (e.g., running migrations, installing packages, deleting files, changing infrastructure), the AI must explain what it intends to do and await explicit user approval.
 - **No Silent Execution:** The AI must never execute state-changing commands without explicitly listing what will be done and receiving an "ok" from the user.
 
