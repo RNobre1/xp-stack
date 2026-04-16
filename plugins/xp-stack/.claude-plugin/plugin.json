@@ -1,7 +1,7 @@
 {
   "name": "xp-stack",
   "version": "0.1.0",
-  "description": "Stack completo de metodologia XP/Akita para Claude Code. TDD absoluto, pair programming, pesquisa formal com triangulacao, task decomposition rigorosa, conventional commits. Inclui agents (researcher, research-critic, tdd, reviewer), skills (bootstrap, akita-xp-rules, tdd-conventions, task-decomposition, research-cycle), templates de projeto, e stubs MCP opcionais.",
+  "description": "Stack completo de metodologia XP/Akita para Claude Code. TDD absoluto, pair programming, pesquisa formal com triangulacao, task decomposition rigorosa, conventional commits. Inclui agents (researcher, research-critic, tdd, reviewer), skills (bootstrap, akita-xp-rules, tdd-conventions, task-decomposition, research-cycle), templates de projeto.",
   "author": {
     "name": "Meteora Digital",
     "email": "vinicius@meteoradigital.com.br"
