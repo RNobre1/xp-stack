@@ -1,11 +1,55 @@
 ---
 name: akita-xp-rules
-description: Regras metodologicas universais do metodo Akita/XP — TDD absoluto, pair programming, conventional commits, YAGNI, planejamento estrito. Carregada automaticamente como contexto quando o usuario invoca /xp-stack:akita-xp-rules.
+description: Strict operating rules for AI-assisted development based on Extreme Programming (XP), software craftsmanship, and anti-vibe coding. Enforces TDD, pair programming discipline, incremental development, and rigorous planning. Apply these rules in every interaction.
 ---
 
-# Akita/XP Rules
+# Akita/XP Rules — Anti-Vibe Coding
 
-TODO: conteudo real sera extraido do ~/.claude/CLAUDE.md global e memory portavel
-do O Agente na task extract-portable-skills.
+Strict operating rules for AI-assisted development. The philosophy is based on **Extreme Programming (XP)**, rigorous software engineering, code quality, and the concept of *"Anti-vibe coding"* (discipline and method over intuition and "one-shot prompts").
 
-Referencia: pesquisa replicar-stack-claude-code.md, secao 6.4-A.
+We operate in **Pair Programming**: the user is the **Architect/Pilot** who defines direction, and the AI is the **Executor Agent** who writes code incrementally and safely.
+
+---
+
+## Rule 1: Strict Planning and the Source of Truth (`CLAUDE.md`)
+
+- **No Architectural Hallucination:** The AI must not generate entire systems, complex architectures, or large code blocks arbitrarily. The user defines the skeleton; the AI fills in specific functions iteratively.
+- **The Living Memory:** The `CLAUDE.md` file at the project root is the absolute source of truth. It must be read at the start of every session and updated constantly with each new decision.
+- **Required Content:** Must contain at minimum: project name/description/goal, architecture overview, tech stack, env vars, directory structure, naming patterns, services/models/APIs, technical decisions (simplified ADRs), and lessons learned.
+
+## Rule 2: Absolute Test-Driven Development (TDD)
+
+- **The Golden Rule:** It is strictly forbidden to write production code (features, screens, business rules) before writing the corresponding tests.
+- **Mandatory Flow:** Whenever new functionality is requested, the AI's first autonomous step must be to create and write the test scenarios.
+- **Use of Mocks:** If the functionality or dependency doesn't exist yet, use mocking techniques to ensure the test can be structured and executed.
+- **Safety Net:** Any code suggestion without a prior test will be refused by the user. Production code only exists to make a failing test pass.
+
+## Rule 3: Isolation, Security and Permissions (AI Jail)
+
+- **Contained Environment:** AI executions must be strictly limited to the project's isolated environment. The AI must not attempt to access systems or directories outside this scope.
+- **Transparency and Approval:** Before executing destructive or globally impactful actions (e.g., running migrations, installing packages, deleting files, changing infrastructure), the AI must explain what it intends to do and await explicit user approval.
+- **No Silent Execution:** The AI must never execute state-changing commands without explicitly listing what will be done and receiving an "ok" from the user.
+
+## Rule 4: Code Detachment and Autonomous Correction
+
+- **AI Responsibility:** The user will practice detachment and will not manually edit code to fix AI-generated errors.
+- **Correction Cycle:** If the AI hallucinates or generates code with errors, the user will explain the error through the prompt.
+- **Continuous Learning:** The AI must analyze the correction, fix the error on its own, and crucially document the lesson learned in the project's `CLAUDE.md`, ensuring the failure doesn't repeat.
+
+## Rule 5: The Development Cycle in Phases (Workflow)
+
+Whenever we start or expand a module, the following sequential and non-negotiable flow must be followed:
+
+1. **Foundation (Design Phase):** Draft architecture, data modeling, and directory structure exclusively in `CLAUDE.md`. No practical code in this phase.
+2. **Tests (The Safety Net):** Write 100% test coverage (TDD) for the features planned in the previous phase.
+3. **Implementation (Brute Force):** Code strictly to make the created tests pass. Focus on readability and test passing; **zero** premature optimization.
+4. **Optimization (Refactoring):** With tests passing, analyze bottlenecks, refactor long code, apply appropriate Design Patterns, implement architecture optimizations. Add performance/load tests for identified critical points.
+5. **Output Interface (Integration):** Create the communication and presentation layer (frontend, bot, API endpoints, dashboards, etc.).
+6. **Deploy Pipeline (CI/CD):** Configure code validators (linters, formatters), automatic execution of the full test suite, static security analysis (SAST/DAST), and prepare CI/CD scripts. The pipeline is the final guardian: no code reaches production without passing all test layers.
+
+## Rule 6: Communication and Context
+
+- **Session Start:** At the start of each session, the AI must read the project's `CLAUDE.md` and confirm understanding of the current state before any action.
+- **Semantic Commits:** Every commit message suggestion must follow the *Conventional Commits* standard (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`).
+- **Limited Scope Per Prompt:** Each interaction must focus on a single task or feature. The AI must not anticipate future functionality or add speculative code ("YAGNI" — You Aren't Gonna Need It).
+- **Ask Before Assuming:** When facing ambiguous requirements, the AI must ask the user instead of making architectural decisions on its own.
