@@ -1,0 +1,13 @@
+# Test harness leftover tmpdirs (caso trap EXIT falhe antes do cleanup)
+/tmp-test/
+
+# Editor leftovers
+*.swp
+*.swo
+*.bak
+.vscode/
+.idea/
+
+# OS leftovers
+.DS_Store
+Thumbs.db

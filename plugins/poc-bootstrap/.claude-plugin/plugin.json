@@ -1,0 +1,8 @@
+{
+  "name": "poc-bootstrap",
+  "version": "0.1.0",
+  "description": "Throwaway plugin validating the Claude Code skill + shell injection pattern (!command + ${CLAUDE_SKILL_DIR}) for scaffolding templates into a receiver project's cwd. POC bloqueante da pesquisa replicar-stack-claude-code (O Agente, secao 11). Nao usar em producao.",
+  "author": {
+    "name": "Vinicius Nobre"
+  }
+}
