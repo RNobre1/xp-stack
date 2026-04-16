@@ -59,7 +59,7 @@ If the Pilot accepted:
 
 ## Operational rules
 
-- **Never skip pipeline steps** — even in L1, all 7 researcher steps execute (only step 6 critic skips)
+- **Never skip pipeline steps** — this skill has **5 flow steps** (above: Capture / Choose tier / Invoke / Review draft / Write). The `researcher` agent invoked in Step 3 internally runs its own **7-phase pipeline** (clarification, decomposition, parallel collection, triangulation, synthesis with citations, adversarial review, delivery). Even in tier L1, all 5 skill steps execute and all 7 researcher phases run — only the researcher's phase 6 (adversarial review via `research-critic`) is skipped in L1.
 - **Never invent a question for the Pilot** — if the question is vague, ask before invoking the agent
 - **Never write without explicit approval** — Step 4 exists for this
 - **Never promote tier without asking** — if you think L1 won't suffice, ask before invoking
