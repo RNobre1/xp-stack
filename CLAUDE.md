@@ -95,6 +95,22 @@ claude --plugin-dir ./plugins/xp-stack
 **Validacao:** self-test completo em betflow (17 PASS / 5 WARN / 0 FAIL). Todos os WARNs viraram fixes nesta versao. Regressao esperada apos patch: 37/37 testes bash verdes (sem mudanca estrutural nos testes).
 **Ref:** `/tmp/plugin-update-2026-04-16.md` (spec gerada no repo origem O Agente via `docs/update-plugin-prompt.md`). Primeiro uso real do fluxo de sync O-Agente → claude-craft.
 
+### ADR-007: optimizing-github-actions skill — adicionada na v0.2.0
+**Decisao:** adicionar 6a skill `optimizing-github-actions` extraida de trabalho validado no repo origem O Agente (pesquisa `docs/pesquisas/skill-ci-workflows-github-actions.md`, triangulacao 0.86 em 24 fontes, validada empiricamente reduzindo um workflow de 33min → 14min wall-clock e zerando 6 red flags detectados pela auditoria de SHA pin).
+
+**Razao:** GitHub Actions evolui rapido (artifact v4 breaking change Dez/2023, ARM gratis Jan/2025, supply-chain incident tj-actions/changed-files Mar/2025, mudanca de pull_request_target Nov/2025). Sem uma skill que se ative automaticamente quando a IA edita `.github/workflows/*.yml`, cada edicao vira ato de memoria. O campo `paths` no frontmatter — descoberto durante revisao adversarial da pesquisa de origem — da ativacao deterministica sem poluir outros contextos.
+
+**Escopo:**
+- Inclui patterns universais + decision matrices + pre-flight checklist de 10 itens.
+- Inclui audit script (`scripts/audit-action-pins.sh`) — util pra qualquer projeto.
+- EXCLUI anti-patterns project-specific do upstream (incident-specific: corrupcao Docker cache de projeto particular, eval gate Licao 22, etc.). Esses ficam no CLAUDE.md / runbook do projeto upstream.
+
+**Mecanismo de ativacao:** `paths: .github/workflows/**` no frontmatter (nao hook). E mais economico que hook em settings.json (que dispararia em qualquer edicao, mesmo trivial), e combinado com `description` matching da ativacao no sweet-spot.
+
+**Update em akita-xp-rules:** Rule 6 ("Communication and Context") ganhou item explicito "Single-Author Commits (No Co-Authored-By)". Recupera preferencia que ja estava no `~/.claude/CLAUDE.md` global do user upstream Rule 6 mas que nao havia sido portada pra `akita-xp-rules` do plugin ainda.
+
+**Ref:** `/tmp/plugin-update-2026-04-26.md` + arquivos staged em `/tmp/plugin-update-2026-04-26-files/`. Segundo uso do fluxo de sync O-Agente → claude-craft.
+
 ## Estado atual
 
 - [x] POC bootstrap empirico (feat/poc-bootstrap)
@@ -102,6 +118,7 @@ claude --plugin-dir ./plugins/xp-stack
 - [x] extract-portable-skills (feat/extract-portable-skills) — conteudo curado substituiu placeholders em 4 agents + 4 skills
 - [x] write-bootstrap-skill (feat/write-bootstrap-skill) — 2026-04-16 — 3 tasks (T1 templates, T2 scaffold.sh, T3 SKILL.md+empirico), 37/37 testes verdes, 4/4 cenarios empiricos PASS
 - [x] v0.1.1 patch (feat/plugin-update-2026-04-16) — 2026-04-16 — 5 fixes cosmeticos pos self-test em betflow (ADR-006)
+- [x] v0.2.0 minor (feat/plugin-update-2026-04-26) — 2026-04-26 — nova skill `optimizing-github-actions` (218-line SKILL.md + 7 references + 2 examples + audit script, auto-ativada via `paths` field) + `akita-xp-rules` Rule 6 ganha proibicao de Co-Authored-By trailers (ADR-007)
 - [ ] ~~poc-mcp-userconfig~~ — **DISPENSADO** na v0.1.1 ao remover stubs MCP do plugin. MCPs passam a ser configurados pelo usuario fora do plugin via `claude mcp add`, entao a validacao de `userConfig sensitive` no keychain Linux deixa de ser pre-requisito pro plugin. Se o plugin voltar a declarar MCPs com userConfig no futuro, este POC volta como pendente.
 
 ## Licoes aprendidas

@@ -51,5 +51,6 @@ Whenever we start or expand a module, the following sequential and non-negotiabl
 
 - **Session Start:** At the start of each session, the AI must read the project's `CLAUDE.md` and confirm understanding of the current state before any action.
 - **Semantic Commits:** Every commit message suggestion must follow the *Conventional Commits* standard (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`).
+- **Single-Author Commits (No Co-Authored-By):** Never include `Co-Authored-By: Claude` (or any equivalent AI attribution trailer) in commit messages. Commits must appear as single-author by the user. The user prefers a clean git history without AI co-authorship attribution. This applies to every commit suggestion (`git commit`, `gh pr create --body`, amend) — omit the trailer even when the default tooling suggests it.
 - **Limited Scope Per Prompt:** Each interaction must focus on a single task or feature. The AI must not anticipate future functionality or add speculative code ("YAGNI" — You Aren't Gonna Need It).
 - **Ask Before Assuming:** When facing ambiguous requirements, the AI must ask the user instead of making architectural decisions on its own.
