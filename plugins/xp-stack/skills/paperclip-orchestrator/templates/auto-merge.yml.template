@@ -39,6 +39,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request != null && contains(github.event.pull_request.labels.*.name, 'auto-merge')
     steps:
+      # TODO before production use: pin actions/checkout to a specific SHA.
+      # The xp-stack:optimizing-github-actions skill recommends SHA pinning to
+      # mitigate supply-chain incidents (e.g. CVE-2025-30066 / tj-actions class).
+      # Replace `@v4` with `@<sha>  # v4.x.y` after verifying the SHA via:
+      #   gh api repos/actions/checkout/git/ref/tags/v4.x.y --jq '.object.sha'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0

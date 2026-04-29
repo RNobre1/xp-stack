@@ -42,6 +42,13 @@ if [[ "$LATEST_REVIEWER_COMMENT" == "null" || -z "$LATEST_REVIEWER_COMMENT" ]]; 
   exit 1
 fi
 
+# Known limit: the regex below matches the literal tag anywhere in the comment
+# body. If a future PR comment quotes the tag inside a code block / explanation
+# (e.g. "the agent emits `[REVIEWER-AGENT] APPROVE` when..."), it would false-
+# positive. Mitigations: the reviewer agent in this setup is the only entity
+# instructed to use this exact tag (per AGENTS-reviewer.md), and `tail -1` picks
+# the latest occurrence. For higher-stakes setups, consider matching only at
+# line-start (`^\[REVIEWER-AGENT\]`) and re-train the reviewer agent accordingly.
 VERDICT=$(echo "$LATEST_REVIEWER_COMMENT" | jq -r '.body' | grep -oE '\[REVIEWER-AGENT\] (APPROVE|REQUEST_CHANGES)' | tail -1 || echo "")
 
 if [[ "$VERDICT" == "[REVIEWER-AGENT] APPROVE" ]]; then
