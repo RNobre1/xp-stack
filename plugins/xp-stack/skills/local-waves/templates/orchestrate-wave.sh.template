@@ -1,0 +1,521 @@
+#!/usr/bin/env bash
+#
+# orchestrate-wave.sh — dispatch a wave of feature tasks in parallel.
+#
+# Mental model:
+#   - The Claude Code session that called you is the ORCHESTRATOR (Opus-class, auto mode).
+#   - This script is the ORCHESTRATOR'S MECHANICAL HAND: spawns N claude-p workers
+#     in separate worktrees, monitors progress, collects BLOCKERS and PRs.
+#   - Workers are headless Sonnet with permission-mode acceptEdits + specific Bash
+#     allowlist. If they need anything OUTSIDE the allowlist or a business decision /
+#     credential not provided, they STOP and write BLOCKERS.md in the worktree —
+#     NEVER open a half-baked PR.
+#
+# Usage:
+#   ./scripts/orchestrate/orchestrate-wave.sh run     <feature-path> [--wave N] [--dry-run]
+#   ./scripts/orchestrate/orchestrate-wave.sh status  <feature-path> [--wave N]
+#   ./scripts/orchestrate/orchestrate-wave.sh summary <feature-path> [--wave N]
+#   ./scripts/orchestrate/orchestrate-wave.sh await-ci <feature-path> [--wave N]
+#
+# Example full Wave 1 cycle for a feature:
+#   ./scripts/orchestrate/orchestrate-wave.sh run docs/tasks/<feature>/ --wave 1
+#   # (script blocks until workers finish and PRs open)
+#   ./scripts/orchestrate/orchestrate-wave.sh await-ci docs/tasks/<feature>/ --wave 1
+#   ./scripts/orchestrate/orchestrate-wave.sh summary docs/tasks/<feature>/ --wave 1
+#
+# Conventions expected in docs/tasks/{feature}/TERMINAL-PROMPTS.md:
+#   ## Onda N                        (heading L2)
+#   ### T{X} — title of task         (heading L3)
+#   ` ` `                            (code block — first block after ### is the prompt)
+#   <prompt body>
+#   ` ` `
+#
+# Layout of runs (git ignored):
+#   .claude/wave-runs/{feature}/wave-{N}/
+#     config.env               # run parameters (timestamp, model, etc)
+#     T{X}/
+#       prompt.md              # extracted prompt + header with rules
+#       stream.jsonl           # claude -p stream-json output
+#       status                 # pending | running | success | blocked | failed
+#       BLOCKERS.md            # (optional) copy of worktree blocker
+#       pr-url                 # (optional) URL of PR opened by worker
+#     summary.md               # aggregated report for the orchestrator
+#
+# Customize:
+#   - BASE_BRANCH: defaults to "dev". Override via env BASE_BRANCH=main.
+#   - Allowlist (search "# Allowlist"): tune for your stack's commands.
+#   - Worker prompt prefix (search "worker_prompt_prefix"): adapt rules to your project.
+
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+readonly REPO_NAME="$(basename "$REPO_ROOT")"
+readonly RUNS_ROOT="$REPO_ROOT/.claude/wave-runs"
+readonly WORKTREES_ROOT="$(dirname "$REPO_ROOT")"
+readonly BASE_BRANCH="${BASE_BRANCH:-dev}"
+
+# ========== logging ==========
+log()  { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
+die()  { log "ERROR: $*"; exit 1; }
+warn() { log "WARN: $*"; }
+
+# ========== worker prompt wrapper ==========
+# Injected at the top of each prompt to enforce BLOCKERS.md discipline.
+worker_prompt_prefix() {
+  cat <<'EOF'
+You are a Claude Code worker executing 1 task in parallel with other workers.
+Read CLAUDE.md and the task's T-file in full before starting.
+
+EXECUTION RULES (non-negotiable):
+
+1. TDD absolute: tests first. No exception.
+
+2. You may: read/edit repo files, run common dev tools (git, gh, your project's
+   build/test commands, jq), open PR via `gh pr create`. Do NOT use
+   `--dangerously-skip-permissions`.
+
+3. If you need something OUTSIDE your reach:
+   - credential / API key not present in your project's secrets file
+   - business decision not pre-defined in the T-file or in docs/pesquisas/
+   - scope change beyond the task
+   - external tool you cannot install without creating an account
+   THEN:
+     (a) Stop immediately. Don't mock to bypass, don't guess defaults.
+     (b) Write `./BLOCKERS.md` in the worktree, format:
+         # BLOCKERS
+
+         ## What I needed
+         <short description>
+
+         ## Where I stopped
+         <file:line or phase>
+
+         ## Alternatives
+         - option A: ...
+         - option B: ...
+     (c) Commit WIP on the branch with message
+         "wip(T{N}): blocked — see BLOCKERS.md"
+     (d) Do NOT open PR. Exit.
+
+4. If the task was 100% implemented, tests green locally, lint ok, typecheck ok:
+   - Conventional commit (feat/fix/refactor/test/docs/chore)
+   - `gh pr create --base <base-branch> --title "..." --body "..."`
+   - Write `./SUMMARY.md` in the worktree with: what was done, files touched,
+     follow-ups discovered, sub-tasks that would deserve being T{N}.{M}
+   - Exit.
+
+5. NEVER merge. PRs stay open for the orchestrator to decide.
+
+6. NEVER commit `.env`, `*.local.md`, secrets files of any kind.
+
+---
+
+TASK TO EXECUTE:
+
+EOF
+}
+
+# ========== helpers ==========
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "command '$1' not found (install first)"
+}
+
+feature_slug() {
+  local p="${1%/}"
+  basename "$p"
+}
+
+run_dir() {
+  local feature="$1" wave="$2"
+  printf '%s/%s/wave-%s' "$RUNS_ROOT" "$feature" "$wave"
+}
+
+# ========== parser TERMINAL-PROMPTS.md ==========
+parse_wave() {
+  local prompts_file="$1" wave_num="$2" run_dir="$3"
+  mkdir -p "$run_dir"
+
+  awk -v wave="$wave_num" -v outdir="$run_dir" '
+    BEGIN { state=0; current_task=""; prompt_path="" }
+    /^## Onda / {
+      if ($0 ~ ("^## Onda "wave"( |$)")) { state=1; next }
+      else if (state>=1) { state=0; next }
+    }
+    state==0 { next }
+    /^### T[0-9]+/ {
+      task_id=$2
+      sub(/[^A-Za-z0-9.]+$/, "", task_id)
+      current_task=task_id
+      task_dir=outdir"/"task_id
+      system("mkdir -p \""task_dir"\"")
+      prompt_path=task_dir"/prompt.md"
+      print "# Prompt — " current_task > prompt_path
+      print "" >> prompt_path
+      state=2
+      next
+    }
+    state==2 && /^```/ {
+      state=3
+      next
+    }
+    state==3 && /^```/ {
+      state=2
+      next
+    }
+    state==3 {
+      print $0 >> prompt_path
+    }
+  ' "$prompts_file"
+
+  find "$run_dir" -maxdepth 1 -type d -name 'T*' -printf '%f\n' | sort -V
+}
+
+# ========== spawn worker ==========
+spawn_worker() {
+  local task_id="$1" run_dir="$2" feature="$3"
+  local task_dir="$run_dir/$task_id"
+  local prompt_file="$task_dir/prompt.md"
+  local worktree_name="${REPO_NAME}-${feature}-${task_id}"
+  local worktree_path="$WORKTREES_ROOT/$worktree_name"
+  local branch="feat/${feature}-${task_id}"
+
+  [[ -f "$prompt_file" ]] || die "prompt not found: $prompt_file"
+  echo "pending" > "$task_dir/status"
+
+  log "[$task_id] creating worktree $worktree_path branch $branch"
+  if [[ ! -d "$worktree_path" ]]; then
+    git -C "$REPO_ROOT" worktree add -b "$branch" "$worktree_path" "$BASE_BRANCH" >/dev/null 2>&1 \
+      || git -C "$REPO_ROOT" worktree add "$worktree_path" "$branch" >/dev/null 2>&1 \
+      || die "[$task_id] failed to create worktree"
+  else
+    warn "[$task_id] worktree already exists, reusing"
+  fi
+
+  local final_prompt_file="$task_dir/final-prompt.md"
+  {
+    worker_prompt_prefix
+    cat "$prompt_file"
+    echo
+    echo "---"
+    echo "REPO: $worktree_path"
+    echo "BRANCH: $branch"
+    echo "BASE BRANCH: $BASE_BRANCH"
+    echo "FEATURE DIR: docs/tasks/$feature/"
+  } > "$final_prompt_file"
+
+  # Allowlist — conservative. If T-file requests something outside this list,
+  # the worker writes BLOCKERS.md.
+  # >>> Customize for your stack. Add commands like 'pytest', 'go test', etc. <<<
+  local -a allowed=(
+    "Read"
+    "Edit"
+    "Write"
+    "Glob"
+    "Grep"
+    "Bash(git *)"
+    "Bash(gh *)"
+    "Bash(npm *)"
+    "Bash(npx *)"
+    "Bash(node *)"
+    "Bash(jq *)"
+    "Bash(cat *)"
+    "Bash(ls *)"
+    "Bash(find *)"
+    "Bash(rm *)"
+    "Bash(mkdir *)"
+    "Bash(cp *)"
+    "Bash(mv *)"
+    "Bash(chmod *)"
+    # Add your stack: e.g. "Bash(pytest *)", "Bash(go *)", "Bash(cargo *)"
+  )
+  local allowed_csv
+  allowed_csv=$(IFS=,; echo "${allowed[*]}")
+
+  echo "running" > "$task_dir/status"
+  log "[$task_id] spawning worker (sonnet headless in $worktree_path)"
+
+  (
+    cd "$worktree_path"
+    claude -p "$(cat "$final_prompt_file")" \
+      --model sonnet \
+      --permission-mode acceptEdits \
+      --allowedTools "$allowed_csv" \
+      --output-format stream-json \
+      --verbose \
+      >"$task_dir/stream.jsonl" 2>"$task_dir/stderr.log"
+    local rc=$?
+
+    if [[ -f "$worktree_path/BLOCKERS.md" ]]; then
+      cp "$worktree_path/BLOCKERS.md" "$task_dir/BLOCKERS.md"
+      echo "blocked" > "$task_dir/status"
+    elif [[ $rc -eq 0 ]]; then
+      local pr_url
+      pr_url=$(gh -R "$(git -C "$worktree_path" config --get remote.origin.url | sed -E 's|.*[:/]([^/]+/[^/.]+)(\.git)?$|\1|')" \
+        pr list --head "$branch" --json url -q '.[0].url' 2>/dev/null || echo "")
+      if [[ -n "$pr_url" ]]; then
+        echo "$pr_url" > "$task_dir/pr-url"
+        echo "success" > "$task_dir/status"
+      else
+        echo "failed" > "$task_dir/status"
+        echo "worker exited rc=0 but no PR opened nor BLOCKERS.md — investigate stream.jsonl" >> "$task_dir/stderr.log"
+      fi
+    else
+      echo "failed" > "$task_dir/status"
+    fi
+
+    [[ -f "$worktree_path/SUMMARY.md" ]] && cp "$worktree_path/SUMMARY.md" "$task_dir/SUMMARY.md"
+  ) &
+
+  echo $! > "$task_dir/pid"
+  log "[$task_id] PID=$(cat "$task_dir/pid")"
+}
+
+# ========== subcommand: run ==========
+cmd_run() {
+  local feature_path="$1" wave="${2:-}" dry_run="${3:-0}"
+  [[ -d "$feature_path" ]] || die "feature path does not exist: $feature_path"
+  local prompts_file="$feature_path/TERMINAL-PROMPTS.md"
+  [[ -f "$prompts_file" ]] || die "$prompts_file does not exist — convention requires TERMINAL-PROMPTS.md in the feature"
+
+  local feature
+  feature=$(feature_slug "$feature_path")
+
+  if [[ -z "$wave" ]]; then
+    local overview="$feature_path/00-overview.md"
+    if [[ -f "$overview" ]]; then
+      while read -r onda_num; do
+        local tasks_in_wave
+        tasks_in_wave=$(awk -v w="$onda_num" '
+          /^## Onda / { inwave=($0 ~ ("^## Onda "w"( |$)")); next }
+          inwave && /^### T[0-9]+/ { gsub(/[^A-Za-z0-9.]+$/, "", $2); print $2 }
+        ' "$prompts_file")
+        local all_done=1
+        while read -r t; do
+          [[ -z "$t" ]] && continue
+          if ! grep -q "$t.*\[x\] Concluida" "$overview" 2>/dev/null; then
+            all_done=0; break
+          fi
+        done <<< "$tasks_in_wave"
+        if [[ $all_done -eq 0 ]]; then
+          wave="$onda_num"
+          break
+        fi
+      done < <(grep -oP '^## Onda \K[0-9]+' "$prompts_file" | sort -un)
+    fi
+    [[ -z "$wave" ]] && wave=1
+    log "wave auto-detected: $wave (pass --wave N to force)"
+  fi
+
+  local rd
+  rd=$(run_dir "$feature" "$wave")
+  if [[ -d "$rd" ]] && [[ "$dry_run" != "1" ]]; then
+    warn "run_dir already exists: $rd"
+    read -p "Overwrite? [y/N] " -n 1 -r < /dev/tty || true
+    echo
+    [[ "${REPLY:-n}" =~ ^[Yy]$ ]] || die "aborted"
+    rm -rf "$rd"
+  fi
+  mkdir -p "$rd"
+
+  local -a tasks
+  mapfile -t tasks < <(parse_wave "$prompts_file" "$wave" "$rd")
+  [[ ${#tasks[@]} -gt 0 ]] || die "no tasks found in Wave $wave of $prompts_file"
+
+  {
+    echo "FEATURE=$feature"
+    echo "WAVE=$wave"
+    echo "STARTED_AT=$(date -Iseconds)"
+    echo "TASKS=${tasks[*]}"
+    echo "PROMPTS_FILE=$prompts_file"
+    echo "BASE_BRANCH=$BASE_BRANCH"
+  } > "$rd/config.env"
+
+  log "Wave $wave of '$feature': ${#tasks[@]} tasks — ${tasks[*]}"
+
+  if [[ "$dry_run" == "1" ]]; then
+    log "DRY RUN: prompts extracted in $rd. Nothing was spawned."
+    return 0
+  fi
+
+  require_cmd claude
+  require_cmd gh
+  require_cmd jq
+
+  for t in "${tasks[@]}"; do
+    spawn_worker "$t" "$rd" "$feature"
+  done
+
+  log "all workers spawned. Waiting..."
+  for t in "${tasks[@]}"; do
+    local pid
+    pid=$(cat "$rd/$t/pid")
+    wait "$pid" 2>/dev/null || true
+    log "[$t] finished with status: $(cat "$rd/$t/status" 2>/dev/null || echo 'unknown')"
+  done
+
+  {
+    echo "FINISHED_AT=$(date -Iseconds)"
+  } >> "$rd/config.env"
+
+  cmd_summary "$feature_path" "$wave"
+}
+
+# ========== subcommand: status ==========
+cmd_status() {
+  local feature_path="$1" wave="${2:-}"
+  local feature
+  feature=$(feature_slug "$feature_path")
+
+  if [[ -z "$wave" ]]; then
+    local fd="$RUNS_ROOT/$feature"
+    [[ -d "$fd" ]] || die "no runs for '$feature'"
+    ls -1 "$fd" | sort -V
+    return 0
+  fi
+
+  local rd
+  rd=$(run_dir "$feature" "$wave")
+  [[ -d "$rd" ]] || die "run does not exist: $rd"
+
+  echo "Feature: $feature | Wave: $wave"
+  echo "Config: $(cat "$rd/config.env" 2>/dev/null || echo '?')"
+  echo
+  printf '%-8s %-10s %-8s %-60s\n' 'TASK' 'STATUS' 'PID' 'PR'
+  for td in "$rd"/T*/; do
+    local t
+    t=$(basename "$td")
+    local status pid pr
+    status=$(cat "$td/status" 2>/dev/null || echo '-')
+    pid=$(cat "$td/pid" 2>/dev/null || echo '-')
+    pr=$(cat "$td/pr-url" 2>/dev/null || echo '-')
+    printf '%-8s %-10s %-8s %-60s\n' "$t" "$status" "$pid" "$pr"
+  done
+}
+
+# ========== subcommand: await-ci ==========
+cmd_await_ci() {
+  local feature_path="$1" wave="${2:-}"
+  local feature
+  feature=$(feature_slug "$feature_path")
+  [[ -z "$wave" ]] && die "--wave N required for await-ci"
+
+  local rd
+  rd=$(run_dir "$feature" "$wave")
+  [[ -d "$rd" ]] || die "run does not exist: $rd"
+
+  require_cmd gh
+
+  for td in "$rd"/T*/; do
+    local t
+    t=$(basename "$td")
+    local pr_url
+    pr_url=$(cat "$td/pr-url" 2>/dev/null || echo "")
+    [[ -z "$pr_url" ]] && { log "[$t] no PR (status=$(cat "$td/status" 2>/dev/null)); skip"; continue; }
+    local pr_num
+    pr_num=$(echo "$pr_url" | grep -oP '/pull/\K[0-9]+')
+    log "[$t] waiting CI on PR #$pr_num..."
+    if gh pr checks "$pr_num" --watch --fail-fast; then
+      echo "ci-green" > "$td/ci-status"
+      log "[$t] CI green"
+    else
+      echo "ci-red" > "$td/ci-status"
+      warn "[$t] CI red — see PR #$pr_num"
+    fi
+  done
+}
+
+# ========== subcommand: summary ==========
+cmd_summary() {
+  local feature_path="$1" wave="$2"
+  local feature
+  feature=$(feature_slug "$feature_path")
+  local rd
+  rd=$(run_dir "$feature" "$wave")
+  [[ -d "$rd" ]] || die "run does not exist: $rd"
+
+  local summary="$rd/summary.md"
+  {
+    echo "# Wave $wave — $feature"
+    echo
+    echo "Generated at $(date -Iseconds)"
+    echo
+    echo "## Status per task"
+    echo
+    echo "| Task | Status | CI | PR | Blocker? | Summary? |"
+    echo "|------|--------|-----|-----|---------|-----------|"
+    for td in "$rd"/T*/; do
+      local t status ci_status pr blocker summ
+      t=$(basename "$td")
+      status=$(cat "$td/status" 2>/dev/null || echo '-')
+      ci_status=$(cat "$td/ci-status" 2>/dev/null || echo '-')
+      pr=$(cat "$td/pr-url" 2>/dev/null || echo '-')
+      blocker=$([[ -f "$td/BLOCKERS.md" ]] && echo 'yes' || echo '-')
+      summ=$([[ -f "$td/SUMMARY.md" ]] && echo 'yes' || echo '-')
+      echo "| $t | $status | $ci_status | $pr | $blocker | $summ |"
+    done
+    echo
+    for td in "$rd"/T*/; do
+      local t=$(basename "$td")
+      if [[ -f "$td/BLOCKERS.md" ]]; then
+        echo
+        echo "## [$t] BLOCKER"
+        echo
+        cat "$td/BLOCKERS.md"
+      fi
+      if [[ -f "$td/SUMMARY.md" ]]; then
+        echo
+        echo "## [$t] Summary"
+        echo
+        cat "$td/SUMMARY.md"
+      fi
+    done
+    echo
+    echo "## Suggested next steps"
+    echo
+    echo "- Review listed PRs; \`gh pr view <url>\`."
+    echo "- Blockers: decide resolution (credential? business decision? scope?) and dispatch follow-up worker."
+    echo "- CI red: read \`gh pr checks --json\` and dispatch fix worker on the same branch."
+    echo "- All green: merge in sequence (\`gh pr merge <n> --squash\`), rebase following PRs if conflict."
+    echo "- After all ok: \`/compact\` in this session and run \`orchestrate-wave.sh run $feature_path --wave $((wave+1))\`."
+  } > "$summary"
+
+  log "summary in $summary"
+  cat "$summary"
+}
+
+# ========== main ==========
+usage() {
+  sed -n '2,30p' "${BASH_SOURCE[0]}"
+  exit 1
+}
+
+main() {
+  [[ $# -lt 1 ]] && usage
+  local sub="$1"; shift
+  local feature_path="" wave="" dry_run=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --wave) wave="$2"; shift 2 ;;
+      --dry-run) dry_run=1; shift ;;
+      -h|--help) usage ;;
+      *) [[ -z "$feature_path" ]] && feature_path="$1" && shift || die "unknown arg: $1" ;;
+    esac
+  done
+
+  [[ -z "$feature_path" ]] && die "feature_path required"
+
+  case "$sub" in
+    run)      cmd_run      "$feature_path" "$wave" "$dry_run" ;;
+    status)   cmd_status   "$feature_path" "$wave" ;;
+    await-ci) cmd_await_ci "$feature_path" "$wave" ;;
+    summary)
+      [[ -z "$wave" ]] && die "summary requires --wave N"
+      cmd_summary "$feature_path" "$wave"
+      ;;
+    *) die "unknown subcommand: $sub" ;;
+  esac
+}
+
+main "$@"
