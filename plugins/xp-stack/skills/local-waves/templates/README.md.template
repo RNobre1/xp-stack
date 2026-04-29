@@ -1,0 +1,115 @@
+# Local Waves Orchestrator
+
+> Installed by `xp-stack:local-waves-setup`. Gitignored (`.gitignore` covers
+> `scripts/orchestrate/` + `.claude/wave-runs/`). If this becomes a stable
+> pattern in your workflow, you can promote it to tracked by removing the
+> `.gitignore` line.
+
+## Mental model
+
+- **Orchestrator** = the Claude Code session you have open (Opus-class, auto mode). It's the brain.
+- **Script** = mechanical hand. The orchestrator invokes it via the Bash tool.
+- **Workers** = N instances of `claude -p` running Sonnet-class headless in separate worktrees. Each executes 1 task in parallel.
+
+Worker permissions: `--permission-mode acceptEdits` + `--allowedTools` with specific allowlist (no `--dangerously-skip-permissions`). If a worker hits something outside the allowlist OR needs a credential / business decision not provided, it **stops, writes `BLOCKERS.md` in the worktree, commits WIP, and exits without opening a PR**. The orchestrator collects this and presents to you.
+
+## Feature convention (pre-requisite)
+
+Each feature in `docs/tasks/{feature}/` needs:
+
+- `TERMINAL-PROMPTS.md` with headers `## Onda N` (L2) and `### T{X} — title` (L3), each task with 1 code block containing the entire prompt.
+- `00-overview.md` with task table in `[x] Concluida YYYY-MM-DD (#PR -> hash)` format — used to auto-detect the next pending wave.
+
+The `task-decomposition` skill (from this same xp-stack plugin) ships templates for these files.
+
+## Usage cycle
+
+```bash
+# 1. Dispatch Wave 1 (or --wave N to force)
+./scripts/orchestrate/orchestrate-wave.sh run docs/tasks/{feature}/
+
+# Script spawns N workers in parallel, blocks until all finish,
+# and prints a summary. Worktrees created in ../{repo-name}-{feature}-T{X}.
+
+# 2. Wait for CI on all open PRs
+./scripts/orchestrate/orchestrate-wave.sh await-ci docs/tasks/{feature}/ --wave 1
+
+# 3. (Re)generate summary at any time
+./scripts/orchestrate/orchestrate-wave.sh summary docs/tasks/{feature}/ --wave 1
+
+# 4. Quick status (does not block)
+./scripts/orchestrate/orchestrate-wave.sh status docs/tasks/{feature}/ --wave 1
+```
+
+After the summary, you decide:
+- **Blockers**: provide credential/decision and manually dispatch a follow-up worker.
+- **CI red**: open a session in the worktree of the PR and fix (or dispatch another worker).
+- **All green**: merge in sequence (`gh pr merge --squash`), rebase following PRs if conflict.
+- **Wave 100% ok in dev**: `/compact` in the orchestrator session and run `run --wave N+1`.
+
+## Configuration
+
+### Base branch
+
+Default: `dev`. Override via env:
+
+```bash
+BASE_BRANCH=main ./scripts/orchestrate/orchestrate-wave.sh run docs/tasks/{feature}/
+```
+
+### Worker allowlist
+
+The script ships with a generic allowlist (`git`, `gh`, `npm`, `npx`, `node`, `jq`, basic file ops). For your stack, edit `scripts/orchestrate/orchestrate-wave.sh` (search for `# Allowlist`) and add commands like `pytest`, `go`, `cargo`, etc.
+
+### Worker prompt rules
+
+The script injects a 6-rule prompt prefix before each task's body (search for `worker_prompt_prefix` in the script). Adjust rule 6 ("NEVER commit `.env`, `*.local.md`, secrets files of any kind") for your project's specific secret patterns.
+
+## Artifact layout
+
+```
+.claude/wave-runs/{feature}/wave-{N}/
+├── config.env              # timestamp, task list, prompts file
+├── summary.md              # aggregated report (what the orchestrator presents to you)
+├── T1/
+│   ├── prompt.md           # prompt extracted from TERMINAL-PROMPTS.md
+│   ├── final-prompt.md     # prompt.md + rules prefix + worktree context
+│   ├── stream.jsonl        # claude -p stream-json (live logs)
+│   ├── stderr.log
+│   ├── pid                 # worker process PID
+│   ├── status              # pending | running | success | blocked | failed
+│   ├── pr-url              # PR URL (if success)
+│   ├── ci-status           # ci-green | ci-red (after await-ci)
+│   ├── BLOCKERS.md         # copied from worktree if worker blocked
+│   └── SUMMARY.md          # copied from worktree if worker finished
+├── T2/...
+└── T3/...
+```
+
+## Known limitations
+
+1. **No mid-run intervention.** Workers are headless (`claude -p`). If one hangs or chooses the wrong path, you only find out at the end (via summary) or by observing `stream.jsonl` in another terminal (`tail -f`).
+2. **CLAUDE.md not auto-loaded in `-p`.** The worker prompt prefix tells the worker to read it before starting, but no guarantee. For tasks that depend heavily on CLAUDE.md, consider `--append-system-prompt "$(cat CLAUDE.md)"` — costs extra tokens.
+3. **MCP servers don't follow workers.** If the task needs an MCP, add `--mcp-config .mcp.json` to the `claude -p` command (see the `spawn_worker` line in the script).
+4. **Sequential merge is human.** Script does not merge. You decide order and resolve conflicts.
+5. **TERMINAL-PROMPTS.md parser is naive.** Works in the format `## Onda N` + `### T{X}` + first ` ``` ` block. Conventions outside this shape require manual awk adjustment in the script.
+6. **Cost.** 3 Sonnets in parallel + Opus orchestrator ≈ $30-45 per wave of 3 tasks. Worth it for waves of independent tasks; for sequential tasks (chain of dependency), parallelizing doesn't help.
+
+## Suggested evolution
+
+If this becomes routine (3+ waves/month):
+- Promote to `scripts/orchestrate/` tracked (remove from `.gitignore`).
+- Migrate to the Claude Agent SDK (TypeScript) — gain tool approval callbacks, structured validation, reproducibility.
+- Add hook `Stop` to send notification when wave finishes (Slack, desktop notif).
+
+## Comparison with `xp-stack:paperclip-orchestrator`
+
+| Criterion | local-waves (this) | Paperclip |
+|---|---|---|
+| Execution model | Local sync, blocks until done | Remote async, droplet-hosted |
+| Latency | Minutes (block-and-summarize) | Hours-days (heartbeat cycle) |
+| Persistence | None (session-bound) | Yes (DB-backed) |
+| Multi-developer | No | Yes |
+| Infrastructure | None | VPS (~$10/mo) |
+
+You can install **both** in the same project; they don't conflict.

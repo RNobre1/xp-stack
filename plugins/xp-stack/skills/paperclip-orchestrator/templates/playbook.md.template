@@ -1,0 +1,319 @@
+# Paperclip — Operations Playbook (gitignored)
+
+> **Canonical source for the Paperclip orchestrator in your project.** Copy
+> in this skill's templates; replace placeholders to match YOUR setup.
+>
+> **Audience:** Pilot + the architect orchestrator session.
+
+---
+
+## 1. Mental model
+
+Paperclip is a **headless dispatcher of Claude Code** running on a droplet
+with embedded Postgres + web dashboard. It schedules heartbeats, maintains
+an Issue queue (Kanban), executes `claude --dangerously-skip-permissions`
+as a subprocess in the configured `cwd`, passing the Issue body as input.
+
+**Adopted topology:**
+
+```
++----------+   architect   +-----------+    +-------------------+
+|  Pilot   |---------------|           |--->|   N x dev-primary |
+|  + arch  | decompose T-  | Paperclip |    |  Sonnet-class     |
+| session  | file + dispatch|  API     |    |  worktree-per-issue|
++----------+ via curl       |           |    +---------+---------+
+                            |           |              |
+                            |           |              v
+                            |           |    +---------+---------+
+                            |           |--->|   1 x reviewer    |
+                            |           |    |  Opus-class OAuth |
+                            |           |    |  (Routine */10min)|
+                            +-----------+    +-------------------+
+```
+
+**Architect = orchestrator session** (decomposes features, writes T-files, dispatches waves, has authority over always-human paths).
+**Paperclip = scheduler** (executes Sonnet/Opus on droplet with controlled cadence).
+**Pilot = final reviewer** (only reviews `feat/<slug> -> dev` PRs).
+
+---
+
+## 2. Operational coordinates
+
+Fill in for YOUR setup:
+
+| Resource | Value |
+|---|---|
+| Droplet | `<your-droplet-name>` |
+| Public IP | `<your-droplet-ip>` |
+| Tailscale hostname | `<your-tailscale-hostname>.tail<id>.ts.net` |
+| Dashboard (HTTPS) | `https://<your-tailscale-hostname>.tail<id>.ts.net` |
+| Internal API base | `http://127.0.0.1:3100` |
+| API base via Tailscale | `https://<your-tailscale-hostname>.tail<id>.ts.net` |
+| Droplet user | `paperclip` (no sudo) |
+| SSH key | `~/.ssh/<your-droplet-key>` |
+| Repo path on droplet | `/home/paperclip/repos/<your-repo>` |
+| Worktrees per-issue | `/home/paperclip/worktrees/<issue-id>` |
+| Config envs | `~/.config/<your-project>/.env` (mode 600) |
+| Paperclip token | `/home/paperclip/.paperclip/auth.json` (mode 600) |
+| Anthropic OAuth token | `/home/paperclip/.claude/auth.json` |
+| Postgres backup | nightly, in `~/backups/` |
+
+**Coexistence:** if your droplet hosts other services (a static site, other apps), **do not touch them**. Paperclip stays under `/home/paperclip/`.
+
+---
+
+## 3. Agent topology
+
+### dev-primary (N replicas, recommend 3)
+
+```json
+{
+  "name": "dev-primary-1",  // or -2, -3
+  "adapterType": "claude_local",
+  "adapterConfig": {
+    "command": "claude",
+    "extraArgs": ["--dangerously-skip-permissions"],
+    "env": {
+      "CLAUDE_CODE_OAUTH_TOKEN_FILE": "/home/paperclip/.claude/auth.json"
+    },
+    "cwd": "/home/paperclip/repos/<your-repo>",
+    "model": "claude-sonnet-4-6",
+    "budgetMonthlyCents": 0
+  },
+  "schedule": {"enabled": false}  // turned ON per wave, NOT continuous
+}
+```
+
+**Why schedule=false default?** A1 anti-pattern of the portable guide: identical replicas with identical config don't parallelize — first to heartbeat claims everything. Mitigation: schedule OFF + explicit `assigneeAgentId` when dispatching each wave. Pilot dispatches controlled cadence (wave of 3 parallel, wait for close, next wave).
+
+**During the wave:** `PATCH /api/agents/<id> {"schedule":{"enabled":true,"intervalSec":120}}` on the 3 dev-primary.
+**Post-wave:** `PATCH /api/agents/<id> {"schedule":{"enabled":false}}`.
+
+### reviewer (1 replica)
+
+```json
+{
+  "name": "reviewer",
+  "adapterType": "claude_local",
+  "adapterConfig": {
+    "command": "claude",
+    "extraArgs": ["--dangerously-skip-permissions"],
+    "env": {"CLAUDE_CODE_OAUTH_TOKEN_FILE": "/home/paperclip/.claude/auth.json"},
+    "cwd": "/home/paperclip/repos/<your-repo>",
+    "model": "claude-opus-4-7",
+    "budgetMonthlyCents": 0
+  },
+  "schedule": {"enabled": false}
+}
+```
+
+**Trigger:** Routine `review-pending-prs` (cron `*/10 * * * *`) creates an Issue assigned to the reviewer every time there's an open `task/* -> feat/*` PR without label `review-done`. Reviewer discovers PRs by scanning `gh pr list` at run start (instructed in `AGENTS-reviewer.md`).
+
+### Shared Anthropic quota
+
+OAuth token at `/home/paperclip/.claude/auth.json` may be **shared with other projects** running Paperclip on the same droplet. Windows:
+- Sonnet (4.6): rolling 5h
+- Opus (4.7): rolling 7d
+
+**Mitigation:** Pilot **does not operate two projects simultaneously**. Architect monitors `lastHeartbeatAt` before each wave and checks `claude /usage` if uncertain.
+
+---
+
+## 4. Branching strategy — 4 levels
+
+```
+main <--- dev <--- feat/<feature-slug> <--- task/<feature-slug>/<task-slug>
+```
+
+| Level | Created by | Off | Lifetime | PR target |
+|---|---|---|---|---|
+| `main` | Pilot | — | permanent | release tag |
+| `dev` | one time | `main` | permanent | only `main` (Pilot decides) |
+| `feat/<slug>` | architect (orchestrator) when decomposing Paperclip feature | `dev` | until feature done | `dev` |
+| `task/<feat-slug>/<task-slug>` | dev-primary when picking up Issue | `feat/<slug>` | until task done | `feat/<slug>` |
+
+**Pilot reviews only `feat -> dev` PRs.** PRs `task -> feat` auto-merge with strong gate.
+
+**Convention:** `<task-slug>` equals the T-file slug (without the `T<N>-` prefix). E.g. `T1-cosmos-card.md` -> branch `task/<your-feat-slug>/T1-cosmos-card`.
+
+---
+
+## 5. Auto-merge gate (`task -> feat`)
+
+Workflow `.github/workflows/auto-merge.yml` validates 4 checks before squash-merging:
+
+1. **Fast-lane CI green** — your fast-lane workflow ran and passed (lint + typecheck + unit subset paths-filtered, ~3-4min).
+2. **No always-human path touched** — script `scripts/check-always-human.sh` returns OK. **Customize the patterns in that script** for your project.
+3. **Reviewer agent approved** — script `scripts/check-reviewer-approval.sh` does `gh pr view --json reviews,comments` and looks for the reviewer agent comment with APPROVE.
+4. **Coverage >= 90% on diff** — fast-lane CI emits coverage artifact. Workflow reads it. **Skip coverage if diff is only `*.md` or new `*.test.*`** (no new code to test).
+
+**If all pass:** `gh pr merge --squash --delete-branch`.
+**If any fails:** comment on PR explaining + remove label `auto-merge`. Architect or Pilot decides next action.
+
+---
+
+## 6. Always-human paths — policy
+
+Agents **may edit** the always-human paths when a feature requires. Writing SQL/yml/etc. is part of normal feature work.
+
+**What they CANNOT do:**
+- Push schema migrations to the live DB.
+- Execute deploy scripts.
+- `git push origin main`.
+- Manually merge PRs (auto-merge.yml or Pilot merges).
+
+**When PR touches always-human path:** auto-merge gate fails -> label removed -> architect or Pilot decides if to merge.
+
+**Architect (orchestrator session) keeps authority** to run/approve always-human stuff (migrations, deploys). Same rule as today.
+
+---
+
+## 7. Issue body workflow
+
+T-file (`docs/tasks/<feat>/<task-slug>.md` committed) is **canonical source**. Paperclip Issue body is a short pointer (~15 lines):
+
+```markdown
+## Task: <short title>
+
+Implement `docs/tasks/<feat>/<task-slug>.md`. Read T-file before any action.
+
+## Branching
+Base: `feat/<feat-slug>`. Create from `origin/dev` if doesn't exist.
+Your branch: `task/<feat-slug>/<task-slug>`.
+PR target: `feat/<feat-slug>` with label `auto-merge`.
+
+## Worktree
+`git worktree add /home/paperclip/worktrees/<issue-id> task/<feat-slug>/<task-slug>`
+`cd /home/paperclip/worktrees/<issue-id>`
+
+## When done
+1. `git push origin task/<feat-slug>/<task-slug>`
+2. `gh pr create --base feat/<feat-slug> --title "..." --body "..." --label auto-merge`
+3. Comment URL on this Issue.
+
+## If stuck
+Comment on this Issue. Do NOT bypass.
+```
+
+Full Issue bodies live in `local/paperclip/tasks/<feat-slug>/issues.md` (gitignored) ready for API dispatch.
+
+---
+
+## 8. Routine `review-pending-prs`
+
+```bash
+# Create Routine
+curl -X POST -H "Authorization: Bearer $PAPERCLIP_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"title\": \"Review unreviewed task/* PRs\",
+    \"description\": \"cd /home/paperclip/repos/<your-repo>. Run 'gh pr list --state open --limit 30 --json ...' + jq filter to list pending PRs (--base with glob does NOT work). For each PR: read diff via 'gh pr diff', read T-file referenced in PR body, evaluate criteria in AGENTS.md. Comment APPROVE or REQUEST_CHANGES via 'gh pr comment'. Add label 'review-done' via 'gh pr edit --add-label review-done' after commenting. CRITICAL: if APPROVE, also re-apply 'auto-merge' label. If no pending PR, exit cleanly.\",
+    \"assigneeAgentId\": \"<reviewer-id>\",
+    \"priority\": \"medium\",
+    \"concurrencyPolicy\": \"skip_if_active\",
+    \"catchUpPolicy\": \"skip_missed\"
+  }" \
+  $PAPERCLIP_API_BASE/api/companies/<co-id>/routines
+
+# Cron trigger
+curl -X POST -H "Authorization: Bearer $PAPERCLIP_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kind": "schedule",
+    "cronExpression": "*/10 * * * *",
+    "timezone": "America/Sao_Paulo",
+    "enabled": true
+  }' \
+  $PAPERCLIP_API_BASE/api/routines/<routine-id>/triggers
+```
+
+**A2 of the portable guide:** Paperclip does NOT connect to GitHub webhooks. Routine only fires periodic wakeup — reviewer itself scans PRs via `gh pr list` (instructed in AGENTS-reviewer.md).
+
+---
+
+## 9. AGENTS.md per-agent
+
+`local/paperclip/AGENTS-dev-primary.md` and `local/paperclip/AGENTS-reviewer.md` stay gitignored. Upload via:
+
+```bash
+curl -X PUT -H "Authorization: Bearer $PAPERCLIP_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -Rs '{path:"AGENTS.md",content:.}' < local/paperclip/AGENTS-dev-primary.md)" \
+  $PAPERCLIP_API_BASE/api/agents/<dev-primary-N-id>/instructions-bundle/file
+```
+
+Iterate AGENTS.md after each poorly-done Issue: what was missing in AGENTS.md that caused the error? Add there instead of fixing manually N times.
+
+---
+
+## 10. CI calibration
+
+| PR type | Workflow | Target time | Jobs |
+|---|---|---|---|
+| `task/* -> feat/*` | `ci-fast-lane.yml` | ~3-4min | lint + typecheck + unit (1 shard, paths-filtered, skip if diff `*.md` only) |
+| `feat/* -> dev` | `ci.yml` (full) | ~8min | lint + typecheck + unit (sharded) + contract + build + integration + e2e |
+| Push to `main` | `ci.yml` + `deploy.yml` | ~8min CI + smoke | everything above + automatic deploy |
+
+**Approximate arithmetic (30 features/month):**
+- Pre-Paperclip: ~24min/feature x 30 = 720min/month baseline.
+- Post-Paperclip: 3x task->feat x 3 runs x ~3min + 1x feat->dev x 3 runs x 8min = ~51min/feature x 30 = ~1530min/month.
+
+GitHub Free 2000min/month -> ~470min slack. Configure billing for over-quota ($0.008/min Linux).
+
+**Additional mitigations:**
+1. `concurrency: cancel-in-progress: true` in ci-fast-lane (cancels previous run on new push).
+2. Aggressive path-filter (skip unit if diff only `*.md`).
+3. Skip-if-sha-already-green (auto-merge doesn't re-run if commit has recent green CI).
+
+---
+
+## 11. Costs
+
+- **Anthropic subscription** (dev-primary Sonnet, reviewer Opus): flat monthly fee, already paid. **Do not capture per-token** — `budgetMonthlyCents: 0` in Paperclip.
+- **Other LLM providers:** zero. Not used in default setup (reviewer is Opus subscription).
+- **VPS:** ~$10/mo if dedicated to Paperclip; zero additional if shared with other projects.
+- **GitHub Actions:** Free 2000min/month + over-quota billing. Estimated ~1530min/month post-Paperclip.
+- **Tailscale:** zero (free tier).
+
+---
+
+## 12. Anti-patterns relevant to your stack (from the portable guide)
+
+The most applicable from the canonical Paperclip guide:
+
+- **A1** — identical replicas don't parallelize. **Mitigation:** worktrees per-issue + explicit `assigneeAgentId` + schedule OFF default.
+- **A2** — reviewer with no explicit trigger. **Mitigation:** Routine `review-pending-prs` + AGENTS-reviewer.md teaches scanning `gh pr list`.
+- **A4** — Issue body without exit criterion. **Mitigation:** committed T-file has explicit criterion; Issue body just points at T-file.
+- **A5** — agent doesn't run lint/typecheck locally. **Mitigation:** AGENTS-dev-primary.md requires lint + typecheck + test before each commit; fast-lane CI is fallback.
+- **A6** — auto-merge without complete gate. **Mitigation:** gate B with 4 checks (CI + always-human + reviewer + coverage).
+- **A9** — agents don't open PRs alone. **Mitigation:** `GITHUB_TOKEN` PAT + AGENTS.md has EXPLICIT end-of-task checklist with `gh pr create`.
+- **A14** — agents invent columns that don't exist. **Mitigation:** AGENTS.md requires reading migrations directory before DB work.
+- **A22** — shared CWD becomes race. **Mitigation:** mandatory worktrees per-issue (in AGENTS-dev-primary.md).
+
+---
+
+## 13. Adoption sequence
+
+| Step | Status |
+|---|---|
+| 1. Repo prep (this playbook + .gitignore + skill installed) | done by setup |
+| 2. Decompose first feature into T-files | manual |
+| 3. CI hardening (fast-lane + auto-merge.yml) | done by setup |
+| 4. Droplet setup (config, repo clone, GitHub PAT) | manual |
+| 5. Create company + 4 agents in Paperclip | manual |
+| 6. AGENTS.md per-agent upload | manual |
+| 7. Routine `review-pending-prs` | manual |
+| 8. Wave 1 dispatch (`feat/<your-first-feat>`) | manual |
+| 9. Cleanup orphan worktrees Pilot | manual |
+
+Post-Wave 1: evaluate, register lessons in `licoes.md`, decide Wave 2.
+
+---
+
+## 14. Where to find more
+
+- **9 anonymized lessons from the upstream pilot:** `<this-skill>/references/licoes-do-piloto.md`. **Read before Wave 1.**
+- **Live lessons from your project:** `local/paperclip/licoes.md`.
+- **Issue bodies for Wave 1:** `local/paperclip/tasks/<feat-slug>/issues.md`.
+- **AGENTS.md per-agent (authority on Paperclip):** `local/paperclip/AGENTS-dev-primary.md` + `local/paperclip/AGENTS-reviewer.md`.
+- **Dispatch cheatsheet:** `local/paperclip/dispatch-cheatsheet.md`.

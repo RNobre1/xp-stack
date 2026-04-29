@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# scripts/check-reviewer-approval.sh
+#
+# Paperclip orchestrator gate B helper — used by .github/workflows/auto-merge.yml
+# to decide whether the reviewer agent has approved a `task/* -> feat/*` PR.
+#
+# Usage: ./scripts/check-reviewer-approval.sh <PR_NUMBER> <REPO>
+# Exit 0 = reviewer approved (safe to auto-merge)
+# Exit 1 = reviewer did not approve or requested changes (auto-merge blocked)
+#
+# Mechanics: the reviewer agent comments on the PR with a literal tag
+# `[REVIEWER-AGENT] APPROVE` or `[REVIEWER-AGENT] REQUEST_CHANGES`. This script
+# finds the MOST RECENT comment matching either tag and uses that verdict.
+#
+# Why textual tag instead of `gh pr review --approve`:
+#   - `gh pr review --approve` creates a formal GitHub Review, which requires
+#     the reviewer's PAT to have repository "write" permission. With a fine-grained
+#     PAT from a droplet, this can fail depending on org policies.
+#   - A textual comment is universal — works with any GITHUB_TOKEN that has
+#     `pull_requests:write` scope.
+#   - The reviewer agent is instructed (in local/paperclip/AGENTS-reviewer.md) to
+#     use the literal tag in comments.
+
+set -euo pipefail
+
+PR_NUMBER="${1:?PR number required}"
+REPO="${2:?REPO required (e.g. owner/repo)}"
+
+# Fetch PR comments
+gh api "/repos/${REPO}/issues/${PR_NUMBER}/comments" \
+  --jq '.[] | {id, created_at, body}' \
+  > /tmp/pr-comments.json
+
+# Find reviewer agent comments and pick the most recent
+LATEST_REVIEWER_COMMENT=$(jq -s '
+  [.[] | select(.body | contains("[REVIEWER-AGENT]"))] |
+  sort_by(.created_at) | last
+' /tmp/pr-comments.json)
+
+if [[ "$LATEST_REVIEWER_COMMENT" == "null" || -z "$LATEST_REVIEWER_COMMENT" ]]; then
+  echo "PR #$PR_NUMBER has no reviewer agent comment." >&2
+  exit 1
+fi
+
+# Known limit: the regex below matches the literal tag anywhere in the comment
+# body. If a future PR comment quotes the tag inside a code block / explanation
+# (e.g. "the agent emits `[REVIEWER-AGENT] APPROVE` when..."), it would false-
+# positive. Mitigations: the reviewer agent in this setup is the only entity
+# instructed to use this exact tag (per AGENTS-reviewer.md), and `tail -1` picks
+# the latest occurrence. For higher-stakes setups, consider matching only at
+# line-start (`^\[REVIEWER-AGENT\]`) and re-train the reviewer agent accordingly.
+VERDICT=$(echo "$LATEST_REVIEWER_COMMENT" | jq -r '.body' | grep -oE '\[REVIEWER-AGENT\] (APPROVE|REQUEST_CHANGES)' | tail -1 || echo "")
+
+if [[ "$VERDICT" == "[REVIEWER-AGENT] APPROVE" ]]; then
+  echo "Reviewer agent approved PR #$PR_NUMBER."
+  exit 0
+elif [[ "$VERDICT" == "[REVIEWER-AGENT] REQUEST_CHANGES" ]]; then
+  echo "Reviewer agent requested changes on PR #$PR_NUMBER." >&2
+  exit 1
+else
+  echo "Reviewer comment present but no clear APPROVE/REQUEST_CHANGES verdict." >&2
+  echo "Comment body:" >&2
+  echo "$LATEST_REVIEWER_COMMENT" | jq -r '.body' >&2
+  exit 1
+fi

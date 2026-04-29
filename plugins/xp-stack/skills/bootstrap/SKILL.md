@@ -1,6 +1,6 @@
 ---
 name: bootstrap
-description: Scaffold a new project with the XP stack — creates CLAUDE.md, docs/tasks/_template/, docs/pesquisas/_template/, and .claude/settings.json without overwriting existing files. Asks before touching an existing CLAUDE.md. Invoke explicitly with /xp-stack:bootstrap.
+description: Scaffold a new project with the XP stack — creates CLAUDE.md, docs/tasks/_template/, docs/pesquisas/_template/, .claude/settings.json without overwriting existing files. Also creates AGENTS.md symlink to CLAUDE.md (for Antigravity/Codex/Cursor compatibility) and adds 3 reserved paths to .gitignore (idempotent, preserves existing entries). Asks before touching an existing CLAUDE.md. Invoke explicitly with /xp-stack:bootstrap.
 disable-model-invocation: true
 allowed-tools:
   - Bash(bash *)
@@ -13,6 +13,7 @@ allowed-tools:
   - Bash(ls *)
   - Bash(pwd)
   - Bash(cat *)
+  - Bash(ln *)
   - AskUserQuestion
 ---
 
@@ -86,8 +87,12 @@ The script handles the 4 CLAUDE.md actions (`create`, `skip`, `backup`, `abort`)
 
 Summarize what was created / skipped. Tell them:
 1. Read the new `CLAUDE.md` — it's the canonical source of truth for the project.
-2. Fill in the stack-specific sections (tech stack details, env vars, directory structure, lessons learned).
-3. Start their first task with the `task-decomposition` skill.
+2. `AGENTS.md` is a symlink to `CLAUDE.md` (so Antigravity/Codex/Cursor read the same file). Don't edit `AGENTS.md` directly — edit `CLAUDE.md` and the symlink propagates.
+3. `.gitignore` got 3 reserved entries (`local/`, `.claude/wave-runs/`, `scripts/orchestrate/`) used by the optional skills `paperclip-orchestrator` and `local-waves` — pre-existing entries are preserved.
+4. Fill in the stack-specific sections (tech stack details, env vars, directory structure, lessons learned).
+5. Start their first task with the `task-decomposition` skill.
+
+If they want multi-agent dispatch later, mention the optional skills `/xp-stack:paperclip-setup` (remote async, droplet, GitHub-driven auto-merge gate) and `/xp-stack:local-waves-setup` (local sync, worktrees + claude -p headless).
 
 ## What the scaffold script does
 
@@ -95,6 +100,8 @@ Summarize what was created / skipped. Tell them:
 - Copies `templates/docs-tasks-template/` to `docs/tasks/_template/` (recursive, no-clobber)
 - Copies `templates/docs-pesquisas-template/` to `docs/pesquisas/_template/` (recursive, no-clobber)
 - Creates `.claude/settings.json` from the template (no-clobber)
+- Creates `AGENTS.md -> CLAUDE.md` symlink (and `AGENTS.local.md -> CLAUDE.local.md` if `CLAUDE.local.md` exists). Skipped when 6th arg passed as `"no-symlink"`.
+- Appends `local/`, `.claude/wave-runs/`, `scripts/orchestrate/` to `.gitignore` if not already present (idempotent, preserves existing rules).
 - Uses `cp -n` / `cp -rn` throughout — **never overwrites existing files**
 
 ## Idempotency guarantee

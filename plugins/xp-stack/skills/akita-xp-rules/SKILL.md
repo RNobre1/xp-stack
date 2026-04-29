@@ -54,3 +54,23 @@ Whenever we start or expand a module, the following sequential and non-negotiabl
 - **Single-Author Commits (No Co-Authored-By):** Never include `Co-Authored-By: Claude` (or any equivalent AI attribution trailer) in commit messages. Commits must appear as single-author by the user. The user prefers a clean git history without AI co-authorship attribution. This applies to every commit suggestion (`git commit`, `gh pr create --body`, amend) — omit the trailer even when the default tooling suggests it.
 - **Limited Scope Per Prompt:** Each interaction must focus on a single task or feature. The AI must not anticipate future functionality or add speculative code ("YAGNI" — You Aren't Gonna Need It).
 - **Ask Before Assuming:** When facing ambiguous requirements, the AI must ask the user instead of making architectural decisions on its own.
+
+---
+
+## Appendix: Mandatory Skill Integration
+
+Five workflow skills close known process gaps in the Akita/XP cycle. They are **not optional reminders** — each one was added because skipping it caused real cost (debugging hours, regressions, supply-chain incidents, design rework). Invoke them at the trigger moment listed below, not "if you remember".
+
+| Skill | Trigger | Gap it closes |
+|---|---|---|
+| `superpowers:brainstorming` | Phase 1 (Foundation) of any non-trivial feature (>1 day, multiple files, open requirements). Replaces ad-hoc draft of `00-overview.md`. | Jumping straight to T-files turns into design rework. Forces Pilot×AI alignment before code. |
+| `superpowers:systematic-debugging` | Before proposing a fix for **any** bug, test failure, or unexpected behavior — in prod, dev, or local. Do NOT guess hypotheses: generate ranked list, test top one. | Hypothesis-by-guess wastes hours. Ranked-and-tested cuts time substantially. Multiple real incidents cost days when this was skipped. |
+| `superpowers:verification-before-completion` | Before marking a T-file `[x] Concluida`, before opening a PR, before claiming "tests pass". Run lint + typecheck + relevant tests, capture output BEFORE any claim. | "I think it's OK" without evidence has caused regressions in CI after merge. Evidence before assertion. |
+| `superpowers:dispatching-parallel-agents` (+ `superpowers:using-git-worktrees`) | When a wave of tasks has 2+ independent T-files (no shared file edits, no order). Replaces the pattern of opening N terminals manually. | Manual N-terminal parallelism is fragile (no orchestration, no context isolation, no result aggregation). Worktrees give FS isolation. |
+| `xp-stack:optimizing-github-actions` | Before any PR that touches `.github/workflows/*.yml`. Auto-activated via `paths` field in the skill frontmatter. Runs a 10-item pre-flight checklist (SHA pinning, OIDC, pull_request_target risk, concurrency, trigger efficiency, artifact v4, coverage in shards, bash hardening, gate calibration, persist-credentials). | Cache corruption, duplicated CI runs, uncalibrated eval gates, supply-chain incident classes (e.g. compromised popular actions). Universal across stacks. |
+
+**Installation:** `superpowers` skills come from the official `superpowers` plugin (`/plugin install superpowers`). `optimizing-github-actions` is part of this `xp-stack` plugin. Confirm via `/plugin list` after install.
+
+**Override priority:** if the project's `CLAUDE.md` (or user instructions) contradicts these defaults — for example, "this project does not use TDD" or "do not use formal research process for prototypes" — the project/user instructions win. These skills are defaults, not absolutes.
+
+**Anti-pattern — invoking the skill name in narration is not invoking the skill.** Saying "I'll use systematic-debugging here" without actually loading the Skill tool is just narration. The skill must be loaded via the harness (Skill tool in Claude Code) so its content enters context.
