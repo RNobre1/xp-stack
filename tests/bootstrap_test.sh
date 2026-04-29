@@ -413,6 +413,178 @@ test_bootstrap_description_fits_1536() {
 }
 
 # ---------------------------------------------------------------------------
+# Cenario 12 — scaffold cria AGENTS.md como symlink pra CLAUDE.md
+# ---------------------------------------------------------------------------
+test_scaffold_creates_agents_md_symlink() {
+  local target
+  target=$(mktemp -d)
+
+  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "create" >/dev/null 2>&1
+
+  if [ ! -L "$target/AGENTS.md" ]; then
+    fail_case "scaffold_creates_agents_md_symlink" "$target/AGENTS.md nao eh symlink"
+    rm -rf "$target"
+    return
+  fi
+  local link_target
+  link_target=$(readlink "$target/AGENTS.md")
+  if [ "$link_target" != "CLAUDE.md" ]; then
+    fail_case "scaffold_creates_agents_md_symlink" "AGENTS.md aponta pra '$link_target' (esperado 'CLAUDE.md')"
+    rm -rf "$target"
+    return
+  fi
+  # Symlink resolve pro arquivo real
+  if [ ! -f "$target/AGENTS.md" ]; then
+    fail_case "scaffold_creates_agents_md_symlink" "symlink AGENTS.md nao resolve (target nao existe?)"
+    rm -rf "$target"
+    return
+  fi
+
+  rm -rf "$target"
+  pass_case "scaffold_creates_agents_md_symlink"
+}
+
+# ---------------------------------------------------------------------------
+# Cenario 13 — scaffold cria AGENTS.local.md symlink so se CLAUDE.local.md existe
+# ---------------------------------------------------------------------------
+test_scaffold_local_symlink_conditional() {
+  # Caso 13a: SEM CLAUDE.local.md -> AGENTS.local.md NAO criado
+  local target
+  target=$(mktemp -d)
+
+  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "create" >/dev/null 2>&1
+
+  if [ -e "$target/AGENTS.local.md" ]; then
+    fail_case "scaffold_local_symlink_conditional" "AGENTS.local.md criado mesmo sem CLAUDE.local.md"
+    rm -rf "$target"
+    return
+  fi
+
+  rm -rf "$target"
+
+  # Caso 13b: COM CLAUDE.local.md -> AGENTS.local.md eh symlink pra ele
+  target=$(mktemp -d)
+  echo "secrets" > "$target/CLAUDE.local.md"
+
+  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "create" >/dev/null 2>&1
+
+  if [ ! -L "$target/AGENTS.local.md" ]; then
+    fail_case "scaffold_local_symlink_conditional" "AGENTS.local.md nao eh symlink (CLAUDE.local.md existia)"
+    rm -rf "$target"
+    return
+  fi
+  local link_target
+  link_target=$(readlink "$target/AGENTS.local.md")
+  if [ "$link_target" != "CLAUDE.local.md" ]; then
+    fail_case "scaffold_local_symlink_conditional" "AGENTS.local.md aponta pra '$link_target'"
+    rm -rf "$target"
+    return
+  fi
+
+  rm -rf "$target"
+  pass_case "scaffold_local_symlink_conditional"
+}
+
+# ---------------------------------------------------------------------------
+# Cenario 14 — scaffold adiciona 3 entries no .gitignore
+# ---------------------------------------------------------------------------
+test_scaffold_gitignore_adds_entries() {
+  local target
+  target=$(mktemp -d)
+
+  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "create" >/dev/null 2>&1
+
+  if [ ! -f "$target/.gitignore" ]; then
+    fail_case "scaffold_gitignore_adds_entries" ".gitignore nao criado"
+    rm -rf "$target"
+    return
+  fi
+  local missing=()
+  for entry in "local/" ".claude/wave-runs/" "scripts/orchestrate/"; do
+    if ! grep -qxF "$entry" "$target/.gitignore"; then
+      missing+=("$entry")
+    fi
+  done
+  if [ ${#missing[@]} -gt 0 ]; then
+    fail_case "scaffold_gitignore_adds_entries" "entries ausentes no .gitignore: ${missing[*]}"
+    rm -rf "$target"
+    return
+  fi
+
+  rm -rf "$target"
+  pass_case "scaffold_gitignore_adds_entries"
+}
+
+# ---------------------------------------------------------------------------
+# Cenario 15 — scaffold preserva .gitignore existente + idempotencia
+# ---------------------------------------------------------------------------
+test_scaffold_gitignore_preserves_and_idempotent() {
+  local target
+  target=$(mktemp -d)
+
+  # .gitignore preexistente com regras do usuario
+  printf 'node_modules/\ndist/\n.env\n' > "$target/.gitignore"
+
+  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "create" >/dev/null 2>&1
+
+  # Entries originais preservadas
+  for entry in "node_modules/" "dist/" ".env"; do
+    if ! grep -qxF "$entry" "$target/.gitignore"; then
+      fail_case "scaffold_gitignore_preserves_and_idempotent" "entry preexistente '$entry' perdido"
+      rm -rf "$target"
+      return
+    fi
+  done
+  # Novas entries adicionadas
+  for entry in "local/" ".claude/wave-runs/" "scripts/orchestrate/"; do
+    if ! grep -qxF "$entry" "$target/.gitignore"; then
+      fail_case "scaffold_gitignore_preserves_and_idempotent" "nova entry '$entry' nao adicionada"
+      rm -rf "$target"
+      return
+    fi
+  done
+  # Sem duplicatas (rodar 2a vez)
+  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "create" >/dev/null 2>&1
+  for entry in "local/" ".claude/wave-runs/" "scripts/orchestrate/"; do
+    local count
+    count=$(grep -cxF "$entry" "$target/.gitignore")
+    if [ "$count" != "1" ]; then
+      fail_case "scaffold_gitignore_preserves_and_idempotent" "entry '$entry' duplicada apos 2a execucao (count=$count)"
+      rm -rf "$target"
+      return
+    fi
+  done
+
+  rm -rf "$target"
+  pass_case "scaffold_gitignore_preserves_and_idempotent"
+}
+
+# ---------------------------------------------------------------------------
+# Cenario 16 — scaffold com 6o arg "no-symlink" pula AGENTS.md
+# ---------------------------------------------------------------------------
+test_scaffold_no_agents_symlink_flag() {
+  local target
+  target=$(mktemp -d)
+
+  bash "$SCAFFOLD_SH" "$target" "foo" "bar" "baz" "create" "no-symlink" >/dev/null 2>&1
+
+  if [ -e "$target/AGENTS.md" ]; then
+    fail_case "scaffold_no_agents_symlink_flag" "AGENTS.md criado mesmo com flag no-symlink"
+    rm -rf "$target"
+    return
+  fi
+  # CLAUDE.md ainda foi criado (flag so afeta symlinks)
+  if [ ! -f "$target/CLAUDE.md" ]; then
+    fail_case "scaffold_no_agents_symlink_flag" "CLAUDE.md nao criado (flag deveria afetar so symlink)"
+    rm -rf "$target"
+    return
+  fi
+
+  rm -rf "$target"
+  pass_case "scaffold_no_agents_symlink_flag"
+}
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 printf 'Running xp-stack bootstrap skill tests\n'
@@ -436,6 +608,11 @@ run_test "8.  scaffold_backup_renames_and_creates" test_scaffold_backup_renames_
 run_test "9.  scaffold_abort_does_nothing" test_scaffold_abort_does_nothing
 run_test "10. scaffold_missing_args_fails_cleanly" test_scaffold_missing_args_fails_cleanly
 run_test "11. bootstrap_description_fits_1536" test_bootstrap_description_fits_1536
+run_test "12. scaffold_creates_agents_md_symlink" test_scaffold_creates_agents_md_symlink
+run_test "13. scaffold_local_symlink_conditional" test_scaffold_local_symlink_conditional
+run_test "14. scaffold_gitignore_adds_entries" test_scaffold_gitignore_adds_entries
+run_test "15. scaffold_gitignore_preserves_and_idempotent" test_scaffold_gitignore_preserves_and_idempotent
+run_test "16. scaffold_no_agents_symlink_flag" test_scaffold_no_agents_symlink_flag
 
 printf '\n=======================================\n'
 printf 'Results: %d passed, %d failed\n' "$PASS" "$FAIL"
