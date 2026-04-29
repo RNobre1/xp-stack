@@ -12,7 +12,7 @@
 | T3 | [x] Concluida 2026-04-29 | `b9e1ebd` | GREEN Camada B — paperclip 6/6 + 8 templates anonimizados + 9 licoes |
 | T4 | [x] Concluida 2026-04-29 | `a8f36af` | GREEN Camada C — local-waves 5/5 |
 | T5 | [x] Concluida 2026-04-29 | `c25c172` | Empirical 3 cenarios PASS shell-direct, 53/53 verde |
-| T6 | [ ] Em execucao | — | Release v0.3.0 + PR pendente |
+| T6 | [x] Concluida 2026-04-29 | `43992e1` | Release v0.3.0 — PR https://github.com/RNobre1/claude-craft/pull/1 aberto pro Pilot revisar |
 
 ## Decisoes registradas
 
