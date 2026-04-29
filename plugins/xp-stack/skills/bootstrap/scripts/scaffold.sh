@@ -5,9 +5,12 @@
 # Idempotent via no-clobber copies (loop + test -e, portable across GNU/BSD).
 #
 # Usage:
-#   scaffold.sh <target_dir> <project_name> <project_stack> <project_description> <claude_md_action>
+#   scaffold.sh <target_dir> <project_name> <project_stack> <project_description> <claude_md_action> [agents_symlink]
 #
 # claude_md_action: create | skip | backup | abort
+# agents_symlink (optional, 6th arg): "no-symlink" to skip AGENTS.md/AGENTS.local.md
+#                                     symlink creation. Default (any other value
+#                                     or omitted): create symlinks.
 #
 # Exit codes:
 #   0 — success (including graceful abort)
@@ -20,8 +23,9 @@ set -euo pipefail
 # ---- Arg parsing ----
 
 if [ $# -lt 5 ]; then
-    echo "Usage: $0 <target_dir> <project_name> <project_stack> <project_description> <claude_md_action>" >&2
+    echo "Usage: $0 <target_dir> <project_name> <project_stack> <project_description> <claude_md_action> [agents_symlink]" >&2
     echo "  claude_md_action: create | skip | backup | abort" >&2
+    echo "  agents_symlink:   no-symlink (optional; default = create symlinks)" >&2
     exit 1
 fi
 
@@ -30,6 +34,7 @@ PROJECT_NAME="$2"
 PROJECT_STACK="$3"
 PROJECT_DESCRIPTION="$4"
 CLAUDE_MD_ACTION="$5"
+AGENTS_SYMLINK_OPT="${6:-create}"
 
 # ---- Derive SCRIPT_DIR and TEMPLATES_DIR ----
 
@@ -137,6 +142,56 @@ if [ -f "$SETTINGS_SRC" ]; then
         echo "Created: $SETTINGS_DST"
     fi
 fi
+
+# ---- Create AGENTS.md / AGENTS.local.md symlinks ----
+#
+# Antigravity / Codex / Cursor read AGENTS.md by convention; Claude Code reads
+# CLAUDE.md. Making them the same file via symlink prevents drift.
+# Skipped when 6th arg is "no-symlink".
+
+if [ "$AGENTS_SYMLINK_OPT" != "no-symlink" ]; then
+    # AGENTS.md -> CLAUDE.md (when CLAUDE.md exists and AGENTS.md not yet)
+    if [ -f "$TARGET_DIR/CLAUDE.md" ] && [ ! -e "$TARGET_DIR/AGENTS.md" ]; then
+        ( cd "$TARGET_DIR" && ln -s CLAUDE.md AGENTS.md )
+        echo "Created symlink: $TARGET_DIR/AGENTS.md -> CLAUDE.md"
+    fi
+    # AGENTS.local.md -> CLAUDE.local.md (only if CLAUDE.local.md exists)
+    if [ -f "$TARGET_DIR/CLAUDE.local.md" ] && [ ! -e "$TARGET_DIR/AGENTS.local.md" ]; then
+        ( cd "$TARGET_DIR" && ln -s CLAUDE.local.md AGENTS.local.md )
+        echo "Created symlink: $TARGET_DIR/AGENTS.local.md -> CLAUDE.local.md"
+    fi
+fi
+
+# ---- Update .gitignore with orchestration entries (idempotent) ----
+#
+# These 3 paths are reserved by xp-stack:paperclip-setup and
+# xp-stack:local-waves-setup. Adding them up-front avoids accidental commits
+# of secrets (local/) or run artifacts (.claude/wave-runs/) when the user
+# opts into either skill later. Pre-existing entries are preserved.
+
+GITIGNORE="$TARGET_DIR/.gitignore"
+GITIGNORE_HEADER="# xp-stack reserved paths (paperclip-orchestrator + local-waves)"
+GITIGNORE_ENTRIES=("local/" ".claude/wave-runs/" "scripts/orchestrate/")
+
+if [ ! -e "$GITIGNORE" ]; then
+    : > "$GITIGNORE"
+fi
+
+GITIGNORE_HEADER_NEEDED=0
+for entry in "${GITIGNORE_ENTRIES[@]}"; do
+    if ! grep -qxF "$entry" "$GITIGNORE"; then
+        if [ "$GITIGNORE_HEADER_NEEDED" = "0" ]; then
+            # Ensure file ends with newline before appending
+            if [ -s "$GITIGNORE" ] && [ "$(tail -c1 "$GITIGNORE" | od -An -c | tr -d ' ')" != "\\n" ]; then
+                printf '\n' >> "$GITIGNORE"
+            fi
+            printf '%s\n' "$GITIGNORE_HEADER" >> "$GITIGNORE"
+            GITIGNORE_HEADER_NEEDED=1
+        fi
+        printf '%s\n' "$entry" >> "$GITIGNORE"
+        echo "Updated: $GITIGNORE (added $entry)"
+    fi
+done
 
 echo ""
 echo "Bootstrap complete. Target: $TARGET_DIR"

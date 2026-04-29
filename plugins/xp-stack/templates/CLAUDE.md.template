@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Stack:** {{PROJECT_STACK}}
 - **Description:** {{PROJECT_DESCRIPTION}}
 
+> **Note on AGENTS.md:** `AGENTS.md` (and `AGENTS.local.md` if present) are symlinks to this file (`CLAUDE.md` and `CLAUDE.local.md` respectively). Antigravity, Codex, and Cursor read `AGENTS.md` by convention; Claude Code reads `CLAUDE.md`. Because they are the same file on disk, **drift between the two is impossible** — every edit to `CLAUDE.md` propagates instantly. **Do not edit `AGENTS.md` directly** and do not break the symlink.
+
 ## Methodology: Pair Programming (Akita/XP)
 
 This project follows strict **Pair Programming**: the user is the **Architect/Pilot** (defines direction and decisions), the AI is the **Executor Agent** (implements incrementally and safely).
@@ -49,6 +51,36 @@ Non-trivial features are decomposed into `docs/tasks/{feature-slug}/`. See `xp-s
 ### Research cycle
 
 Non-trivial decisions (heavy library choice, architectural trade-off, product hypothesis, complex incident) must be backed by formal research in `docs/pesquisas/{slug}.md`. See `xp-stack:research-cycle` skill.
+
+### Mandatory skill integration
+
+Five workflow skills are mandatory at specific moments. See the `xp-stack:akita-xp-rules` appendix for the full table with rationale. Highlights:
+
+- **Phase 1 design** (any non-trivial feature) -> `superpowers:brainstorming`
+- **Any bug, test failure, or unexpected behavior** -> `superpowers:systematic-debugging`
+- **Before claiming "done"** (T-file `[x]`, PR open, "tests pass") -> `superpowers:verification-before-completion`
+- **2+ independent tasks in a wave** -> `superpowers:dispatching-parallel-agents` (+ `using-git-worktrees`)
+- **`.github/workflows/*.yml` edits** -> `xp-stack:optimizing-github-actions` (auto-activated via `paths` field)
+
+Install via `/plugin install superpowers` and confirm in `/plugin list`. If the project explicitly opts out of one (e.g. "no TDD for prototypes"), document the exception here and the user-level rule wins.
+
+### Optional multi-agent dispatch
+
+This project's `.gitignore` already reserves `local/`, `.claude/wave-runs/`, and `scripts/orchestrate/`. If you want multi-agent orchestration later:
+
+- `/xp-stack:paperclip-setup` — remote async, droplet, GitHub-driven auto-merge gate (good for multi-developer teams or when one stays online and others sync).
+- `/xp-stack:local-waves-setup` — local sync, git worktrees + `claude -p` headless workers (good when you're solo and want isolated execution without infra).
+
+Both are opt-in; the bootstrap does not install them.
+
+### Archival policy
+
+Never delete completed task folders. Two options, in preference order:
+
+1. **In-place (default):** leave the folder where it is, mark `**Status:** COMPLETED on YYYY-MM-DD` in `00-overview.md`.
+2. **`git mv` to `docs/tasks/_archive/{feature}/`:** only when `docs/tasks/` gets cluttered (5+ completed features).
+
+**Reason:** completed tasks contain non-reconstructable context (decisions, incidents, trade-offs, follow-ups not yet promoted to features) that `git log` does not surface quickly.
 
 ---
 
