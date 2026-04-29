@@ -1,0 +1,38 @@
+# Lessons learned — your project's Paperclip operations (gitignored)
+
+> Append a lesson at the end of each wave. Even "everything went fine, no
+> adjustment needed" is worth recording — it builds the empirical base.
+>
+> **Format below is suggested, not enforced.** Adapt to taste.
+>
+> Read `<path-to-this-skill>/references/licoes-do-piloto.md` first — 9
+> anonymized lessons from a real Wave 1 pilot at the upstream project. Many
+> of them you'll meet again on day one.
+
+---
+
+## Lesson template
+
+```markdown
+### Lesson N — Short title (YYYY-MM-DD, Wave/feature)
+
+**Context:** what was happening (snapshot of wave/feature in 1-2 lines)
+
+**Root cause:** why it happened (5 whys to something actionable)
+
+**Mitigation:** what changed
+- AGENTS.md: <before> -> <after>
+- Issue template: <before> -> <after>
+- auto-merge gate: <before> -> <after>
+- Other: ...
+
+**Trail:** PR #<N>, Paperclip Issue ID `<id>`, run log ID `<id>`, commit `<hash>`
+
+**Tag:** [issue-template | agents-md | gate | quota | tooling | infra | branching]
+```
+
+---
+
+## Recorded lessons
+
+<!-- First lesson goes below. Delete this comment after writing it. -->

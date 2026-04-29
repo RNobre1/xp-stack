@@ -1,0 +1,257 @@
+name: Auto-merge (Paperclip)
+
+# Paperclip orchestrator workflow — auto-merge gate B for PRs `task/* -> feat/*`
+# with label `auto-merge`. Operates internally for the Pilot. Does NOT touch
+# `feat/* -> dev` or `dev -> main` PRs (human review for those).
+#
+# Gate B (4 checks):
+#   1. Fast-lane CI green
+#   2. Diff does NOT touch always-human paths
+#   3. Reviewer agent commented approval (literal `[REVIEWER-AGENT] APPROVE` tag)
+#   4. Coverage >= 90% on changed files (skipped if diff is docs/tests only)
+#
+# Customize:
+#   - Workflow name in step "Gate 1" if your fast-lane workflow has a different name
+#   - Always-human patterns in scripts/check-always-human.sh
+#   - Coverage threshold (90 here) if your project uses a different bar
+#   - Coverage artifact name (`coverage-fast-lane`) if your CI uploads under a different name
+
+on:
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+  pull_request_review:
+    types: [submitted, edited]
+
+permissions:
+  contents: write       # squash-merge + delete branch
+  pull-requests: write  # comment, remove label
+  checks: read          # read check status via gh pr checks (statusCheckRollup)
+  statuses: read        # read statuses (gh pr checks uses)
+  actions: read         # read runs/artifacts via gh run list/download
+
+concurrency:
+  group: auto-merge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate-gate:
+    name: Evaluate auto-merge gate B
+    runs-on: ubuntu-latest
+    if: github.event.pull_request != null && contains(github.event.pull_request.labels.*.name, 'auto-merge')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve PR + validate eligibility
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr view "$PR_NUMBER" --repo "$REPO" \
+            --json number,headRefName,baseRefName,labels,state \
+            > /tmp/pr-meta.json
+          HEAD_REF=$(jq -r '.headRefName' /tmp/pr-meta.json)
+          BASE_REF=$(jq -r '.baseRefName' /tmp/pr-meta.json)
+          STATE=$(jq -r '.state' /tmp/pr-meta.json)
+
+          if [[ "$STATE" != "OPEN" ]]; then
+            echo "PR state=$STATE — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$HEAD_REF" in
+            task/*) ;;
+            *)
+              echo "head_ref=$HEAD_REF is not task/* — skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          case "$BASE_REF" in
+            feat/*) ;;
+            *)
+              echo "base_ref=$BASE_REF is not feat/* — skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          {
+            echo "skip=false"
+            echo "head_ref=$HEAD_REF"
+            echo "base_ref=$BASE_REF"
+          } >> "$GITHUB_OUTPUT"
+          echo "PR #$PR_NUMBER eligible for gate B evaluation."
+
+      - name: Gate 1 — fast-lane CI green
+        id: gate-ci
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # gh pr checks --json: uses `bucket` (pass/fail/pending/cancel/skip).
+          # The `conclusion` field was removed in gh CLI v2.x.
+          gh pr checks "$PR_NUMBER" --repo "$REPO" --json name,bucket,workflow > /tmp/checks.json
+          # Filter to just the fast-lane workflow checks.
+          # >>> Adjust the workflow name string below if yours is different. <<<
+          FASTLANE_CHECKS=$(jq -c '[.[] | select(.workflow == "CI Fast-lane")]' /tmp/checks.json)
+          TOTAL=$(echo "$FASTLANE_CHECKS" | jq 'length')
+          FAILED=$(echo "$FASTLANE_CHECKS" | jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length')
+          PENDING=$(echo "$FASTLANE_CHECKS" | jq '[.[] | select(.bucket == "pending")] | length')
+          if [[ "$TOTAL" -eq 0 ]]; then
+            # PR doc-only — fast-lane skipped via paths-ignore; gate passes.
+            echo "No fast-lane CI checks (PR likely doc-only) — gate ok."
+            echo "ci_status=success" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$PENDING" -gt 0 ]]; then
+            echo "Fast-lane CI in_progress ($PENDING pending). Waiting for next trigger."
+            echo "ci_status=pending" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$FAILED" -gt 0 ]]; then
+            echo "Fast-lane CI failed ($FAILED failed)."
+            echo "ci_status=failed" >> "$GITHUB_OUTPUT"
+          else
+            echo "Fast-lane CI green ($TOTAL checks pass)."
+            echo "ci_status=success" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gate 2 — no always-human path
+        id: gate-paths
+        if: steps.pr.outputs.skip != 'true' && steps.gate-ci.outputs.ci_status == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/check-always-human.sh
+          if scripts/check-always-human.sh "$PR_NUMBER" "$REPO"; then
+            echo "paths_status=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "paths_status=blocked" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gate 3 — reviewer agent approved
+        id: gate-reviewer
+        if: steps.pr.outputs.skip != 'true' && steps.gate-ci.outputs.ci_status == 'success' && steps.gate-paths.outputs.paths_status == 'ok'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/check-reviewer-approval.sh
+          if scripts/check-reviewer-approval.sh "$PR_NUMBER" "$REPO"; then
+            echo "reviewer_status=approved" >> "$GITHUB_OUTPUT"
+          else
+            echo "reviewer_status=pending" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gate 4 — coverage on diff
+        id: gate-coverage
+        if: steps.pr.outputs.skip != 'true' && steps.gate-ci.outputs.ci_status == 'success' && steps.gate-paths.outputs.paths_status == 'ok' && steps.gate-reviewer.outputs.reviewer_status == 'approved'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF_OUTPUT: ${{ steps.pr.outputs.head_ref }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only > /tmp/pr-files.txt
+          # >>> Adjust the source path regex to match YOUR project's source layout. <<<
+          # Common defaults: src/, lib/, app/, packages/*. Filter out test files.
+          PROD_FILES=$(grep -E '^(src|lib|app)/.*\.(ts|tsx|js|jsx|py|go)$' /tmp/pr-files.txt | grep -vE '(__tests__|\.test\.|\.spec\.|/test/)' || true)
+          if [[ -z "$PROD_FILES" ]]; then
+            echo "coverage_status=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # >>> Adjust workflow filename below to match YOUR fast-lane workflow file. <<<
+          RUN_ID=$(gh run list --repo "$REPO" --workflow=ci-fast-lane.yml --branch "$HEAD_REF_OUTPUT" --limit 1 --json databaseId --jq '.[0].databaseId' || echo "")
+          if [[ -z "$RUN_ID" ]]; then
+            echo "coverage_status=unavailable" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p /tmp/coverage
+          # >>> Adjust artifact name below to match YOUR coverage upload artifact name. <<<
+          if ! gh run download "$RUN_ID" --repo "$REPO" --name coverage-fast-lane --dir /tmp/coverage 2>&1; then
+            echo "coverage_status=unavailable" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ ! -f /tmp/coverage/coverage-summary.json ]]; then
+            echo "coverage_status=unavailable" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          FAIL=0
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            ABS_PATH="$(realpath "$f" 2>/dev/null || echo "${GITHUB_WORKSPACE}/$f")"
+            PCT=$(jq -r --arg f "$ABS_PATH" '.[$f].lines.pct // empty' /tmp/coverage/coverage-summary.json)
+            if [[ -z "$PCT" || "$PCT" == "null" ]]; then
+              continue
+            fi
+            # >>> Adjust 90 if your project uses a different threshold. <<<
+            if awk "BEGIN {exit !($PCT < 90)}"; then
+              FAIL=1
+            fi
+          done <<< "$PROD_FILES"
+          if [[ "$FAIL" -eq 1 ]]; then
+            echo "coverage_status=below_threshold" >> "$GITHUB_OUTPUT"
+          else
+            echo "coverage_status=ok" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Auto-merge OR comment + remove label
+        if: steps.pr.outputs.skip != 'true' && steps.gate-ci.outputs.ci_status != 'pending'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          CI_STATUS: ${{ steps.gate-ci.outputs.ci_status }}
+          PATHS_STATUS: ${{ steps.gate-paths.outputs.paths_status }}
+          REVIEWER_STATUS: ${{ steps.gate-reviewer.outputs.reviewer_status }}
+          COVERAGE_STATUS: ${{ steps.gate-coverage.outputs.coverage_status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BLOCKERS=()
+          if [[ "$CI_STATUS" != "success" ]]; then
+            BLOCKERS+=("Fast-lane CI: $CI_STATUS")
+          fi
+          if [[ -n "${PATHS_STATUS:-}" && "$PATHS_STATUS" != "ok" ]]; then
+            BLOCKERS+=("Always-human path touched")
+          fi
+          if [[ -n "${REVIEWER_STATUS:-}" && "$REVIEWER_STATUS" != "approved" ]]; then
+            BLOCKERS+=("Reviewer agent did not approve")
+          fi
+          # `unavailable` = coverage artifact not yet uploaded by your fast-lane workflow.
+          # Treated as informational (non-blocker) until coverage upload is configured.
+          # Gate 1 already ensures unit tests pass.
+          if [[ -n "${COVERAGE_STATUS:-}" && "$COVERAGE_STATUS" != "ok" && "$COVERAGE_STATUS" != "skipped" && "$COVERAGE_STATUS" != "unavailable" ]]; then
+            BLOCKERS+=("Coverage: $COVERAGE_STATUS")
+          fi
+
+          if [[ ${#BLOCKERS[@]} -eq 0 ]]; then
+            echo "All gates passed. Merging PR #$PR_NUMBER."
+            gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch --auto || \
+              gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch
+          else
+            BLOCKER_MSG=$(printf -- '- %s\n' "${BLOCKERS[@]}")
+            COMMENT=$(printf "Auto-merge gate B failed. Blockers:\n\n%s\n\nLabel auto-merge removed. Pilot/architect decides next step." "$BLOCKER_MSG")
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$COMMENT"
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "auto-merge" || true
+          fi

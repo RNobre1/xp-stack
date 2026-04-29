@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# scripts/check-always-human.sh
+#
+# Paperclip orchestrator gate B helper — used by .github/workflows/auto-merge.yml
+# to decide if a `task/* -> feat/*` PR touches paths that only the Pilot
+# (human) should merge.
+#
+# Usage: ./scripts/check-always-human.sh <PR_NUMBER> <REPO>
+# Exit 0 = PR does NOT touch always-human (safe to auto-merge)
+# Exit 1 = PR touches always-human (auto-merge blocked)
+#
+# IMPORTANT: agents may EDIT these files when a feature requires it (writing SQL,
+# CI changes, env additions, etc.). The auto-merge gate blocks AUTO-MERGE of those
+# PRs — they go to the Pilot for direct review and merge.
+#
+# >>> CUSTOMIZE THIS LIST FOR YOUR PROJECT <<<
+# The defaults below are common; add your own (database migrations, infrastructure
+# code, deploy scripts, CI workflows, ADRs, env files, etc.) and remove what
+# doesn't apply.
+
+set -euo pipefail
+
+PR_NUMBER="${1:?PR number required}"
+REPO="${2:?REPO required (e.g. owner/repo)}"
+
+gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only > /tmp/pr-files-check.txt
+
+# Patterns considered always-human. Edit per project conventions.
+ALWAYS_HUMAN_PATTERNS=(
+  '^\.github/workflows/'        # CI/CD changes
+  '^CLAUDE\.md$'                # project source-of-truth
+  '^CLAUDE\.local\.md$'         # private/secrets file
+  '^AGENTS\.md$'                # symlink to CLAUDE.md (same file)
+  '^docs/adrs/'                 # architectural decisions
+  '^\.env'                       # env / secrets files
+  '^deploy/'                     # deploy scripts
+  # Add your own:
+  # '^db/migrations/'            # database schema migrations
+  # '^terraform/'                # infrastructure as code
+  # '^infra/'                     # infrastructure
+  # '^supabase/migrations/'      # if you use Supabase
+  # '^prisma/migrations/'        # if you use Prisma
+)
+
+BLOCKED=0
+BLOCKED_FILES=()
+
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  for pat in "${ALWAYS_HUMAN_PATTERNS[@]}"; do
+    if [[ "$f" =~ $pat ]]; then
+      BLOCKED=1
+      BLOCKED_FILES+=("$f (matched: $pat)")
+      break
+    fi
+  done
+done < /tmp/pr-files-check.txt
+
+if [[ "$BLOCKED" -eq 1 ]]; then
+  echo "PR #$PR_NUMBER touches always-human paths:" >&2
+  printf '  - %s\n' "${BLOCKED_FILES[@]}" >&2
+  exit 1
+fi
+
+echo "PR #$PR_NUMBER does NOT touch always-human paths — safe to auto-merge."
+exit 0

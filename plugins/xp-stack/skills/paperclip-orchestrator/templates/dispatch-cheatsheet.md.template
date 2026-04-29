@@ -1,0 +1,263 @@
+# Paperclip — Dispatch Cheatsheet (gitignored)
+
+> Copy-paste commands to launch waves of your project. Keep this file open
+> when running operations. Adjust placeholders to YOUR setup.
+>
+> Replace `<your-...>` placeholders before first use.
+
+---
+
+## Local setup (one time)
+
+```bash
+# ~/.config/<your-project>/paperclip.env (mode 600 on your machine)
+PAPERCLIP_API_BASE=https://<your-tailscale-host>.tail<xxxx>.ts.net
+PAPERCLIP_TOKEN=pcp_board_xxx   # cat /home/paperclip/.paperclip/auth.json on droplet
+
+# Cached IDs (fill in after creating company + agents)
+PROJECT_CO_ID=<co-id>
+DEV_PRIMARY_1_ID=<id>
+DEV_PRIMARY_2_ID=<id>
+DEV_PRIMARY_3_ID=<id>
+REVIEWER_ID=<id>
+ROUTINE_REVIEW_PENDING_PRS_ID=<id>
+```
+
+```bash
+# Source before each session
+source ~/.config/<your-project>/paperclip.env
+HEADERS=(-H "Authorization: Bearer $PAPERCLIP_TOKEN")
+```
+
+---
+
+## Health snapshot (run before any wave)
+
+```bash
+# Agents — expect status: idle, lastHeartbeatAt < 30min if schedule on
+curl -s "${HEADERS[@]}" \
+  $PAPERCLIP_API_BASE/api/companies/$PROJECT_CO_ID/agents | \
+  jq '.[] | {name, status, scheduleEnabled: .schedule.enabled, lastHeartbeatAt}'
+
+# Open issues
+curl -s "${HEADERS[@]}" \
+  "$PAPERCLIP_API_BASE/api/companies/$PROJECT_CO_ID/issues?status=in_progress" | \
+  jq '.[] | {id, title, assigneeAgentId}'
+
+# Active routines
+curl -s "${HEADERS[@]}" \
+  $PAPERCLIP_API_BASE/api/companies/$PROJECT_CO_ID/routines | \
+  jq '.[] | {id, title, status}'
+```
+
+---
+
+## Dispatch a wave (3 parallel tasks)
+
+### 1. Create base branch `feat/<slug>`
+
+```bash
+cd <your-repo-path>
+git fetch origin
+git checkout -b feat/<your-feature-slug> origin/dev
+git push -u origin feat/<your-feature-slug>
+```
+
+### 2. Create 3 issues (one per dev-primary)
+
+```bash
+# Reads issue bodies from local/paperclip/tasks/<feature-slug>/issues.md
+# Each task block delimited by "## T<N> ..." header.
+for n in 1 2 3; do
+  TITLE=$(grep -m1 "^## T$n" local/paperclip/tasks/<your-feature-slug>/issues.md | sed "s/## //")
+  BODY=$(awk "/^## T$n /,/^## T$((n+1)) |^---END---/" local/paperclip/tasks/<your-feature-slug>/issues.md | head -n -1)
+  AGENT_VAR="DEV_PRIMARY_${n}_ID"
+
+  curl -X POST "${HEADERS[@]}" -H "Content-Type: application/json" \
+    -d "$(jq -n \
+      --arg title "$TITLE" \
+      --arg desc "$BODY" \
+      --arg agent "${!AGENT_VAR}" \
+      '{title:$title, description:$desc, status:"in_progress", priority:"medium", assigneeAgentId:$agent}')" \
+    $PAPERCLIP_API_BASE/api/companies/$PROJECT_CO_ID/issues
+done
+```
+
+### 3. Activate schedule on the 3 dev-primary
+
+```bash
+for id in $DEV_PRIMARY_1_ID $DEV_PRIMARY_2_ID $DEV_PRIMARY_3_ID; do
+  curl -X PATCH "${HEADERS[@]}" -H "Content-Type: application/json" \
+    -d '{"schedule":{"enabled":true,"intervalSec":120}}' \
+    $PAPERCLIP_API_BASE/api/agents/$id
+done
+```
+
+### 4. Watch progress
+
+```bash
+# Every 5 min, see status
+watch -n 300 "curl -s '${HEADERS[@]}' \
+  '$PAPERCLIP_API_BASE/api/companies/$PROJECT_CO_ID/issues' | \
+  jq '.[] | {id, title, status, assigneeAgentId}'"
+
+# Or via GitHub
+gh pr list --base 'feat/<your-feature-slug>' --json number,title,labels,statusCheckRollup
+```
+
+### 5. Pause post-wave
+
+```bash
+for id in $DEV_PRIMARY_1_ID $DEV_PRIMARY_2_ID $DEV_PRIMARY_3_ID; do
+  curl -X PATCH "${HEADERS[@]}" -H "Content-Type: application/json" \
+    -d '{"schedule":{"enabled":false}}' \
+    $PAPERCLIP_API_BASE/api/agents/$id
+done
+```
+
+### 6. Open `feat -> dev` PR locally
+
+```bash
+cd <your-repo-path>
+git fetch origin
+git checkout feat/<your-feature-slug>
+git pull origin feat/<your-feature-slug>   # pull squash-merges from the 3 task PRs
+
+gh pr create \
+  --base dev \
+  --head feat/<your-feature-slug> \
+  --title "feat(<your-feature-slug>): wave 1 — <summary>" \
+  --body "Wave 1 of Paperclip orchestrator. 3 parallel tasks auto-merged via gate B:
+- task/<your-feature-slug>/T1-<slug-1> (#<task-pr-1>)
+- task/<your-feature-slug>/T2-<slug-2> (#<task-pr-2>)
+- task/<your-feature-slug>/T3-<slug-3> (#<task-pr-3>)
+
+Details in docs/tasks/<your-feature-slug>/.
+
+Pilot reviews this PR and merges when ready."
+```
+
+---
+
+## Debug
+
+### Zombie agent (status=running but heartbeat stale >5min)
+
+```bash
+# Detect
+curl -s "${HEADERS[@]}" \
+  $PAPERCLIP_API_BASE/api/agents/<id> | jq '{status, lastHeartbeatAt}'
+
+# Recovery: pause + reset issue + force fresh session
+curl -X PATCH "${HEADERS[@]}" -H "Content-Type: application/json" \
+  -d '{"schedule":{"enabled":false}}' \
+  $PAPERCLIP_API_BASE/api/agents/<id>
+
+# PATCH stuck issue to status=backlog, assigneeAgentId=null
+curl -X PATCH "${HEADERS[@]}" -H "Content-Type: application/json" \
+  -d '{"status":"backlog","assigneeAgentId":null}' \
+  $PAPERCLIP_API_BASE/api/issues/<id>
+
+# Force wakeup on a different replica
+curl -X POST "${HEADERS[@]}" -H "Content-Type: application/json" \
+  -d '{"source":"on_demand","reason":"recovery zombie","forceFreshSession":true}' \
+  $PAPERCLIP_API_BASE/api/agents/<other-replica>/wakeup
+```
+
+### Read run logs
+
+```bash
+# List recent runs
+curl -s "${HEADERS[@]}" \
+  "$PAPERCLIP_API_BASE/api/heartbeat-runs?agentId=<id>&limit=10" | \
+  jq '.[] | {id, startedAt, status, durationMs}'
+
+# Full log of a run
+curl -s "${HEADERS[@]}" \
+  "$PAPERCLIP_API_BASE/api/heartbeat-runs/<run-id>/log?offset=0&limitBytes=50000" | \
+  jq -r '.log'
+```
+
+### Cancel stale issue
+
+```bash
+curl -X PATCH "${HEADERS[@]}" -H "Content-Type: application/json" \
+  -d '{"status":"cancelled"}' \
+  $PAPERCLIP_API_BASE/api/issues/<id>
+```
+
+### Pause `review-pending-prs` routine
+
+```bash
+curl -X PATCH "${HEADERS[@]}" -H "Content-Type: application/json" \
+  -d '{"status":"paused"}' \
+  $PAPERCLIP_API_BASE/api/routines/$ROUTINE_REVIEW_PENDING_PRS_ID
+```
+
+---
+
+## Update AGENTS.md per-agent (after calibration / new lesson)
+
+```bash
+# Re-upload AGENTS-dev-primary.md to the 3 dev-primary
+for id in $DEV_PRIMARY_1_ID $DEV_PRIMARY_2_ID $DEV_PRIMARY_3_ID; do
+  curl -X PUT "${HEADERS[@]}" -H "Content-Type: application/json" \
+    -d "$(jq -Rs '{path:"AGENTS.md",content:.}' < local/paperclip/AGENTS-dev-primary.md)" \
+    $PAPERCLIP_API_BASE/api/agents/$id/instructions-bundle/file
+done
+
+# Re-upload AGENTS-reviewer.md to the reviewer
+curl -X PUT "${HEADERS[@]}" -H "Content-Type: application/json" \
+  -d "$(jq -Rs '{path:"AGENTS.md",content:.}' < local/paperclip/AGENTS-reviewer.md)" \
+  $PAPERCLIP_API_BASE/api/agents/$REVIEWER_ID/instructions-bundle/file
+```
+
+---
+
+## Renew Paperclip token (if expired)
+
+On the droplet:
+
+```bash
+ssh -i ~/.ssh/<your-droplet-key> paperclip@<your-droplet-ip>
+npx paperclipai auth login --api-base http://127.0.0.1:3100
+# (interactive; opens URL for Pilot to approve in browser)
+cat ~/.paperclip/auth.json
+# Copy token to local ~/.config/<your-project>/paperclip.env (mode 600)
+```
+
+---
+
+## Anthropic quota check
+
+On the droplet:
+
+```bash
+ssh -i ~/.ssh/<your-droplet-key> paperclip@<your-droplet-ip>
+claude /usage
+# Shows rolling 5h Sonnet + rolling 7d Opus
+# If Sonnet > 80% near a big wave, wait 1-2h or pause another project sharing the OAuth subscription
+```
+
+---
+
+## Droplet health + backup
+
+```bash
+ssh -i ~/.ssh/<your-droplet-key> paperclip@<your-droplet-ip>
+
+# Disk
+df -h /home/paperclip
+
+# Backup sizes (if you have them)
+ls -lh ~/backups/ 2>/dev/null | tail -5
+
+# pm2 status (if you run paperclip via pm2)
+pm2 status
+
+# Recent paperclip logs
+pm2 logs paperclip --lines 50
+
+# If paperclip hung
+pm2 restart paperclip
+```
