@@ -1,7 +1,7 @@
 # v0.3.0 — Portable Orchestration
 
 **Branch:** `feat/v0.3.0-portable-orchestration`
-**Status:** em execucao
+**Status:** CONCLUIDA on 2026-04-29
 **Iniciado:** 2026-04-29
 **Origem:** sync upstream do projeto O Agente (Meteora Digital), 3o uso do fluxo de sync (apos v0.1.1 e v0.2.0).
 
@@ -49,12 +49,12 @@ Esses 3 itens sao **universais** (nao dependem de stack TypeScript / Supabase / 
 
 | Task | Subject | Status |
 |------|---------|--------|
-| T1 | RED — testes bash de novos cenarios (bootstrap symlinks/.gitignore, paperclip, local-waves) | [ ] Pendente |
-| T2 | GREEN Camada A — bootstrap + akita-xp-rules + CLAUDE.md.template | [ ] Pendente |
-| T3 | GREEN Camada B — skill paperclip-orchestrator + 8 templates + setup script + licoes-do-piloto.md | [ ] Pendente |
-| T4 | GREEN Camada C — skill local-waves + setup script + orchestrate-wave.sh.template | [ ] Pendente |
-| T5 | Validacao empirica — 3 setups isolados em /tmp/v030-{a,b,c} | [ ] Pendente |
-| T6 | Release — ADR-008 + bump 0.3.0 + atualiza CLAUDE.md + PR | [ ] Pendente |
+| T1 | RED — testes bash de novos cenarios (bootstrap symlinks/.gitignore, paperclip, local-waves) | [x] Concluida 2026-04-29 (`19b5dc3`) |
+| T2 | GREEN Camada A — bootstrap + akita-xp-rules + CLAUDE.md.template | [x] Concluida 2026-04-29 (`f857de3`) |
+| T3 | GREEN Camada B — skill paperclip-orchestrator + 8 templates + setup script + licoes-do-piloto.md | [x] Concluida 2026-04-29 (`b9e1ebd`) |
+| T4 | GREEN Camada C — skill local-waves + setup script + orchestrate-wave.sh.template | [x] Concluida 2026-04-29 (`a8f36af`) |
+| T5 | Validacao empirica — 3 setups isolados em /tmp/v030-{a,b,c} | [x] Concluida 2026-04-29 (`c25c172`) |
+| T6 | Release — ADR-008 + bump 0.3.0 + atualiza CLAUDE.md + PR | [x] Concluida 2026-04-29 |
 
 Sequencial estrito: T1 → T2 → T3 → T4 → T5 → T6. Sem paralelismo (todas tocam estrutura compartilhada do plugin).
 

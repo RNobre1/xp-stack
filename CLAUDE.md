@@ -95,6 +95,32 @@ claude --plugin-dir ./plugins/xp-stack
 **Validacao:** self-test completo em betflow (17 PASS / 5 WARN / 0 FAIL). Todos os WARNs viraram fixes nesta versao. Regressao esperada apos patch: 37/37 testes bash verdes (sem mudanca estrutural nos testes).
 **Ref:** `/tmp/plugin-update-2026-04-16.md` (spec gerada no repo origem O Agente via `docs/update-plugin-prompt.md`). Primeiro uso real do fluxo de sync O-Agente → claude-craft.
 
+### ADR-008: v0.3.0 — paperclip-orchestrator + local-waves + AGENTS.md symlinks
+
+**Decisao:** v0.3.0 portar 3 capacidades validadas em producao no projeto upstream O Agente:
+
+1. **`paperclip-orchestrator` skill** (opt-in, `disable-model-invocation: true`): copia 8 templates pra `local/paperclip/` (gitignored) + `.github/workflows/auto-merge.yml` + `scripts/check-{reviewer-approval,always-human}.sh`. Pattern multi-agent dispatch remoto via Paperclip CLI no droplet, reviewer Opus via cron Routine, gate B com 4 checks (CI fast-lane + always-human + reviewer APPROVE + cobertura). Comando `/xp-stack:paperclip-setup`.
+
+2. **`local-waves` skill** (opt-in, `disable-model-invocation: true`): copia `orchestrate-wave.sh` + `README.md` pra `scripts/orchestrate/`. Alternativa local ao Paperclip: orquestrador Opus + N workers Sonnet headless (`claude -p`) em git worktrees isolados, com BLOCKERS.md discipline. Comando `/xp-stack:local-waves-setup`.
+
+3. **`bootstrap` atualizado** (Camada A automatica): cria symlinks `AGENTS.md -> CLAUDE.md` (e `AGENTS.local.md -> CLAUDE.local.md` condicional), default-ON com opt-out via 6o arg `no-symlink`. Adiciona 3 entries reservadas no `.gitignore` (`local/`, `.claude/wave-runs/`, `scripts/orchestrate/`) idempotente, sem sobrescrever preexistente.
+
+4. **`akita-xp-rules` ganha appendix** "Mandatory Skill Integration" com tabela de 5 skills do superpowers obrigatorias em momentos especificos do ciclo Akita/XP (brainstorming antes de Fase 1, systematic-debugging antes de qualquer fix, verification-before-completion antes de marcar `[x]`, dispatching-parallel-agents pra waves 2+ tasks, optimizing-github-actions auto-via-paths em workflows). Anti-pattern: invocar skill por nome em narracao nao eh invocar skill.
+
+5. **`CLAUDE.md.template` ganha 3 secoes:** nota AGENTS.md symlink, "Mandatory skill integration" + "Optional multi-agent dispatch" + "Archival policy" (esta ultima ja existia em task-decomposition skill, agora visivel no CLAUDE.md).
+
+**Razao:** Origem direta — Wave 1 piloto de Paperclip no upstream O Agente (2026-04-27, 9 licoes documentadas em `local/paperclip/licoes.md`). Padroes universais (multi-agent dispatch async/sync, gate auto-merge GitHub Actions, AGENTS.md ↔ CLAUDE.md sync, superpowers integration table) NAO dependem de stack TypeScript / Supabase / WhatsApp / etc. Empacotar via plugin reduz custo de adocao em qualquer projeto novo (1 comando vs 1700+ linhas markdown copiadas a mao).
+
+**Templates anonimizados:** referencias hardcoded a stack-especifico (Vitest, Supabase, WhatsApp, Cohere, Resend, AssemblyAI, Hotmart, OpenRouter), nomes pessoais (Felipe, Rafael), IPs (209.97.x), tracker interno (gestao-ti), PR numbers e IDs Paperclip foram removidos. Deixados apenas como exemplo opt-in com prefixos "if you use", "e.g.", "or equivalent". As 9 licoes reais aparecem como case study em `references/licoes-do-piloto.md` (sem PR #s, sem IDs, sem hashes) — leitura recomendada antes da Wave 1.
+
+**Decision tree Paperclip vs local-waves** documentado em ambos os SKILL.md: remote async com droplet + DB + cron (Paperclip) vs local sync com worktrees + claude -p headless (local-waves). Coexistem no mesmo projeto sem conflito (`local/paperclip/` vs `scripts/orchestrate/`).
+
+**Validacao empirica T5:** 3 cenarios shell-direct em `/tmp/v030-{a,b,c}` + `/tmp/v030-a2`, todos PASS. Suite bash 53/53 verde (marketplace 9 + skeleton 12 + scaffold 5 + bootstrap 16 + paperclip 6 + local-waves 5).
+
+**Limite conhecido:** mesmo padrao do ADR-005 v0.1.0 e ADR-006 v0.1.1 — camada runtime SKILL.md (`AskUserQuestion` + resolucao de `${CLAUDE_SKILL_DIR}`) das 2 skills novas fica pra primeiro uso real em projeto. Sera registrado em ADR de patch se aparecer issue.
+
+**Ref:** `docs/tasks/v0.3.0-portable-orchestration/` — 6 T-files com decomposicao completa (T1 RED bash, T2 GREEN Camada A, T3 GREEN Camada B, T4 GREEN Camada C, T5 empirical, T6 release). Origem upstream: `local/paperclip/` (5 arquivos), `scripts/orchestrate/orchestrate-wave.sh`, `.github/workflows/auto-merge.yml`, `scripts/check-{reviewer-approval,always-human}.sh`. Terceiro uso do fluxo de sync O-Agente → claude-craft (apos v0.1.1 e v0.2.0).
+
 ### ADR-007: optimizing-github-actions skill — adicionada na v0.2.0
 **Decisao:** adicionar 6a skill `optimizing-github-actions` extraida de trabalho validado no repo origem O Agente (pesquisa `docs/pesquisas/skill-ci-workflows-github-actions.md`, triangulacao 0.86 em 24 fontes, validada empiricamente reduzindo um workflow de 33min → 14min wall-clock e zerando 6 red flags detectados pela auditoria de SHA pin).
 
@@ -119,6 +145,7 @@ claude --plugin-dir ./plugins/xp-stack
 - [x] write-bootstrap-skill (feat/write-bootstrap-skill) — 2026-04-16 — 3 tasks (T1 templates, T2 scaffold.sh, T3 SKILL.md+empirico), 37/37 testes verdes, 4/4 cenarios empiricos PASS
 - [x] v0.1.1 patch (feat/plugin-update-2026-04-16) — 2026-04-16 — 5 fixes cosmeticos pos self-test em betflow (ADR-006)
 - [x] v0.2.0 minor (feat/plugin-update-2026-04-26) — 2026-04-26 — nova skill `optimizing-github-actions` (218-line SKILL.md + 7 references + 2 examples + audit script, auto-ativada via `paths` field) + `akita-xp-rules` Rule 6 ganha proibicao de Co-Authored-By trailers (ADR-007)
+- [x] v0.3.0 minor (feat/v0.3.0-portable-orchestration) — 2026-04-29 — 2 novas skills opt-in (`paperclip-orchestrator` com 8 templates + 9 licoes anonimizadas, `local-waves` com orchestrate-wave.sh) + `bootstrap` ganha symlinks AGENTS.md + .gitignore autoupdate + `akita-xp-rules` ganha appendix "Mandatory Skill Integration" (ADR-008). Suite 53/53.
 - [ ] ~~poc-mcp-userconfig~~ — **DISPENSADO** na v0.1.1 ao remover stubs MCP do plugin. MCPs passam a ser configurados pelo usuario fora do plugin via `claude mcp add`, entao a validacao de `userConfig sensitive` no keychain Linux deixa de ser pre-requisito pro plugin. Se o plugin voltar a declarar MCPs com userConfig no futuro, este POC volta como pendente.
 
 ## Licoes aprendidas
@@ -128,3 +155,5 @@ claude --plugin-dir ./plugins/xp-stack
 - **Validacao empirica shell-direct vs runtime-interativo (2026-04-16):** de dentro de uma sessao Claude Code nao e possivel spawnar outro `claude --plugin-dir` interativo para validar `AskUserQuestion`. O fallback legitimo e invocar o script alvo (scaffold.sh) via shell em dirs isolados — valida o mecanismo deterministico. A camada runtime (SKILL.md + AskUserQuestion + `${CLAUDE_SKILL_DIR}`) fica para o primeiro teste de aceitacao em projeto real; registrar outcome no MEMORY.md global. Documentar o desvio explicitamente no log de execucao da task e no ADR, nao esconder.
 - **sed com pipe como delimitador (2026-04-16):** `sed -e "s|{{X}}|$VAR|g"` evita conflito com paths contendo `/`. Padrao adotado em scaffold.sh para placeholders de CLAUDE.md.template. Limitacao conhecida: se o valor contem `|` literal, quebra — documentar no T3 se aparecer na pratica.
 - **Loop manual cp + test -e em vez de cp -rn (2026-04-16):** BSD coreutils nao suporta `cp -rn` com a mesma semantica de GNU. Para garantir idempotencia portavel em scaffold.sh, usar loop `for f in "$SRC"/*; do [ ! -e "$DST/$(basename $f)" ] && cp "$f" "$DST/"; done`. Mais verboso, mais portavel, e explicito sobre intencao.
+- **Despersonalizacao de templates upstream eh trabalho real (2026-04-29):** ao trazer `local/paperclip/playbook.md` (~500 linhas, ~30 strings hardcoded) e `AGENTS-dev-primary.md` (~300 linhas) pro plugin na v0.3.0, mais de 50% do tempo de T3 foi grep+substitute de refs ao stack upstream (Vitest, Supabase, WhatsApp, Cohere, Resend, AssemblyAI, Hotmart) e nomes (Felipe, Rafael, IPs, Tailscale hostnames, gestao-ti, IDs Paperclip, PR numbers). Padrao de revisao adotado: `grep -rinE "(meteora|o-agente|209\.97|gestao-ti|RNobre|theagent_droplet|hotmart|Felipe|Vitest|Cohere|AssemblyAI|Resend|WhatsApp|Supabase)" templates/` deve retornar 0 matches OU so em comentarios prefixados com "if you use", "e.g.", "or equivalent", "Add your own". Pra v0.4.0+, considerar lint script `tests/no-upstream-refs.sh` que falha CI se algum match nao-prefixado. Validado empiricamente em T5 cenario B (anti-grep PASS).
+- **Idempotencia de .gitignore exige read-modify-write atomico (2026-04-29):** scaffold ganhou autoupdate de 3 entries (`local/`, `.claude/wave-runs/`, `scripts/orchestrate/`). Implementacao naive (`echo entry >> file`) duplica em re-execucao. Solucao adotada: `grep -qxF` antes de cada append + flag `HEADER_NEEDED` pra so emitir o header de comentario se houver pelo menos 1 entry nova + check de newline final do arquivo (`tail -c1 | od -An -c`) pra evitar concatenacao em mesma linha. Validado em cenario A.3 (count=1 apos 2a execucao).
