@@ -1148,9 +1148,9 @@ git push origin feat/v1.0.0-ship
 
 Após T0 + T1 + T2 mergeados em `feat/v1.0.0-ship`, o repo terá:
 
-✅ Renomeado `claude-craft` → `xp-stack` (GitHub + local + URL git remote + refs em README/CLAUDE.md/marketplace.json)
+✅ Renomeado `claude-craft` → `xp-stack` (GitHub + local + URL git remote + refs em README/CLAUDE.md/marketplace.json/plugin.json)
 ✅ npm package skeleton funcional (`xp-stack --version` imprime `1.0.0-alpha.0`)
-✅ 6 schemas JSON validáveis via `validate(name, data)` (15 tests verde)
+✅ 6 schemas JSON validáveis via `validate(name, data)` (16 tests verde — 14 validators + 2 version, após followup do T2 que adicionou test pra schemaName inválido + additionalProperties em blockers.items)
 ✅ Tests bash existentes preservados (53 verde, sem regressão)
 
 **Próximo passo:** invocar `writing-plans` novamente quando começar W1 (CLI core: init, update, status, add-engine, add-skill, uninstall, resume — 7 tasks paralelizáveis).
@@ -1163,11 +1163,11 @@ Após T0 + T1 + T2 mergeados em `feat/v1.0.0-ship`, o repo terá:
 
 Antes de declarar W0 concluída e abrir issue/PR pra W1:
 
-- [ ] T0 commitado e pushed em `feat/v1.0.0-ship`
-- [ ] T1 commitado e pushed em `feat/v1.0.0-ship`
-- [ ] T2 commitado e pushed em `feat/v1.0.0-ship`
-- [ ] `npx vitest run` verde (15 tests)
-- [ ] `npm run test:bash` verde (53 tests)
-- [ ] `node bin/xp-stack --version` imprime `1.0.0-alpha.0`
-- [ ] GitHub: `https://github.com/RNobre1/claude-craft` redireciona pra `xp-stack`
-- [ ] `docs/tasks/v1.0.0-ship/00-overview.md`: T0/T1/T2 marcados `[x] Concluida YYYY-MM-DD (commit)`
+- [x] T0 commitado e pushed em `feat/v1.0.0-ship` (`6b12a28` + followup `b75b2da`)
+- [x] T1 commitado e pushed em `feat/v1.0.0-ship` (`76cf4d6`)
+- [x] T2 commitado e pushed em `feat/v1.0.0-ship` (`8bc12cb` + followup `756d221`)
+- [x] `npx vitest run` verde (16 tests — 14 validators + 2 version)
+- [x] `npm run test:bash` verde (53 tests)
+- [x] `node bin/xp-stack --version` imprime `1.0.0-alpha.0`
+- [x] GitHub: `https://github.com/RNobre1/claude-craft` redireciona pra `xp-stack`
+- [x] `docs/tasks/v1.0.0-ship/00-overview.md`: T0/T1/T2 marcados `[x] Concluida 2026-05-03 (commit)`

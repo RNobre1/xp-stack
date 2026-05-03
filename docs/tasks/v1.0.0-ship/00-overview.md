@@ -33,9 +33,9 @@
 
 | Task | Subject | Estimativa | Status |
 |------|---------|------------|--------|
-| [T0](T0-rename-repo.md) | Rename `claude-craft` → `xp-stack` (repo + marketplace.json + README + CLAUDE.md interno) | S | [ ] Pendente |
-| [T1](T1-npm-package-skeleton.md) | npm package skeleton (`package.json`, `bin/xp-stack`, estrutura `src/`, primeiro `--version`) | M | [ ] Pendente — bloqueada por T0 |
-| [T2](T2-schema-definitions.md) | Schema definitions (`schemas/state.json`, `tasks.json`, `claims.json`, `sources.json`, `manifest.json`, `index.json`) com Ajv | M | [ ] Pendente — bloqueada por T1 |
+| [T0](T0-rename-repo.md) | Rename `claude-craft` → `xp-stack` (repo + marketplace.json + README + CLAUDE.md interno) | S | [x] Concluida 2026-05-03 (`6b12a28` + followup `b75b2da`) |
+| [T1](T1-npm-package-skeleton.md) | npm package skeleton (`package.json`, `bin/xp-stack`, estrutura `src/`, primeiro `--version`) | M | [x] Concluida 2026-05-03 (`76cf4d6`) |
+| [T2](T2-schema-definitions.md) | Schema definitions (`schemas/state.json`, `tasks.json`, `claims.json`, `sources.json`, `manifest.json`, `index.json`) com Ajv | M | [x] Concluida 2026-05-03 (`8bc12cb` + followup `756d221`) |
 
 ### Onda 1 — CLI core (paralelizável, 3 paralelos)
 
