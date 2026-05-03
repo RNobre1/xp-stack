@@ -9,6 +9,7 @@ import { registerStatus } from './commands/status.js';
 import { registerAddEngine } from './commands/add-engine.js';
 import { registerAddSkill } from './commands/add-skill.js';
 import { registerUninstall } from './commands/uninstall.js';
+import { registerResume } from './commands/resume.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_JSON = JSON.parse(
@@ -30,6 +31,7 @@ export async function run(argv) {
   registerAddEngine(program);
   registerAddSkill(program);
   registerUninstall(program);
+  registerResume(program);
 
   await program.parseAsync(argv);
 }
