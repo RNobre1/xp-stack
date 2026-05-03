@@ -1,0 +1,54 @@
+{
+  "name": "xp-stack",
+  "version": "1.0.0-alpha.0",
+  "description": "Methodology stack for AI coding agents (Claude Code, Codex, Cursor, Antigravity, Gemini CLI). TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, multi-agent orchestration. Inspired by Reversa.",
+  "type": "module",
+  "bin": {
+    "xp-stack": "./bin/xp-stack"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:bash": "bash tests/marketplace_test.sh && bash tests/skeleton_test.sh && bash tests/scaffold_test.sh && bash tests/bootstrap_test.sh && bash tests/paperclip_test.sh && bash tests/local_waves_test.sh"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "schemas/",
+    "templates/",
+    "skills/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RNobre1/xp-stack.git"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "methodology",
+    "tdd",
+    "xp",
+    "pair-programming",
+    "claude-code",
+    "anthropic",
+    "scaffolding",
+    "multi-agent"
+  ],
+  "author": "Rafael Nobre <rafael@meteoradigital.io>",
+  "license": "MIT",
+  "homepage": "https://github.com/RNobre1/xp-stack#readme",
+  "bugs": {
+    "url": "https://github.com/RNobre1/xp-stack/issues"
+  }
+}

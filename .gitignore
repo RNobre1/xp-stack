@@ -11,3 +11,9 @@
 # OS leftovers
 .DS_Store
 Thumbs.db
+
+# v1.0.0+ npm package
+node_modules/
+coverage/
+*.log
+.npm/
