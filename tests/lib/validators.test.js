@@ -177,3 +177,9 @@ describe('validators - SCHEMA_NAMES export', () => {
     expect(SCHEMA_NAMES).toEqual(['state', 'tasks', 'sources', 'claims', 'manifest', 'index']);
   });
 });
+
+describe('validators - schemaName invalido', () => {
+  it('joga erro para schema desconhecido', () => {
+    expect(() => validate('inexistente', {})).toThrow('Schema desconhecido');
+  });
+});
