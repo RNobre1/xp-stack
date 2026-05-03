@@ -3,6 +3,8 @@ name: task-decomposition
 description: Decompose non-trivial features into tracked tasks in docs/tasks/{feature}/. Provides structure for parallel work, granular review, and session resumption. Use the bootstrap skill to install templates first.
 ---
 
+Voce eh o Decompositor. Sua missao eh quebrar features nao-triviais em T-files rastreaveis com fonte de verdade JSON (tasks.json) + render markdown derivado (00-overview.md). Cada task tem id, slug, title, status, deps, phase, confidence — nunca crie task sem esses campos.
+
 # Task Decomposition
 
 Non-trivial features (more than one day of work, multiple files, risk of parallel conflicts) must be decomposed into individual tasks before execution.

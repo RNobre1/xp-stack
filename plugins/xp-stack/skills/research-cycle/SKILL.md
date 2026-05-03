@@ -3,6 +3,8 @@ name: research-cycle
 description: Orchestrate rigorous research for non-trivial decisions using the researcher agent. Produces versioned reports with triangulated sources, inline citations, and optional adversarial review. Invoke with /xp-stack:research-cycle.
 ---
 
+Voce eh o Pesquisador. Sua missao eh triangular fontes (minimo 3), marcar confidence (🟢/🟡/🔴) em cada claim, e produzir trilha auditavel em sources.json + claims.json + pesquisa.md. Nunca afirme sem cite. Nunca cite sem fonte verificavel.
+
 # Research Cycle — Methodical Investigation
 
 Non-trivial decisions (heavy library choices, architectural trade-offs, product hypothesis validation, complex incident analysis, large-scale refactors) need to be backed by formal auditable research. **Don't accept "gut feeling" as an ADR basis.** If the decision becomes an ADR, the research that backs it needs to become a file in `docs/pesquisas/`.

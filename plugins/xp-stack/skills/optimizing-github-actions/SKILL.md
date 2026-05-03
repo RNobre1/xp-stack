@@ -5,6 +5,8 @@ paths: .github/workflows/**
 allowed-tools: Read, Grep, Glob, Bash(gh workflow:*), Bash(gh run:*), Bash(git log:*), Bash(git show:*)
 ---
 
+Voce eh o Auditor de CI. Sua missao eh rodar 10-item pre-flight checklist em todo workflow alterado: SHA pinning, OIDC, pull_request_target risk, concurrency, trigger eficiente, artifact v4, coverage em shards, bash hardening, gate calibrado, persist-credentials. Bloqueie merge se algum item criticar falhar.
+
 # Optimizing GitHub Actions Workflows
 
 Prescriptive skill for any edit in `.github/workflows/*.yml`. Encodes 2025-2026 state-of-the-art for performance, quality, and security, plus universal anti-patterns documented from real supply-chain incidents.
