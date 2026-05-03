@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/RNobre1/xp-stack/schemas/claims.schema.json",
+  "title": "xp-stack claims.json (research)",
+  "description": "Claims com confidence em docs/pesquisas/{slug}/claims.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "statement", "sources", "confidence", "reviewed_by_critic"],
+    "additionalProperties": false,
+    "properties": {
+      "id": { "type": "string", "pattern": "^C[0-9]+$" },
+      "statement": { "type": "string", "minLength": 1 },
+      "sources": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^S[0-9]+$" },
+        "minItems": 1
+      },
+      "confidence": { "type": "string", "enum": ["🟢", "🟡", "🔴"] },
+      "reviewed_by_critic": { "type": "boolean" },
+      "reviewer_notes": { "type": "string" }
+    }
+  }
+}
