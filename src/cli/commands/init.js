@@ -1,7 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 import { detectEngines, ENGINE_PATHS } from '../../lib/engines.js';
 import { EMPTY_MANIFEST, readManifest, writeManifest } from '../../lib/manifest.js';
 import { EMPTY_INDEX, readIndex, writeIndex } from '../../lib/index-tracker.js';
@@ -121,7 +120,7 @@ export function registerInit(program) {
     .option('--cwd <path>', 'project root (default: process.cwd())')
     .option('--engine <names>', 'forca engines (csv): claude-code,codex,cursor,...')
     .option('--no-dual-mirror', 'desabilita dual mirror automatico (so engines detectadas)')
-    .option('--yes', 'pula prompts interativos (CI-safe)')
+    .option('--yes', 'pula prompts interativos (no-op em T3 — sera usado em update/uninstall)')
     .action(async (opts) => {
       try {
         await runInit(opts);
