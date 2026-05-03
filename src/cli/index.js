@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { registerVersion } from './commands/version.js';
 import { registerInit } from './commands/init.js';
+import { registerUpdate } from './commands/update.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_JSON = JSON.parse(
@@ -20,7 +21,8 @@ export async function run(argv) {
 
   registerVersion(program);
   registerInit(program);
-  // Future subcommands wire up here: update, status, resume, add-engine, add-skill, uninstall
+  registerUpdate(program);
+  // Future subcommands wire up here: status, resume, add-engine, add-skill, uninstall
 
   await program.parseAsync(argv);
 }
