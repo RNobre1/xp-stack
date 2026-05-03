@@ -12,6 +12,7 @@ import { registerUninstall } from './commands/uninstall.js';
 import { registerResume } from './commands/resume.js';
 import { registerHookStop } from './commands/hook-stop.js';
 import { registerRegenerateResume } from './commands/regenerate-resume.js';
+import { registerReconcile } from './commands/reconcile.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_JSON = JSON.parse(
@@ -36,6 +37,7 @@ export async function run(argv) {
   registerResume(program);
   registerHookStop(program);
   registerRegenerateResume(program);
+  registerReconcile(program);
 
   await program.parseAsync(argv);
 }
