@@ -11,6 +11,20 @@ We operate in **Pair Programming**: the user is the **Architect/Pilot** who defi
 
 ---
 
+## Auto-check de versão (rodar 1x por sessão)
+
+No início de toda sessão, rode em background pra detectar se há versão nova do xp-stack disponível:
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/version-check.sh
+```
+
+Cache 24h em `.xp-stack/version-check-cache.json` evita refetch redundante. Silent fail se sem rede / sem `curl`/`wget`. Se outdated, imprime banner discreto sugerindo `npx xp-stack update`.
+
+Skip se projeto não tem `.xp-stack/` instalado.
+
+---
+
 ## Rule 1: Strict Planning and the Source of Truth (`CLAUDE.md`)
 
 - **No Architectural Hallucination:** The AI must not generate entire systems, complex architectures, or large code blocks arbitrarily. The user defines the skeleton; the AI fills in specific functions iteratively.
