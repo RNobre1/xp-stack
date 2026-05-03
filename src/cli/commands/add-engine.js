@@ -1,33 +1,13 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ENGINE_PATHS } from '../../lib/engines.js';
 import { readManifest, writeManifest } from '../../lib/manifest.js';
 import { readIndex, writeIndex } from '../../lib/index-tracker.js';
-import { installToDualMirror } from '../../lib/installer.js';
+import { installToDualMirror, walkDir } from '../../lib/installer.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
 const TEMPLATES_ROOT = join(PKG_ROOT, 'templates');
-
-function listTemplateFiles() {
-  const out = [];
-  function walk(dir, base = '') {
-    if (!existsSync(dir)) return;
-    for (const entry of readdirSync(dir)) {
-      if (entry === '.gitkeep') continue;
-      const full = join(dir, entry);
-      const rel = base ? `${base}/${entry}` : entry;
-      if (statSync(full).isDirectory()) {
-        walk(full, rel);
-      } else {
-        out.push(rel);
-      }
-    }
-  }
-  walk(TEMPLATES_ROOT);
-  return out;
-}
 
 async function runAddEngine(engineName, opts) {
   if (!ENGINE_PATHS[engineName]) {
@@ -46,7 +26,7 @@ async function runAddEngine(engineName, opts) {
   }
 
   // Instala todos os templates pra essa engine
-  const templates = listTemplateFiles();
+  const templates = walkDir(TEMPLATES_ROOT);
   for (const tpl of templates) {
     const result = installToDualMirror({
       sourceRel: tpl,

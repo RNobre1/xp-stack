@@ -1,7 +1,33 @@
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { hashFile } from './manifest.js';
 import { ENGINE_PATHS } from './engines.js';
+
+/**
+ * Walk recursivo de um diretorio, retorna paths relativos.
+ * Filtra .gitkeep automaticamente.
+ *
+ * @param {string} root - Path absoluto do diretorio raiz
+ * @returns {string[]} Paths relativos a root
+ */
+export function walkDir(root) {
+  const out = [];
+  function walk(dir, base = '') {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      if (entry === '.gitkeep') continue;
+      const full = join(dir, entry);
+      const rel = base ? `${base}/${entry}` : entry;
+      if (statSync(full).isDirectory()) {
+        walk(full, rel);
+      } else {
+        out.push(rel);
+      }
+    }
+  }
+  walk(root);
+  return out;
+}
 
 /**
  * Copia um source pra destino. Idempotente: nao sobrescreve por default.

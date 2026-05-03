@@ -55,4 +55,14 @@ describe('xp-stack update', () => {
     }).toThrow(/manifest nao encontrado|run init first/i);
     rmSync(tmp2, { recursive: true, force: true });
   });
+
+  it('drift detectado sem --yes retorna exit 1', () => {
+    const trackedFile = join(tmp, '.claude/skills/skills/README.md');
+    if (existsSync(trackedFile)) {
+      writeFileSync(trackedFile, '# User-modified\n', 'utf8');
+      expect(() => {
+        execFileSync('node', [BIN, 'update', '--cwd', tmp], { encoding: 'utf8', stdio: 'pipe' });
+      }).toThrow(/Drift detectado/);
+    }
+  });
 });

@@ -18,6 +18,7 @@ async function runUpdate(opts) {
 
   let modifiedCount = 0;
   let updatedCount = 0;
+  let driftWithoutPolicy = false;
 
   for (const [relPath, entry] of Object.entries(manifest.files)) {
     const drift = detectDrift(projectRoot, relPath, entry.hash);
@@ -38,10 +39,17 @@ async function runUpdate(opts) {
           updatedCount++;
         }
       } else {
-        // No --yes: erro claro pedindo flag de policy
+        // No --yes: erro claro pedindo flag de policy, marca pra exit 1
         console.error(`Drift detectado em ${relPath}. Use --yes --keep-mine OR --yes --take-theirs em CI.`);
+        driftWithoutPolicy = true;
       }
     }
+  }
+
+  if (driftWithoutPolicy) {
+    process.exitCode = 1;
+    // Nao reescrever manifest quando comando falhou
+    return;
   }
 
   if (modifiedCount === 0) {
