@@ -62,11 +62,11 @@
 
 | Task | Subject | Estimativa | Status |
 |------|---------|------------|--------|
-| [T14](T14-tasks-json-render.md) | `tasks.json` em `task-decomposition` + render markdown derivado | M | [ ] Pendente — bloqueada por T10 |
-| [T15](T15-research-schemas.md) | `sources.json` + `claims.json` em `research-cycle` + render markdown derivado + confidence estrutural | L | [ ] Pendente — bloqueada por T2 |
-| [T16](T16-agent-db-archaeologist.md) | Agent `db-archaeologist` (analisa Supabase migrations + RLS + schemas, output `database/{schema.json, rls-matrix.json, migrations-timeline.md}`) | L | [ ] Pendente — bloqueada por T2 |
-| [T17](T17-agent-screenshot-spec.md) | Agent `screenshot-spec-writer` (recebe screenshot, gera `docs/specs/ui/{screen}.md`) | M | [ ] Pendente — bloqueada por T2 |
-| [T18](T18-agent-flowchart.md) | Agent `flowchart-extractor` (recebe arquivo + função, gera Mermaid em `docs/specs/flowcharts/`) | M | [ ] Pendente — bloqueada por T2 |
+| [T14](T14-tasks-json-render.md) | `tasks.json` em `task-decomposition` + render markdown derivado | M | [x] Concluida 2026-05-03 (`21af53f`) |
+| [T15](T15-research-schemas.md) | `sources.json` + `claims.json` em `research-cycle` + render markdown derivado + confidence estrutural | L | [x] Concluida 2026-05-03 (`5d4b551`) + bonus fix flaky pre-existente (init filtra opt-in-skills) |
+| [T16](T16-agent-db-archaeologist.md) | Agent `db-archaeologist` (analisa Supabase migrations + RLS + schemas, output `database/{schema.json, rls-matrix.json, migrations-timeline.md}`) | L | [x] Concluida 2026-05-03 (`953551c`) |
+| [T17](T17-agent-screenshot-spec.md) | Agent `screenshot-spec-writer` (recebe screenshot, gera `docs/specs/ui/{screen}.md`) | M | [x] Concluida 2026-05-03 (`cd6bd5e`, com 3 commits intermediários ruidosos `301038c`/`7716b79`/`11edeed` aceitos como histórico) |
+| [T18](T18-agent-flowchart.md) | Agent `flowchart-extractor` (recebe arquivo + função, gera Mermaid em `docs/specs/flowcharts/`) | M | [x] Concluida 2026-05-03 (`f87cf4b`) + bonus refactor add-skill com `XP_STACK_OPT_IN_ROOT` env var (resolveu race condition) |
 
 ### Onda 4 — Polish + release (sequencial no fim)
 

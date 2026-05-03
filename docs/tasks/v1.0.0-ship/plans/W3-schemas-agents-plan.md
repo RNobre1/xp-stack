@@ -1483,13 +1483,19 @@ Após T14-T18 mergeados em `feat/v1.0.0-ship`, o repo terá:
 
 ## Checklist de saída de W3
 
-- [ ] T14 (tasks.js) commitado e pushed
-- [ ] T15 (research.js + renderer) commitado e pushed
-- [ ] T16 (db-archaeologist) commitado e pushed
-- [ ] T17 (screenshot-spec-writer) commitado e pushed
-- [ ] T18 (flowchart-extractor) commitado e pushed
-- [ ] Integration test agents commitado
-- [ ] `npx vitest run` verde (~127 tests)
-- [ ] `npm run test:bash` verde (53 preservados)
-- [ ] Smoke E2E manual: `xp-stack add-skill db-archaeologist`, `xp-stack add-skill screenshot-spec-writer`, `xp-stack add-skill flowchart-extractor` em fixture; verificar que `.claude/skills/<agent>/` populado em cada
-- [ ] `00-overview.md`: T14-T18 marcados `[x] Concluida YYYY-MM-DD (commits)`
+- [x] T14 (tasks.js `21af53f`) commitado e pushed
+- [x] T15 (research.js + renderer `5d4b551`) commitado e pushed + bonus fix flaky (init filtra opt-in-skills do walkDir)
+- [x] T16 (db-archaeologist `953551c`) commitado e pushed
+- [x] T17 (screenshot-spec-writer `cd6bd5e`) commitado e pushed (com 3 commits intermediários ruidosos aceitos)
+- [x] T18 (flowchart-extractor + integration test `f87cf4b`) commitado e pushed + bonus refactor `XP_STACK_OPT_IN_ROOT` env var (resolveu race condition entre add-skill.test e integration test)
+- [x] `npx vitest run` verde (127 tests, 23 test files, estável após bonus fix de T15)
+- [x] `npm run test:bash` verde (53 preservados)
+- [x] Smoke E2E manual: 3/3 agents instalam corretamente em fixture (`add-skill db-archaeologist|screenshot-spec-writer|flowchart-extractor` → `.claude/skills/<agent>/SKILL.md` + references/ presentes)
+- [x] `00-overview.md`: T14-T18 marcados `[x] Concluida 2026-05-03 (commits)`
+
+**Issues conhecidos deferidos pra W4 polish:**
+- **Working tree instability:** templates dos 3 agents foram deletados do FS local múltiplas vezes durante o desenvolvimento (subagents trabalham em sandbox que persiste deletes). Workaround: `git checkout HEAD -- templates/opt-in-skills/` restaura instantaneamente. Files estão íntegros em git (commits `953551c`, `cd6bd5e`, `f87cf4b`). Reviewer final confirmou smoke E2E 3/3 OK após restore.
+- **`setTaskStatus` error message vague** quando status invalido (depende de schema rejection em `writeTasks`, mensagem não explicita o status invalido). Fix trivial pra W4: adicionar VALID_STATUSES explicit check.
+- **DRY violation entre `read/write` pairs em research.js**: candidato a `makeJsonCollection(fileName, schemaName)` helper genérico. Não bloqueia.
+- **`addSource`/`addClaim` não-idempotentes por id**: append simples, pode duplicar. Aceito (spec diz "append").
+- **3 commits ruidosos T17**: `301038c` → `7716b79` (revert) → `11edeed` (re-create) → `cd6bd5e` (final). Estado final correto, histórico aceito como-é (cosmético).
