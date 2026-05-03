@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { detectEngines, ENGINE_PATHS } from '../../lib/engines.js';
@@ -9,6 +9,37 @@ import { installToDualMirror, walkDir } from '../../lib/installer.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
 const TEMPLATES_ROOT = join(PKG_ROOT, 'templates');
+
+const HOOK_STOP_COMMAND = 'npx xp-stack hook-stop';
+
+/**
+ * Injeta hook Stop em .claude/settings.json de forma idempotente.
+ * Merge nao-destrutivo: preserva settings existentes.
+ *
+ * @param {string} projectRoot
+ */
+function injectHookStop(projectRoot) {
+  const settingsPath = join(projectRoot, '.claude', 'settings.json');
+  let settings = {};
+  if (existsSync(settingsPath)) {
+    settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
+  }
+  settings.hooks ??= {};
+  settings.hooks.Stop ??= [];
+
+  const alreadyPresent = settings.hooks.Stop.some((entry) =>
+    entry.hooks?.some((h) => h.command === HOOK_STOP_COMMAND)
+  );
+  if (alreadyPresent) return;
+
+  settings.hooks.Stop.push({
+    matcher: '',
+    hooks: [{ type: 'command', command: HOOK_STOP_COMMAND }],
+  });
+
+  mkdirSync(dirname(settingsPath), { recursive: true });
+  writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+}
 
 /**
  * Resolve quais engines instalar:
@@ -85,6 +116,11 @@ async function runInit(opts) {
   index.engines_installed = engines;
   writeIndex(projectRoot, index);
 
+  if (opts.withHooks && engines.includes('claude-code')) {
+    injectHookStop(projectRoot);
+    console.log('Hook Stop injetado em .claude/settings.json (call: npx xp-stack hook-stop)');
+  }
+
   console.log(`xp-stack v${pkgJson.version} instalado em ${projectRoot}`);
   console.log(`Engines: ${engines.join(', ')}`);
   console.log(`Manifest: ${Object.keys(manifest.files).length} files trackeados`);
@@ -98,6 +134,7 @@ export function registerInit(program) {
     .option('--engine <names>', 'forca engines (csv): claude-code,codex,cursor,...')
     .option('--no-dual-mirror', 'desabilita dual mirror automatico (so engines detectadas)')
     .option('--yes', 'pula prompts interativos (no-op em T3 — sera usado em update/uninstall)')
+    .option('--with-hooks', 'injeta hook Stop em .claude/settings.json (so se claude-code engine presente)')
     .action(async (opts) => {
       try {
         await runInit(opts);
