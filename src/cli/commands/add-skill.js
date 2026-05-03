@@ -7,7 +7,8 @@ import { readIndex } from '../../lib/index-tracker.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
-const OPT_IN_ROOT = join(PKG_ROOT, 'templates', 'opt-in-skills');
+// XP_STACK_OPT_IN_ROOT permite override pra testes isolados (evita race com add-skill.test.js)
+const OPT_IN_ROOT = process.env.XP_STACK_OPT_IN_ROOT ?? join(PKG_ROOT, 'templates', 'opt-in-skills');
 
 function listSkillFiles(skillDir) {
   const out = [];
