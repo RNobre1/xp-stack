@@ -11,6 +11,7 @@ import { registerAddSkill } from './commands/add-skill.js';
 import { registerUninstall } from './commands/uninstall.js';
 import { registerResume } from './commands/resume.js';
 import { registerHookStop } from './commands/hook-stop.js';
+import { registerRegenerateResume } from './commands/regenerate-resume.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_JSON = JSON.parse(
@@ -34,6 +35,7 @@ export async function run(argv) {
   registerUninstall(program);
   registerResume(program);
   registerHookStop(program);
+  registerRegenerateResume(program);
 
   await program.parseAsync(argv);
 }

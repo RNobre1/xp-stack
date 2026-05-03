@@ -1,7 +1,8 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { readState } from '../../lib/state.js';
 import { registerFeature } from '../../lib/index-tracker.js';
+import { generateResumeMarkdown } from '../../lib/resume-generator.js';
 
 /**
  * Lista features ativas em docs/tasks/{slug}/ (cada uma com state.json).
@@ -53,7 +54,15 @@ async function runHookStop(opts) {
   if (!state) return; // defensive
 
   registerFeature(projectRoot, featureSlug, state.phase);
-  // RESUME.md regen vira em T12
+
+  // Regenera RESUME.md automaticamente (T12)
+  try {
+    const md = generateResumeMarkdown(state);
+    writeFileSync(join(featureDir, 'RESUME.md'), md, 'utf8');
+  } catch (err) {
+    // Silent fail: hook nunca deve travar fim de sessao do user
+    console.error(`xp-stack hook-stop: nao foi possivel regenerar RESUME.md: ${err.message}`);
+  }
 }
 
 export function registerHookStop(program) {
