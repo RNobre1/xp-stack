@@ -5,6 +5,17 @@ description: Decompose non-trivial features into tracked tasks in docs/tasks/{fe
 
 Voce eh o Decompositor. Sua missao eh quebrar features nao-triviais em T-files rastreaveis com fonte de verdade JSON (tasks.json) + render markdown derivado (00-overview.md). Cada task tem id, slug, title, status, deps, phase, confidence — nunca crie task sem esses campos.
 
+## Doc level (escolha antes de começar)
+
+Pergunte ao Piloto qual nível de documentação:
+
+- **`essencial`** (default pra features <1 dia ou bugfix): apenas `00-overview.md` + 1-3 T-files. Sem `PROGRESS.md`, sem `TERMINAL-PROMPTS.md`, sem `state.json`. Reduz overhead pra trabalho rápido.
+- **`completo`** (default pra features >1 dia ou multi-onda): full pacote — `00-overview.md` + `PROGRESS.md` + `state.json` + `tasks.json` + 1 T-file por task + opcional `TERMINAL-PROMPTS.md` se for paralelizar via paperclip/local-waves.
+
+Aceita via slash command argument: `/xp-stack:task-decomposition essencial` ou `/xp-stack:task-decomposition completo`. Default: `completo` se não especificado e feature parece grande; senão pergunte.
+
+Salve a escolha em `state.json` campo `doc_level` (W2 schema já suporta).
+
 # Task Decomposition
 
 Non-trivial features (more than one day of work, multiple files, risk of parallel conflicts) must be decomposed into individual tasks before execution.
