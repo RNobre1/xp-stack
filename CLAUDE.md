@@ -1,4 +1,4 @@
-# claude-craft
+# xp-stack
 
 > Marketplace Claude Code para distribuicao do stack metodologico XP/Akita — TDD absoluto, pair programming, pesquisa formal, task decomposition, conventional commits.
 
@@ -7,8 +7,8 @@
 Empacotar e distribuir o ferramental reusavel desenvolvido no projeto O Agente (Meteora Digital) como plugin Claude Code instalavel por qualquer pessoa via marketplace git. Dois comandos instalam tudo:
 
 ```
-/plugin marketplace add RNobre1/claude-craft
-/plugin install xp-stack@claude-craft
+/plugin marketplace add RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
 ```
 
 ## Stack
@@ -23,7 +23,7 @@ Empacotar e distribuir o ferramental reusavel desenvolvido no projeto O Agente (
 Repo = marketplace git. Contem um plugin unico (`xp-stack`) com skills, agents, templates e stubs MCP.
 
 ```
-RNobre1/claude-craft/
+RNobre1/xp-stack/
 ├── .claude-plugin/marketplace.json     # registro do marketplace
 ├── .github/workflows/                  # CI: validacao JSON + frontmatter
 ├── plugins/

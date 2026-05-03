@@ -1,4 +1,4 @@
-# claude-craft
+# xp-stack
 
 Marketplace Claude Code com o stack metodológico **XP/Akita** — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, conventional commits, e (v0.3.0) orquestração multi-agent opt-in.
 
@@ -15,8 +15,8 @@ Marketplace Claude Code com o stack metodológico **XP/Akita** — TDD absoluto,
 Dois comandos. Depois invoque o `bootstrap` na raiz do seu projeto:
 
 ```
-/plugin marketplace add RNobre1/claude-craft
-/plugin install xp-stack@claude-craft
+/plugin marketplace add RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
 /xp-stack:bootstrap
 ```
 
@@ -25,8 +25,8 @@ O bootstrap pergunta o nome / stack / descrição do projeto, cria `CLAUDE.md` (
 ## Atualizando
 
 ```
-/plugin marketplace update RNobre1/claude-craft
-/plugin install xp-stack@claude-craft
+/plugin marketplace update RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
 ```
 
 ---
@@ -78,8 +78,8 @@ Cobre 80% dos casos. É o que o bootstrap entrega de cara.
 ```bash
 cd meu-projeto-novo
 # (no Claude Code:)
-/plugin marketplace add RNobre1/claude-craft
-/plugin install xp-stack@claude-craft
+/plugin marketplace add RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
 /xp-stack:bootstrap
 
 # Você ganha CLAUDE.md, AGENTS.md (symlink), .claude/settings.json,
@@ -191,7 +191,7 @@ Total: 53/53 verde em `main`. CI roda em PRs (`.github/workflows/validate-plugin
 ## Testar plugin localmente (em outro projeto)
 
 ```bash
-claude --plugin-dir /caminho/para/claude-craft/plugins/xp-stack
+claude --plugin-dir /caminho/para/xp-stack/plugins/xp-stack
 ```
 
 ---
