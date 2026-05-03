@@ -41,13 +41,13 @@
 
 | Task | Subject | Estimativa | Status |
 |------|---------|------------|--------|
-| [T3](T3-cli-init.md) | `xp-stack init` — detect engines, dual mirror, idempotente, manifest writer | L | [ ] Pendente — bloqueada por T2 |
-| [T4](T4-cli-update.md) | `xp-stack update` — diff manifest, prompt per-arquivo (keep/take/merge/abort) | L | [ ] Pendente — bloqueada por T2 |
-| [T5](T5-cli-status.md) | `xp-stack status` — lê manifest + index, imprime estado atual + drift | S | [ ] Pendente — bloqueada por T2 |
-| [T6](T6-cli-add-engine.md) | `xp-stack add-engine <name>` — instala dual mirror em path adicional | S | [ ] Pendente — bloqueada por T3 |
-| [T7](T7-cli-add-skill.md) | `xp-stack add-skill <name>` — habilita skill opt-in (paperclip, local-waves, agents B5) | S | [ ] Pendente — bloqueada por T3 |
-| [T8](T8-cli-uninstall.md) | `xp-stack uninstall` — remove só arquivos do manifest, preserva user-modified, prompt antes de cada delete | M | [ ] Pendente — bloqueada por T3 |
-| [T9](T9-cli-resume.md) | `xp-stack resume [feature]` — lê index, lista features ativas, retoma com state.json | M | [ ] Pendente — bloqueada por T2 |
+| [T3](T3-cli-init.md) | `xp-stack init` — detect engines, dual mirror, idempotente, manifest writer (+ 4 helpers T3.1-T3.4) | L | [x] Concluida 2026-05-03 (`51a3f5e`/`42aa61b`/`c53ba62`/`2806ec6`/`e46af8b` + 2 followups `90f11ea`/`5ddd818`) |
+| [T4](T4-cli-update.md) | `xp-stack update` — diff manifest, prompt per-arquivo (keep/take/merge/abort) | L | [x] Concluida 2026-05-03 (`243a776`) |
+| [T5](T5-cli-status.md) | `xp-stack status` — lê manifest + index, imprime estado atual + drift | S | [x] Concluida 2026-05-03 (`9de2955`) |
+| [T6](T6-cli-add-engine.md) | `xp-stack add-engine <name>` — instala dual mirror em path adicional | S | [x] Concluida 2026-05-03 (`258b34d`) |
+| [T7](T7-cli-add-skill.md) | `xp-stack add-skill <name>` — habilita skill opt-in (paperclip, local-waves, agents B5) | S | [x] Concluida 2026-05-03 (`c3dce97`) |
+| [T8](T8-cli-uninstall.md) | `xp-stack uninstall` — remove só arquivos do manifest, preserva user-modified, prompt antes de cada delete | M | [x] Concluida 2026-05-03 (`0b30fa9`) |
+| [T9](T9-cli-resume.md) | `xp-stack resume [feature]` — lê index, lista features ativas, retoma com state.json | M | [x] Concluida 2026-05-03 (`d21a54c`) + W1 followup (`ca0f608` DRY+exit code fixes) |
 
 ### Onda 2 — State machine (paralelizável, 2 paralelos)
 

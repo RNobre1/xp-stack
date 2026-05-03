@@ -2185,11 +2185,11 @@ Após T3-T9 mergeados em `feat/v1.0.0-ship`, o repo terá:
 
 ## Checklist de saída de W1
 
-- [ ] T3.1 (engines), T3.2 (manifest), T3.3 (installer), T3.4 (index-tracker), T3 (init) commitados
-- [ ] T4 (update), T5 (status), T6 (add-engine), T7 (add-skill), T8 (uninstall), T9 (resume) commitados
-- [ ] `npx vitest run` verde (~46 tests: 16 W0 + ~30 W1)
-- [ ] `npm run test:bash` verde (53 tests preservados)
-- [ ] `node bin/xp-stack init --help` mostra todas as flags
-- [ ] `node bin/xp-stack --help` lista todos os 7 novos subcomandos + `version`
-- [ ] `00-overview.md`: T3-T9 marcados `[x] Concluida YYYY-MM-DD (commits)`
-- [ ] Self-test manual em `/tmp/xp-stack-w1-smoke/`: criar dir, `mkdir .claude`, rodar init+status, ver output sensato
+- [x] T3.1 (engines `51a3f5e`), T3.2 (manifest `42aa61b`), T3.3 (installer `c53ba62`), T3.4 (index-tracker `2806ec6`), T3 (init `e46af8b` + 2 followups `90f11ea`/`5ddd818`) commitados
+- [x] T4 (update `243a776`), T5 (status `9de2955`), T6 (add-engine `258b34d`), T7 (add-skill `c3dce97`), T8 (uninstall `0b30fa9`), T9 (resume `d21a54c`) commitados + W1 followup (`ca0f608` DRY+exit code)
+- [x] `npx vitest run` verde — **65 tests** (16 W0 + 26 helpers W1 + 23 CLI W1; 46 estimado conservador, real ficou maior por cobertura mais granular)
+- [x] `npm run test:bash` verde (53 tests preservados — confirmado em smoke do final reviewer)
+- [x] `node bin/xp-stack init --help` mostra todas as flags
+- [x] `node bin/xp-stack --help` lista todos os 7 novos subcomandos + `version`
+- [x] `00-overview.md`: T3-T9 marcados `[x] Concluida 2026-05-03 (commits)`
+- [x] Self-test manual em `/tmp/xp-stack-w1-smoke/`: confirmado pelo final reviewer (init→status→add-engine→status→uninstall todos sucederam, .xp-stack/ removido após uninstall)
