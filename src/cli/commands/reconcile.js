@@ -63,7 +63,12 @@ export function registerReconcile(program) {
     .option('--cwd <path>', 'project root (default: process.cwd())')
     .option('--apply', 'aplica mudancas no markdown (sem isto: dry-run)')
     .action(async (slug, opts) => {
-      await runReconcile(slug, opts);
+      try {
+        await runReconcile(slug, opts);
+      } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+      }
     });
   return program;
 }

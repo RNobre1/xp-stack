@@ -36,8 +36,13 @@ export function registerStatus(program) {
     .command('status')
     .description('Imprime estado atual do xp-stack neste projeto (version, engines, files, drift)')
     .option('--cwd <path>', 'project root (default: process.cwd())')
-    .action(async (opts) => {
-      await runStatus(opts);
+    .action(async (...args) => {
+      try {
+        await runStatus(...args);
+      } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+      }
     });
   return program;
 }

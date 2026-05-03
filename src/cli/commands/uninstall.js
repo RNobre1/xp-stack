@@ -47,8 +47,13 @@ export function registerUninstall(program) {
     .option('--cwd <path>', 'project root (default: process.cwd())')
     .option('--yes', 'confirma operacao destrutiva (obrigatorio)')
     .option('--keep-user-modified', 'preserva files que diferenciam do hash original')
-    .action(async (opts) => {
-      await runUninstall(opts);
+    .action(async (...args) => {
+      try {
+        await runUninstall(...args);
+      } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+      }
     });
   return program;
 }

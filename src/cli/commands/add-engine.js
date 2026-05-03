@@ -53,8 +53,13 @@ export function registerAddEngine(program) {
     .command('add-engine <engine>')
     .description('Adiciona uma engine adicional (instala templates em seu skillsDir)')
     .option('--cwd <path>', 'project root (default: process.cwd())')
-    .action(async (engine, opts) => {
-      await runAddEngine(engine, opts);
+    .action(async (...args) => {
+      try {
+        await runAddEngine(...args);
+      } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+      }
     });
   return program;
 }

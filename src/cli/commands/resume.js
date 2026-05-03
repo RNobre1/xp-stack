@@ -62,7 +62,12 @@ export function registerResume(program) {
     .description('Lista features ativas ou retoma uma especifica (le state.json)')
     .option('--cwd <path>', 'project root (default: process.cwd())')
     .action(async (slug, opts) => {
-      await runResume(slug, opts);
+      try {
+        await runResume(slug, opts);
+      } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+      }
     });
   return program;
 }

@@ -75,8 +75,13 @@ export function registerAddSkill(program) {
     .command('add-skill <skill>')
     .description('Habilita skill opt-in (paperclip, local-waves, agents B5, etc.)')
     .option('--cwd <path>', 'project root (default: process.cwd())')
-    .action(async (skill, opts) => {
-      await runAddSkill(skill, opts);
+    .action(async (...args) => {
+      try {
+        await runAddSkill(...args);
+      } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+      }
     });
   return program;
 }
