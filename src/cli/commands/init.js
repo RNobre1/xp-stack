@@ -117,6 +117,14 @@ async function runInit(opts) {
   index.engines_installed = engines;
   writeIndex(projectRoot, index);
 
+  // Warning se >=2 engines reais (nao so dual-mirror automatic) detectadas
+  if (!opts.engine) {
+    const detected = detectEngines(projectRoot);
+    if (detected.length >= 2) {
+      console.log(`xp-stack init: WARN — multiplas engines detectadas (${detected.join(', ')}). Pra evitar instalacao em todas, use --engine <csv> pra forcar lista explicita.`);
+    }
+  }
+
   if (opts.withHooks && engines.includes('claude-code')) {
     injectHookStop(projectRoot);
     console.log('Hook Stop injetado em .claude/settings.json (call: npx xp-stack hook-stop)');

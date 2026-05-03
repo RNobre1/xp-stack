@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,5 +67,14 @@ describe('xp-stack init', () => {
     // com --no-dual-mirror, so claude-code
     const idx = JSON.parse(readFileSync(join(tmp, '.xp-stack/index.json'), 'utf8'));
     expect(idx.engines_installed).toEqual(['claude-code']);
+  });
+
+  it('com 2+ engines reais detectadas, imprime warning sugerindo --engine explicit', () => {
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    mkdirSync(join(tmp, '.cursor'), { recursive: true });
+    writeFileSync(join(tmp, 'AGENTS.md'), '# AGENTS\n');
+    const out = execFileSync('node', [BIN, 'init', '--cwd', tmp, '--yes'], { encoding: 'utf8' });
+    expect(out).toMatch(/multiplas engines detectadas|multiple engines/i);
+    expect(out).toMatch(/--engine/);
   });
 });
