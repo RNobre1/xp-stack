@@ -1,4 +1,7 @@
 {
+  "aliases": {
+    "xp": "xp-stack"
+  },
   "hooks": {
     "Stop": [
       {

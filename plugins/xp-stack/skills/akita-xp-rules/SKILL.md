@@ -3,6 +3,8 @@ name: akita-xp-rules
 description: Strict operating rules for AI-assisted development based on Extreme Programming (XP), software craftsmanship, and anti-vibe coding. Enforces TDD, pair programming discipline, incremental development, and rigorous planning. Apply these rules in every interaction.
 ---
 
+> **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
+
 # Akita/XP Rules — Anti-Vibe Coding
 
 Strict operating rules for AI-assisted development. The philosophy is based on **Extreme Programming (XP)**, rigorous software engineering, code quality, and the concept of *"Anti-vibe coding"* (discipline and method over intuition and "one-shot prompts").

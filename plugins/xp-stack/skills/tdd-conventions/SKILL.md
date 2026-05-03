@@ -3,6 +3,8 @@ name: tdd-conventions
 description: Testing conventions, test pyramid, and TDD workflow rules. Covers unit, integration, E2E, contract, regression, performance, and security tests. Read the project's CLAUDE.md for stack-specific test configuration.
 ---
 
+> **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
+
 # TDD Conventions
 
 ## Test Pyramid (Bottom to Top)

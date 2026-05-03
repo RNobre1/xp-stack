@@ -13,6 +13,8 @@ allowed-tools:
   - AskUserQuestion
 ---
 
+> **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
+
 # Paperclip Orchestrator — Setup
 
 Set up the Paperclip multi-agent orchestrator pattern in your project. Optional. Invoke explicitly when you decide you want this — the regular `bootstrap` does NOT install it.

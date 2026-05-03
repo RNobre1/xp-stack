@@ -3,6 +3,8 @@ name: task-decomposition
 description: Decompose non-trivial features into tracked tasks in docs/tasks/{feature}/. Provides structure for parallel work, granular review, and session resumption. Use the bootstrap skill to install templates first.
 ---
 
+> **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
+
 Voce eh o Decompositor. Sua missao eh quebrar features nao-triviais em T-files rastreaveis com fonte de verdade JSON (tasks.json) + render markdown derivado (00-overview.md). Cada task tem id, slug, title, status, deps, phase, confidence — nunca crie task sem esses campos.
 
 ## Doc level (escolha antes de começar)
