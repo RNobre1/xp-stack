@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/RNobre1/xp-stack/schemas/index.schema.json",
+  "title": "xp-stack index.json",
+  "description": "Global tracker de features ativas em .xp-stack/index.json",
+  "type": "object",
+  "required": ["schema_version", "active_features", "archived_features", "doc_level_default", "engines_installed"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "active_features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slug", "phase", "last_touched"],
+        "additionalProperties": false,
+        "properties": {
+          "slug": { "type": "string", "pattern": "^[a-z0-9.-]+$" },
+          "phase": {
+            "type": "string",
+            "enum": ["fundacao", "testes", "implementacao", "refatoracao", "integracao", "cicd"]
+          },
+          "last_touched": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "archived_features": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9.-]+$" }
+    },
+    "doc_level_default": {
+      "type": "string",
+      "enum": ["essencial", "completo"]
+    },
+    "engines_installed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["claude-code", "codex", "cursor", "antigravity", "gemini-cli", "windsurf", "cline", "roo-code", "copilot", "aider", "amazon-q", "kiro", "opencode"]
+      }
+    }
+  }
+}

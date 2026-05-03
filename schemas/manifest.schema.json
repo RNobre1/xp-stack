@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/RNobre1/xp-stack/schemas/manifest.schema.json",
+  "title": "xp-stack manifest.json",
+  "description": "Tracker de tudo que o instalador escreveu, em .xp-stack/manifest.json",
+  "type": "object",
+  "required": ["schema_version", "installed_version", "installed_at", "files"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "installed_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-z0-9.-]+)?$" },
+    "installed_at": { "type": "string", "format": "date-time" },
+    "engines": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["hash", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]+$|^managed_lines$" },
+          "source": { "type": "string" },
+          "user_modified": { "type": "boolean" },
+          "user_modified_detected_at": { "type": "string", "format": "date-time" },
+          "managed_lines": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

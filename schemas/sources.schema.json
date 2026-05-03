@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/RNobre1/xp-stack/schemas/sources.schema.json",
+  "title": "xp-stack sources.json (research)",
+  "description": "Fontes citadas em docs/pesquisas/{slug}/sources.json",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "url", "title", "type", "accessed_at", "hash"],
+    "additionalProperties": false,
+    "properties": {
+      "id": { "type": "string", "pattern": "^S[0-9]+$" },
+      "url": { "type": "string", "format": "uri" },
+      "title": { "type": "string", "minLength": 1 },
+      "type": {
+        "type": "string",
+        "enum": ["official_docs", "blog_post", "academic_paper", "github_repo", "video", "forum_post", "primary_code", "other"]
+      },
+      "accessed_at": { "type": "string", "format": "date" },
+      "hash": { "type": "string", "minLength": 1 }
+    }
+  }
+}

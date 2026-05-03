@@ -1,0 +1,23 @@
+# Excluir do package publicado no npm (incluido por default no git)
+
+# Tests (nao precisam no consumer)
+tests/
+*.test.js
+
+# Dev tooling
+vitest.config.js
+.github/
+.claude/
+.claude-plugin/
+.gitignore
+
+# Docs (READMEs especificos vao por padrao, mas excluir docs/tasks/ etc)
+docs/
+
+# Plugins de IDE (consumidor instala separado se quiser)
+plugins/
+
+# Internal
+local/
+scripts/orchestrate/
+.xp-stack/

@@ -1,4 +1,4 @@
-# claude-craft
+# xp-stack
 
 > Marketplace Claude Code para distribuicao do stack metodologico XP/Akita — TDD absoluto, pair programming, pesquisa formal, task decomposition, conventional commits.
 
@@ -7,8 +7,8 @@
 Empacotar e distribuir o ferramental reusavel desenvolvido no projeto O Agente (Meteora Digital) como plugin Claude Code instalavel por qualquer pessoa via marketplace git. Dois comandos instalam tudo:
 
 ```
-/plugin marketplace add RNobre1/claude-craft
-/plugin install xp-stack@claude-craft
+/plugin marketplace add RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
 ```
 
 ## Stack
@@ -23,7 +23,7 @@ Empacotar e distribuir o ferramental reusavel desenvolvido no projeto O Agente (
 Repo = marketplace git. Contem um plugin unico (`xp-stack`) com skills, agents, templates e stubs MCP.
 
 ```
-RNobre1/claude-craft/
+RNobre1/xp-stack/
 ├── .claude-plugin/marketplace.json     # registro do marketplace
 ├── .github/workflows/                  # CI: validacao JSON + frontmatter
 ├── plugins/
@@ -121,6 +121,12 @@ claude --plugin-dir ./plugins/xp-stack
 
 **Ref:** `docs/tasks/v0.3.0-portable-orchestration/` — 6 T-files com decomposicao completa (T1 RED bash, T2 GREEN Camada A, T3 GREEN Camada B, T4 GREEN Camada C, T5 empirical, T6 release). Origem upstream: `local/paperclip/` (5 arquivos), `scripts/orchestrate/orchestrate-wave.sh`, `.github/workflows/auto-merge.yml`, `scripts/check-{reviewer-approval,always-human}.sh`. Terceiro uso do fluxo de sync O-Agente → claude-craft (apos v0.1.1 e v0.2.0).
 
+### ADR-009 (v1.0.0, 2026-05-03) — Reversa-inspired hardening
+
+**Decisao:** npm CLI primario (`xp-stack`) + plugin marketplace shim, dual mirror always-on (claude-code + antigravity), state machine per-feature (state.json) + global index, schemas estruturados (tasks/sources/claims/manifest/index), confidence markers, manifest SHA-256 com diff em update, RESUME.md auto-gen via hook Stop, doc level configuravel, 3 agents opt-in (db-archaeologist, screenshot-spec-writer, flowchart-extractor), persona PT-BR em 4 skills executoras, fallback headers pra engines sem skill loading, alias `/xp`. Trade-off aceito: sem self-test em projetos reais antes do release (validacao via 128 tests internos + smoke E2E). 24 tasks em 5 ondas, ~50 commits no branch feat/v1.0.0-ship.
+
+**Ref:** `docs/tasks/v1.0.0-ship/` — decomposicao completa em 25 tasks (T0-T24).
+
 ### ADR-007: optimizing-github-actions skill — adicionada na v0.2.0
 **Decisao:** adicionar 6a skill `optimizing-github-actions` extraida de trabalho validado no repo origem O Agente (pesquisa `docs/pesquisas/skill-ci-workflows-github-actions.md`, triangulacao 0.86 em 24 fontes, validada empiricamente reduzindo um workflow de 33min → 14min wall-clock e zerando 6 red flags detectados pela auditoria de SHA pin).
 
@@ -146,6 +152,7 @@ claude --plugin-dir ./plugins/xp-stack
 - [x] v0.1.1 patch (feat/plugin-update-2026-04-16) — 2026-04-16 — 5 fixes cosmeticos pos self-test em betflow (ADR-006)
 - [x] v0.2.0 minor (feat/plugin-update-2026-04-26) — 2026-04-26 — nova skill `optimizing-github-actions` (218-line SKILL.md + 7 references + 2 examples + audit script, auto-ativada via `paths` field) + `akita-xp-rules` Rule 6 ganha proibicao de Co-Authored-By trailers (ADR-007)
 - [x] v0.3.0 minor (feat/v0.3.0-portable-orchestration) — 2026-04-29 — 2 novas skills opt-in (`paperclip-orchestrator` com 8 templates + 9 licoes anonimizadas, `local-waves` com orchestrate-wave.sh) + `bootstrap` ganha symlinks AGENTS.md + .gitignore autoupdate + `akita-xp-rules` ganha appendix "Mandatory Skill Integration" (ADR-008). Suite 53/53.
+- [x] v1.0.0 (feat/v1.0.0-ship) — 2026-05-03 — Reversa-inspired hardening. npm CLI primario (`xp-stack`) + dual mirror always-on + state machine (state.json + index.json) + schemas estruturados (tasks/sources/claims/manifest/index) + RESUME.md auto-gen via hook Stop + manifest SHA-256 com diff + 3 agents opt-in + persona PT-BR em 4 skills + fallback headers + alias `/xp` + auto-check versao npm. Suite vitest 128/128. ADR-009.
 - [ ] ~~poc-mcp-userconfig~~ — **DISPENSADO** na v0.1.1 ao remover stubs MCP do plugin. MCPs passam a ser configurados pelo usuario fora do plugin via `claude mcp add`, entao a validacao de `userConfig sensitive` no keychain Linux deixa de ser pre-requisito pro plugin. Se o plugin voltar a declarar MCPs com userConfig no futuro, este POC volta como pendente.
 
 ## Licoes aprendidas

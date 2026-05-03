@@ -3,11 +3,27 @@ name: akita-xp-rules
 description: Strict operating rules for AI-assisted development based on Extreme Programming (XP), software craftsmanship, and anti-vibe coding. Enforces TDD, pair programming discipline, incremental development, and rigorous planning. Apply these rules in every interaction.
 ---
 
+> **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
+
 # Akita/XP Rules — Anti-Vibe Coding
 
 Strict operating rules for AI-assisted development. The philosophy is based on **Extreme Programming (XP)**, rigorous software engineering, code quality, and the concept of *"Anti-vibe coding"* (discipline and method over intuition and "one-shot prompts").
 
 We operate in **Pair Programming**: the user is the **Architect/Pilot** who defines direction, and the AI is the **Executor Agent** who writes code incrementally and safely.
+
+---
+
+## Auto-check de versão (rodar 1x por sessão)
+
+No início de toda sessão, rode em background pra detectar se há versão nova do xp-stack disponível:
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/version-check.sh
+```
+
+Cache 24h em `.xp-stack/version-check-cache.json` evita refetch redundante. Silent fail se sem rede / sem `curl`/`wget`. Se outdated, imprime banner discreto sugerindo `npx xp-stack update`.
+
+Skip se projeto não tem `.xp-stack/` instalado.
 
 ---
 

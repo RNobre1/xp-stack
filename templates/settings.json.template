@@ -1,0 +1,18 @@
+{
+  "aliases": {
+    "xp": "xp-stack"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx xp-stack hook-stop"
+          }
+        ]
+      }
+    ]
+  }
+}

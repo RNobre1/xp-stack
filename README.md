@@ -1,32 +1,63 @@
-# claude-craft
+# xp-stack
 
-Marketplace Claude Code com o stack metodológico **XP/Akita** — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, conventional commits, e (v0.3.0) orquestração multi-agent opt-in.
+[![npm version](https://img.shields.io/npm/v/xp-stack.svg)](https://npmjs.com/package/xp-stack)
 
-> **Versão atual: v0.3.0** (2026-04-29). Status: estável, pronto pra adoção em qualquer stack (TypeScript, Python, Go, bash, etc.).
+Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, conventional commits e orquestração multi-agent opt-in.
+
+> **Versão atual: v1.0.0** (2026-05-03). Status: estável, pronto pra adoção em qualquer stack (TypeScript, Python, Go, bash, etc.).
 
 ---
 
-## Pré-requisitos
-
-- Claude Code com suporte a plugins (>= outubro 2025).
-
 ## Instalação
 
-Dois comandos. Depois invoque o `bootstrap` na raiz do seu projeto:
+### Forma primária — npm CLI
+
+```bash
+npx xp-stack init
+```
+
+Detecta engines disponíveis (Claude Code, Antigravity, Cursor, Codex, etc.), instala dual mirror em `.claude/skills/` + `.agents/skills/`, cria manifest SHA-256, scaffolda `CLAUDE.md`, `AGENTS.md` (symlink), `docs/tasks/_template/`, `docs/pesquisas/_template/`, `.claude/settings.json` e `.gitignore` atualizado. Nunca sobrescreve nada que já exista.
+
+### Forma alternativa — plugin marketplace (backward compat)
 
 ```
-/plugin marketplace add RNobre1/claude-craft
-/plugin install xp-stack@claude-craft
+/plugin marketplace add RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
 /xp-stack:bootstrap
 ```
 
-O bootstrap pergunta o nome / stack / descrição do projeto, cria `CLAUDE.md` (com placeholders prontos pra você preencher), `docs/tasks/_template/`, `docs/pesquisas/_template/`, `.claude/settings.json`, um symlink `AGENTS.md → CLAUDE.md` (pra Antigravity / Codex / Cursor lerem o mesmo arquivo), e adiciona 3 entries reservadas no `.gitignore`. Nunca sobrescreve nada que já exista.
+### Quick start
+
+```bash
+cd meu-projeto
+npx xp-stack init          # scaffold + dual mirror
+npx xp-stack status        # estado atual (engines, features ativas, drift)
+npx xp-stack add-skill db-archaeologist  # agent opt-in pra análise de DB
+```
+
+### Subcomandos disponíveis (10 + version flag)
+
+| Comando | O que faz |
+|---------|-----------|
+| `xp-stack init` | Scaffold inicial: manifest, dual mirror, templates, AGENTS.md symlink |
+| `xp-stack update` | Diff manifest SHA-256, prompt por arquivo (keep/take/merge/abort) |
+| `xp-stack status` | Estado atual: engines, features, drift |
+| `xp-stack add-engine <name>` | Instala dual mirror em path adicional |
+| `xp-stack add-skill <name>` | Habilita skill opt-in (paperclip, local-waves, db-archaeologist, etc.) |
+| `xp-stack uninstall` | Remove arquivos do manifest, preserva user-modified, prompt antes de cada delete |
+| `xp-stack resume [feature]` | Lê index + state.json, resume sessão de uma feature |
+| `xp-stack hook-stop` | Executado pelo hook `Stop` — atualiza index.json + regenera RESUME.md |
+| `xp-stack regenerate-resume [feature]` | Regenera RESUME.md manualmente |
+| `xp-stack reconcile [feature]` | Reconcilia JSON↔markdown quando divergem (JSON wins, dry-run default) |
+| `xp-stack --version` | Mostra versão instalada |
 
 ## Atualizando
 
-```
-/plugin marketplace update RNobre1/claude-craft
-/plugin install xp-stack@claude-craft
+```bash
+npx xp-stack update
+# ou plugin marketplace:
+/plugin marketplace update RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
 ```
 
 ---
@@ -78,8 +109,8 @@ Cobre 80% dos casos. É o que o bootstrap entrega de cara.
 ```bash
 cd meu-projeto-novo
 # (no Claude Code:)
-/plugin marketplace add RNobre1/claude-craft
-/plugin install xp-stack@claude-craft
+/plugin marketplace add RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
 /xp-stack:bootstrap
 
 # Você ganha CLAUDE.md, AGENTS.md (symlink), .claude/settings.json,
@@ -191,7 +222,7 @@ Total: 53/53 verde em `main`. CI roda em PRs (`.github/workflows/validate-plugin
 ## Testar plugin localmente (em outro projeto)
 
 ```bash
-claude --plugin-dir /caminho/para/claude-craft/plugins/xp-stack
+claude --plugin-dir /caminho/para/xp-stack/plugins/xp-stack
 ```
 
 ---
@@ -200,7 +231,8 @@ claude --plugin-dir /caminho/para/claude-craft/plugins/xp-stack
 
 | Versão | Data | Mudanças principais |
 |--------|------|--------------------|
-| **v0.3.0** | 2026-04-29 | 2 novas skills opt-in (`paperclip-orchestrator` com 8 templates + 9 lições anonimizadas, `local-waves` com `orchestrate-wave.sh`) + `bootstrap` ganha symlinks AGENTS.md + `.gitignore` autoupdate + `akita-xp-rules` ganha appendix "Mandatory Skill Integration" (ADR-008) |
+| **v1.0.0** | 2026-05-03 | npm CLI primário (`xp-stack`) + dual mirror always-on + state machine (`state.json` per-feature + `index.json` global) + schemas estruturados (tasks/sources/claims/manifest/index) + RESUME.md auto-gen via hook Stop + manifest SHA-256 com diff em `update` + 3 agents opt-in (db-archaeologist, screenshot-spec-writer, flowchart-extractor) + persona PT-BR em 4 skills executoras + fallback headers pra engines sem skill loading + alias `/xp` + auto-check de versão npm (ADR-009) |
+| v0.3.0 | 2026-04-29 | 2 novas skills opt-in (`paperclip-orchestrator` com 8 templates + 9 lições anonimizadas, `local-waves` com `orchestrate-wave.sh`) + `bootstrap` ganha symlinks AGENTS.md + `.gitignore` autoupdate + `akita-xp-rules` ganha appendix "Mandatory Skill Integration" (ADR-008) |
 | v0.2.0 | 2026-04-26 | Nova skill `optimizing-github-actions` auto-ativada via `paths` field + `akita-xp-rules` ganha proibição de `Co-Authored-By` (ADR-007) |
 | v0.1.1 | 2026-04-16 | 5 fixes cosméticos pós self-test em projeto real (ADR-006) |
 | v0.1.0 | 2026-04-16 | Release inicial — bootstrap funcional + 4 skills + 4 agents + templates (ADR-005) |

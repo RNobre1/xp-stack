@@ -1,6 +1,6 @@
 {
-  "name": "claude-craft",
-  "description": "Marketplace do stack metodologico XP/Akita para Claude Code — TDD absoluto, pair programming, pesquisa formal, task decomposition, conventional commits, multi-agent orchestration.",
+  "name": "xp-stack",
+  "description": "Marketplace do stack metodologico XP/Akita para Claude Code — TDD absoluto, pair programming, pesquisa formal, task decomposition, conventional commits, multi-agent orchestration, npm CLI multi-engine.",
   "owner": {
     "name": "Meteora Digital",
     "email": "vinicius@meteoradigital.com.br"
