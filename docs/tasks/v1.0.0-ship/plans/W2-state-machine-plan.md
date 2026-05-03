@@ -1354,12 +1354,16 @@ Após T10-T13 mergeados em `feat/v1.0.0-ship`, o repo terá:
 
 ## Checklist de saída de W2
 
-- [ ] T10 (state) commitado e pushed
-- [ ] T11 (hook-stop + init --with-hooks) commitado e pushed
-- [ ] T12 (resume-generator + regenerate-resume + hook-stop estendido) commitado e pushed
-- [ ] T13 (markdown-tasks + reconcile) commitado e pushed
-- [ ] `npx vitest run` verde (~97 tests)
-- [ ] `npm run test:bash` verde (53 preservados)
-- [ ] `node bin/xp-stack --help` lista 10 subcomandos: version, init, update, status, add-engine, add-skill, uninstall, resume, hook-stop, regenerate-resume, reconcile
-- [ ] Smoke E2E: criar fixture, rodar `init --with-hooks`, modificar state.json, rodar `regenerate-resume`, ver RESUME.md, rodar `reconcile --apply`, ver overview atualizado
-- [ ] `00-overview.md`: T10-T13 marcados `[x] Concluida YYYY-MM-DD (commit)`
+- [x] T10 (state `d1289c5`) commitado e pushed
+- [x] T11 (hook-stop + init --with-hooks `945cf56`) commitado e pushed
+- [x] T12 (resume-generator + regenerate-resume + hook-stop estendido `91b3879`) commitado e pushed
+- [x] T13 (markdown-tasks + reconcile `8f3acc0`) commitado e pushed + W2 followup (`e9721f9` try/catch padronizado em todos 10 subcomandos)
+- [x] `npx vitest run` verde (97 tests)
+- [x] `npm run test:bash` verde (53 preservados — confirmado pelo final reviewer)
+- [x] `node bin/xp-stack --help` lista 10 subcomandos: version, init, update, status, add-engine, add-skill, uninstall, resume, hook-stop, regenerate-resume, reconcile
+- [x] Smoke E2E: confirmado pelo W2 consolidated reviewer (init --with-hooks → settings.json válido → criar feature simulada → hook-stop auto-detect → RESUME.md criado → reconcile detecta+aplica → overview atualizado → resume mostra feature)
+- [x] `00-overview.md`: T10-T13 marcados `[x] Concluida 2026-05-03 (commits)`
+
+**Issues conhecidos deferidos pra W3+/polish:**
+- Flaky em `tests/cli/init.test.js > idempotente` quando suite roda em paralelo (race condition em `add-skill.test.js` que cria/remove dirs em REPO_ROOT). Pré-existente desde T7 W1, não regressão de W2. Fix: refatorar `add-skill.test.js` pra usar fixture isolada via env var injection.
+- T10 commit subject 76 chars (acima do guideline 72, abaixo do hard limit 80). Não-corrigível pós-push.

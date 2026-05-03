@@ -53,10 +53,10 @@
 
 | Task | Subject | Estimativa | Status |
 |------|---------|------------|--------|
-| [T10](T10-state-writer.md) | `state.json` writer + reader (skill `task-decomposition` atualizada, regra "JSON wins pra estrutural, markdown wins pra prosa") | M | [ ] Pendente — bloqueada por T2 |
-| [T11](T11-index-tracker.md) | `.xp-stack/index.json` global tracker + auto-update via hook `Stop` | M | [ ] Pendente — bloqueada por T10 |
-| [T12](T12-resume-md-generator.md) | RESUME.md auto-generator (hook `Stop` + skill `/xp-stack:resume`) | M | [ ] Pendente — bloqueada por T10 + T11 |
-| [T13](T13-reconcile-skill.md) | Skill `/xp-stack:reconcile` — quando JSON/markdown divergem, regenera markdown ou pergunta | S | [ ] Pendente — bloqueada por T10 |
+| [T10](T10-state-writer.md) | `state.json` writer + reader (skill `task-decomposition` atualizada, regra "JSON wins pra estrutural, markdown wins pra prosa") | M | [x] Concluida 2026-05-03 (`d1289c5`) |
+| [T11](T11-index-tracker.md) | `.xp-stack/index.json` global tracker + auto-update via hook `Stop` (subcomando `hook-stop` + `init --with-hooks`) | M | [x] Concluida 2026-05-03 (`945cf56`) |
+| [T12](T12-resume-md-generator.md) | RESUME.md auto-generator (hook `Stop` + subcomando `regenerate-resume`) | M | [x] Concluida 2026-05-03 (`91b3879`) |
+| [T13](T13-reconcile-skill.md) | Subcomando `/xp-stack:reconcile` — quando JSON/markdown divergem, regenera markdown (JSON wins, default dry-run) | S | [x] Concluida 2026-05-03 (`8f3acc0`) + W2 followup (`e9721f9` try/catch padronizado em todos subcomandos) |
 
 ### Onda 3 — Schemas + agents (paralelizável, 5 paralelos)
 
