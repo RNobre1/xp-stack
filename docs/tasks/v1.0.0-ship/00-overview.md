@@ -1,7 +1,7 @@
 # v1.0.0 — Ship (Reversa-inspired hardening)
 
 **Branch:** `feat/v1.0.0-ship`
-**Status:** EM ANDAMENTO
+**Status:** CONCLUIDA on 2026-05-03
 **Iniciado:** 2026-05-02
 **Origem:** Análise comparativa do framework `sandeco/reversa` em uso no projeto `central-projetos` (Meteora). Reversa expôs 13 padrões de design que o claude-craft pode absorver sem mudar de propósito (forward methodology). Brainstorming Akita/XP em sessão única do Piloto, 6 perguntas (a 6ª consolidada com 8 sub-decisões), 13 decisões totais, todas aprovadas.
 
@@ -72,12 +72,12 @@
 
 | Task | Subject | Estimativa | Status |
 |------|---------|------------|--------|
-| [T19](T19-persona-revision.md) | Persona PT-BR em 4 skills executoras (bootstrap, task-decomposition, research-cycle, optimizing-github-actions) | S | [ ] Pendente |
-| [T20](T20-doc-level.md) | Doc level configurável: `task-decomposition --level=essencial\|completo`, `research-cycle --level=L1\|L2\|L3` | M | [ ] Pendente — bloqueada por T10 |
-| [T21](T21-dual-mirror-detect.md) | Auto-detecção de engines em `init` + `--engine` flag + `--no-dual-mirror` opt-out | S | [ ] Pendente — bloqueada por T3 |
-| [T22](T22-version-check.md) | Auto-check de versão npm 1x/sessão via `akita-xp-rules` (cache em `.xp-stack/version-check-cache`) | S | [ ] Pendente — bloqueada por T1 |
-| [T23](T23-skill-fallback-headers.md) | Header de 2 linhas em cada SKILL.md ensinando fallback pra engines sem skill loading + alias `/xp` opcional via settings.json template | S | [ ] Pendente |
-| [T24](T24-release.md) | Release: ADR-009 + bump 1.0.0 + atualiza CLAUDE.md + npm publish + GitHub release + PR `feat/v1.0.0-ship` → `main` | M | [ ] Pendente — bloqueada por TODAS |
+| [T19](T19-persona-revision.md) | Persona PT-BR em 4 skills executoras (bootstrap, task-decomposition, research-cycle, optimizing-github-actions) | S | [x] Concluida 2026-05-03 (`07d8895`) |
+| [T20](T20-doc-level.md) | Doc level configurável: `task-decomposition --level=essencial\|completo`, `research-cycle --level=L1\|L2\|L3` | M | [x] Concluida 2026-05-03 (`b9bf6d0`) |
+| [T21](T21-dual-mirror-detect.md) | Auto-detecção de engines em `init` + `--engine` flag + `--no-dual-mirror` opt-out | S | [x] Concluida 2026-05-03 (`dca1cb0`) |
+| [T22](T22-version-check.md) | Auto-check de versão npm 1x/sessão via `akita-xp-rules` (cache em `.xp-stack/version-check-cache`) | S | [x] Concluida 2026-05-03 (`2cb7530`) |
+| [T23](T23-skill-fallback-headers.md) | Header de 2 linhas em cada SKILL.md ensinando fallback pra engines sem skill loading + alias `/xp` opcional via settings.json template | S | [x] Concluida 2026-05-03 (`407fcbf`) |
+| [T24](T24-release.md) | Release: ADR-009 + bump 1.0.0 + atualiza CLAUDE.md + npm publish + GitHub release + PR `feat/v1.0.0-ship` → `main` | M | [x] Concluida 2026-05-03 (release) |
 
 ---
 
