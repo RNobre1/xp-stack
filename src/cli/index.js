@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { registerVersion } from './commands/version.js';
+import { registerInit } from './commands/init.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_JSON = JSON.parse(
@@ -18,7 +19,8 @@ export async function run(argv) {
     .version(PKG_JSON.version, '-V, --version', 'imprime a versao instalada');
 
   registerVersion(program);
-  // Future subcommands wire up here: init, update, status, resume, add-engine, add-skill, uninstall
+  registerInit(program);
+  // Future subcommands wire up here: update, status, resume, add-engine, add-skill, uninstall
 
   await program.parseAsync(argv);
 }
