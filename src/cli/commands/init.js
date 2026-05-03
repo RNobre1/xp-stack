@@ -88,7 +88,8 @@ async function runInit(opts) {
   }
 
   // Instala todos os templates pra todas as engines
-  const templates = walkDir(TEMPLATES_ROOT);
+  // Exclui opt-in-skills/ — instaladas apenas via `xp-stack add-skill` explicitamente
+  const templates = walkDir(TEMPLATES_ROOT).filter((t) => !t.startsWith('opt-in-skills/'));
   for (const tpl of templates) {
     const result = installToDualMirror({
       sourceRel: tpl,
