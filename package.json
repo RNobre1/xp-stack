@@ -1,6 +1,6 @@
 {
   "name": "xp-stack",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Methodology stack for AI coding agents (Claude Code, Codex, Cursor, Antigravity, Gemini CLI). TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, multi-agent orchestration. Inspired by Reversa.",
   "type": "module",
   "bin": {
@@ -16,7 +16,7 @@
     "src/",
     "schemas/",
     "templates/",
-    "skills/"
+    "plugins/"
   ],
   "engines": {
     "node": ">=18"

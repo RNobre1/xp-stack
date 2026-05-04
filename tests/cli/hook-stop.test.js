@@ -96,9 +96,13 @@ describe('xp-stack init --with-hooks', () => {
     expect(stopHooksJson).toMatch(/hook-stop/);
   });
 
-  it('sem --with-hooks, NAO cria settings.json', () => {
+  it('sem --with-hooks, cria settings.json (do template) mas SEM hook Stop', () => {
     execFileSync('node', [BIN, 'init', '--cwd', tmp, '--yes'], { encoding: 'utf8' });
-    expect(existsSync(join(tmp, '.claude', 'settings.json'))).toBe(false);
+    // v1.1.0: init sempre scaffolda .claude/settings.json a partir do template (claude-settings-project.json),
+    // que nao inclui hooks. --with-hooks injeta o hook Stop adicionalmente.
+    expect(existsSync(join(tmp, '.claude', 'settings.json'))).toBe(true);
+    const settings = JSON.parse(readFileSync(join(tmp, '.claude', 'settings.json'), 'utf8'));
+    expect(settings.hooks).toBeUndefined();
   });
 
   it('--with-hooks idempotente: re-rodar nao duplica hook entries', () => {

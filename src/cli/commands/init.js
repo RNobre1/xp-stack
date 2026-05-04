@@ -1,22 +1,61 @@
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import {
+  readFileSync,
+  existsSync,
+  writeFileSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+} from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { detectEngines, ENGINE_PATHS } from '../../lib/engines.js';
 import { EMPTY_MANIFEST, readManifest, writeManifest } from '../../lib/manifest.js';
 import { EMPTY_INDEX, readIndex, writeIndex } from '../../lib/index-tracker.js';
-import { installToDualMirror, walkDir } from '../../lib/installer.js';
+import { installFile } from '../../lib/installer.js';
+import {
+  scaffoldFile,
+  scaffoldDir,
+  scaffoldSymlink,
+  injectGitignoreLine,
+} from '../../lib/scaffold.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
-const TEMPLATES_ROOT = join(PKG_ROOT, 'templates');
+const PLUGIN_SOURCE_ROOT = join(PKG_ROOT, 'plugins', 'xp-stack');
+
+const CORE_SKILLS = [
+  'akita-xp-rules',
+  'tdd-conventions',
+  'task-decomposition',
+  'research-cycle',
+  'optimizing-github-actions',
+];
+
+const CORE_AGENTS = ['researcher.md', 'research-critic.md', 'tdd.md', 'reviewer.md'];
 
 const HOOK_STOP_COMMAND = 'npx xp-stack hook-stop';
 
 /**
- * Injeta hook Stop em .claude/settings.json de forma idempotente.
- * Merge nao-destrutivo: preserva settings existentes.
- *
- * @param {string} projectRoot
+ * Walk de um skill dir, retorna paths relativos (sem .gitkeep).
+ */
+function walkSkillFiles(skillDir) {
+  const out = [];
+  function walk(dir, base = '') {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      if (entry === '.gitkeep') continue;
+      const full = join(dir, entry);
+      const rel = base ? `${base}/${entry}` : entry;
+      if (statSync(full).isDirectory()) walk(full, rel);
+      else out.push(rel);
+    }
+  }
+  walk(skillDir);
+  return out;
+}
+
+/**
+ * Injeta hook Stop em .claude/settings.json (idempotente).
  */
 function injectHookStop(projectRoot) {
   const settingsPath = join(projectRoot, '.claude', 'settings.json');
@@ -42,10 +81,7 @@ function injectHookStop(projectRoot) {
 }
 
 /**
- * Resolve quais engines instalar:
- * - --engine flag: forca lista explicita
- * - --no-dual-mirror: so engines detectadas
- * - default: engines detectadas + 'antigravity' (dual mirror always-on)
+ * Resolve quais engines instalar.
  */
 function resolveEngines(opts, projectRoot) {
   if (opts.engine) {
@@ -55,8 +91,7 @@ function resolveEngines(opts, projectRoot) {
   if (opts.dualMirror === false) {
     return detected;
   }
-  // Dual mirror always-on: se claude-code detectado mas nao antigravity, adiciona antigravity
-  // Razao: instalar tambem em .agents/skills/ pra zero-friction quando user adicionar Antigravity/Codex/Cursor
+  // Dual mirror always-on: claude-code detectado -> adiciona antigravity (.agents/skills)
   const engines = new Set(detected);
   if (engines.has('claude-code') && !engines.has('antigravity')) {
     engines.add('antigravity');
@@ -66,6 +101,9 @@ function resolveEngines(opts, projectRoot) {
 
 async function runInit(opts) {
   const projectRoot = resolve(opts.cwd ?? process.cwd());
+  // Snapshot detected engines BEFORE scaffolds (init cria AGENTS.md symlink que
+  // contaria como antigravity em re-detect; queremos a foto do estado real do projeto).
+  const detectedAtStart = detectEngines(projectRoot);
   const engines = resolveEngines(opts, projectRoot);
 
   if (engines.length === 0) {
@@ -77,72 +115,157 @@ async function runInit(opts) {
 
   const pkgJson = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8'));
 
-  // Manifest: cria se nao existe, mantem files se ja existe
-  let manifest = readManifest(projectRoot);
-  if (!manifest) {
-    manifest = EMPTY_MANIFEST(pkgJson.version);
-    manifest.engines = engines;
-  } else {
-    // Idempotente: mantem version + files. So atualiza engines se mudou.
-    manifest.engines = engines;
+  let manifest = readManifest(projectRoot) ?? EMPTY_MANIFEST(pkgJson.version);
+  manifest.engines = engines;
+
+  // 1. Skills core (dual mirror conforme engines)
+  for (const skillName of CORE_SKILLS) {
+    const skillSource = join(PLUGIN_SOURCE_ROOT, 'skills', skillName);
+    if (!existsSync(skillSource)) continue;
+    const files = walkSkillFiles(skillSource);
+    for (const f of files) {
+      for (const engine of engines) {
+        const cfg = ENGINE_PATHS[engine];
+        if (!cfg) continue;
+        const destRel = join(cfg.skillsDir, skillName, f);
+        const destPath = join(projectRoot, destRel);
+        const result = installFile(join(skillSource, f), destPath);
+        if (!result.skipped) {
+          manifest.files[destRel] = {
+            hash: result.hash,
+            source: `plugins/xp-stack/skills/${skillName}/${f}`,
+            user_modified: false,
+          };
+        }
+      }
+    }
   }
 
-  // Instala todos os templates pra todas as engines
-  // Exclui opt-in-skills/ — instaladas apenas via `xp-stack add-skill` explicitamente
-  const templates = walkDir(TEMPLATES_ROOT).filter((t) => !t.startsWith('opt-in-skills/'));
-  for (const tpl of templates) {
-    const result = installToDualMirror({
-      sourceRel: tpl,
-      sourceRoot: TEMPLATES_ROOT,
-      projectRoot,
-      engines,
-      overwrite: false,
-    });
-    for (const inst of result.installed) {
-      manifest.files[inst.destRel] = {
-        hash: inst.hash,
-        source: `templates/${tpl}`,
+  // 2. Agents (claude-code only — formato Claude Code, outras engines TBD)
+  if (engines.includes('claude-code')) {
+    for (const agent of CORE_AGENTS) {
+      const sourcePath = join(PLUGIN_SOURCE_ROOT, 'agents', agent);
+      if (!existsSync(sourcePath)) continue;
+      const destRel = join('.claude', 'agents', agent);
+      const destPath = join(projectRoot, destRel);
+      const result = installFile(sourcePath, destPath);
+      if (!result.skipped) {
+        manifest.files[destRel] = {
+          hash: result.hash,
+          source: `plugins/xp-stack/agents/${agent}`,
+          user_modified: false,
+        };
+      }
+    }
+  }
+
+  // 3. Scaffolds — CLAUDE.md
+  const claudeMdResult = scaffoldFile(
+    join(PLUGIN_SOURCE_ROOT, 'templates', 'CLAUDE.md.template'),
+    join(projectRoot, 'CLAUDE.md')
+  );
+  if (!claudeMdResult.skipped) {
+    manifest.files['CLAUDE.md'] = {
+      hash: claudeMdResult.hash,
+      source: 'plugins/xp-stack/templates/CLAUDE.md.template',
+      user_modified: false,
+    };
+  }
+
+  // 4. AGENTS.md symlink -> CLAUDE.md
+  scaffoldSymlink('CLAUDE.md', join(projectRoot, 'AGENTS.md'));
+
+  // 5. docs/tasks/_template/
+  const tasksTplResult = scaffoldDir(
+    join(PLUGIN_SOURCE_ROOT, 'templates', 'docs-tasks-template'),
+    join(projectRoot, 'docs', 'tasks', '_template')
+  );
+  for (const entry of tasksTplResult.copied) {
+    const destRel = entry.destPath.slice(projectRoot.length + 1);
+    manifest.files[destRel] = {
+      hash: entry.hash,
+      source: 'plugins/xp-stack/templates/docs-tasks-template/...',
+      user_modified: false,
+    };
+  }
+
+  // 6. docs/pesquisas/_template/
+  const pesquisasTplResult = scaffoldDir(
+    join(PLUGIN_SOURCE_ROOT, 'templates', 'docs-pesquisas-template'),
+    join(projectRoot, 'docs', 'pesquisas', '_template')
+  );
+  for (const entry of pesquisasTplResult.copied) {
+    const destRel = entry.destPath.slice(projectRoot.length + 1);
+    manifest.files[destRel] = {
+      hash: entry.hash,
+      source: 'plugins/xp-stack/templates/docs-pesquisas-template/...',
+      user_modified: false,
+    };
+  }
+
+  // 7. .claude/settings.json (so se claude-code engine, pra evitar criar dir desnecessario)
+  if (engines.includes('claude-code')) {
+    const settingsResult = scaffoldFile(
+      join(PLUGIN_SOURCE_ROOT, 'templates', 'claude-settings-project.json'),
+      join(projectRoot, '.claude', 'settings.json')
+    );
+    if (!settingsResult.skipped) {
+      manifest.files['.claude/settings.json'] = {
+        hash: settingsResult.hash,
+        source: 'plugins/xp-stack/templates/claude-settings-project.json',
         user_modified: false,
       };
     }
   }
 
-  writeManifest(projectRoot, manifest);
+  // 8. .gitignore
+  injectGitignoreLine('.xp-stack/state/', projectRoot);
 
-  // Index: cria se nao existe, atualiza engines_installed
-  let index = readIndex(projectRoot);
-  if (!index) {
-    index = EMPTY_INDEX();
-  }
+  // 9. Manifest + index
+  writeManifest(projectRoot, manifest);
+  let index = readIndex(projectRoot) ?? EMPTY_INDEX();
   index.engines_installed = engines;
   writeIndex(projectRoot, index);
 
-  // Warning se >=2 engines reais (nao so dual-mirror automatic) detectadas
-  if (!opts.engine) {
-    const detected = detectEngines(projectRoot);
-    if (detected.length >= 2) {
-      console.log(`xp-stack init: WARN — multiplas engines detectadas (${detected.join(', ')}). Pra evitar instalacao em todas, use --engine <csv> pra forcar lista explicita.`);
-    }
-  }
-
+  // 10. Optional Stop hook
   if (opts.withHooks && engines.includes('claude-code')) {
     injectHookStop(projectRoot);
     console.log('Hook Stop injetado em .claude/settings.json (call: npx xp-stack hook-stop)');
   }
 
+  // 11. Multi-engine warning (usa snapshot pre-scaffold; AGENTS.md symlink que init
+  // acabou de criar nao deve disparar warn de antigravity).
+  if (!opts.engine && detectedAtStart.length >= 2) {
+    console.log(
+      `xp-stack init: WARN — multiplas engines detectadas (${detectedAtStart.join(', ')}). Pra evitar instalacao em todas, use --engine <csv> pra forcar lista explicita.`
+    );
+  }
+
+  // 12. Summary
   console.log(`xp-stack v${pkgJson.version} instalado em ${projectRoot}`);
   console.log(`Engines: ${engines.join(', ')}`);
   console.log(`Manifest: ${Object.keys(manifest.files).length} files trackeados`);
+  console.log(`Skills core: ${CORE_SKILLS.length} (${CORE_SKILLS.join(', ')})`);
+  if (engines.includes('claude-code')) {
+    console.log(`Agents: ${CORE_AGENTS.length} em .claude/agents/`);
+  }
+  console.log(
+    `Scaffolded: CLAUDE.md, AGENTS.md (symlink), docs/tasks/_template/, docs/pesquisas/_template/${
+      engines.includes('claude-code') ? ', .claude/settings.json' : ''
+    }, .gitignore`
+  );
 }
 
 export function registerInit(program) {
   program
     .command('init')
-    .description('Inicializa xp-stack no projeto (detect engines + instala templates + escreve manifest/index)')
+    .description(
+      'Inicializa xp-stack no projeto: detect engines + 5 skills core + 4 agents + CLAUDE.md + AGENTS.md (symlink) + docs templates + .claude/settings.json + .gitignore'
+    )
     .option('--cwd <path>', 'project root (default: process.cwd())')
     .option('--engine <names>', 'forca engines (csv): claude-code,codex,cursor,...')
     .option('--no-dual-mirror', 'desabilita dual mirror automatico (so engines detectadas)')
-    .option('--yes', 'pula prompts interativos (no-op em T3 — sera usado em update/uninstall)')
+    .option('--yes', 'pula prompts interativos (no-op em init — sera usado em update/uninstall)')
     .option('--with-hooks', 'injeta hook Stop em .claude/settings.json (so se claude-code engine presente)')
     .action(async (opts) => {
       try {
