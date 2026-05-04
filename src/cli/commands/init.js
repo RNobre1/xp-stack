@@ -19,6 +19,7 @@ import {
   injectGitignoreLine,
 } from '../../lib/scaffold.js';
 import { resolveEngines, getAllEngineChoices } from '../../lib/engine-resolver.js';
+import { resolveDocLevel } from '../../lib/doc-level-resolver.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
@@ -99,6 +100,15 @@ async function defaultCheckboxPrompt(detected) {
   });
 }
 
+async function defaultDocLevelPrompt(choices) {
+  const { select } = await import('@inquirer/prompts');
+  return select({
+    message: 'Nivel de detalhamento das tasks em docs/tasks/<feature>/?',
+    choices,
+    default: 'completo',
+  });
+}
+
 async function runInit(opts) {
   const projectRoot = resolve(opts.cwd ?? process.cwd());
   // Snapshot detected engines BEFORE scaffolds (init cria AGENTS.md symlink que
@@ -131,6 +141,24 @@ async function runInit(opts) {
       'Use --engine <nome[,nome...]> pra forcar (ex: --engine claude-code), ' +
       'ou rode sem --yes pra escolher interativamente.'
     );
+  }
+
+  // Resolve doc_level (interativo apos engines). NAO pede em re-init de projeto que ja tem index.
+  const existingIndex = readIndex(projectRoot);
+  let docLevel;
+  if (existingIndex?.doc_level_default && !opts.docLevel) {
+    // Re-init: preserva doc_level existente (idempotencia). User altera via `xp-stack config doc-level`.
+    docLevel = existingIndex.doc_level_default;
+  } else {
+    try {
+      const docResolved = await resolveDocLevel(opts, { prompt: defaultDocLevelPrompt });
+      docLevel = docResolved.docLevel;
+    } catch (err) {
+      if (err?.name === 'ExitPromptError') {
+        throw new Error('xp-stack init: cancelado pelo usuario.');
+      }
+      throw err;
+    }
   }
 
   const pkgJson = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8'));
@@ -245,6 +273,7 @@ async function runInit(opts) {
   writeManifest(projectRoot, manifest);
   let index = readIndex(projectRoot) ?? EMPTY_INDEX();
   index.engines_installed = engines;
+  index.doc_level_default = docLevel;
   writeIndex(projectRoot, index);
 
   // 10. Optional Stop hook
@@ -274,6 +303,7 @@ async function runInit(opts) {
       engines.includes('claude-code') ? ', .claude/settings.json' : ''
     }, .gitignore`
   );
+  console.log(`Doc level: ${docLevel} (mude com: npx xp-stack config doc-level <essencial|completo>)`);
 }
 
 export function registerInit(program) {
@@ -287,6 +317,7 @@ export function registerInit(program) {
     .option('--no-dual-mirror', 'desabilita dual mirror automatico (so engines detectadas)')
     .option('--yes', 'pula prompts interativos: usa engines detectadas + dual mirror (CI/non-TTY behavior)')
     .option('--with-hooks', 'injeta hook Stop em .claude/settings.json (so se claude-code engine presente)')
+    .option('--doc-level <level>', 'nivel de detalhamento das tasks: essencial | completo (default: completo, ou prompt interativo)')
     .action(async (opts) => {
       try {
         await runInit(opts);
