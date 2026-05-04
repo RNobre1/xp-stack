@@ -18,6 +18,7 @@ import {
   scaffoldSymlink,
   injectGitignoreLine,
 } from '../../lib/scaffold.js';
+import { resolveEngines, getAllEngineChoices } from '../../lib/engine-resolver.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
@@ -81,22 +82,21 @@ function injectHookStop(projectRoot) {
 }
 
 /**
- * Resolve quais engines instalar.
+ * Prompt checkbox padrao via @inquirer/prompts. Marca pre-selecao = detected.
+ * Lazy-import porque @inquirer/prompts e ESM e so deve ser carregado quando precisamos.
  */
-function resolveEngines(opts, projectRoot) {
-  if (opts.engine) {
-    return opts.engine.split(',').map((e) => e.trim()).filter(Boolean);
-  }
-  const detected = detectEngines(projectRoot);
-  if (opts.dualMirror === false) {
-    return detected;
-  }
-  // Dual mirror always-on: claude-code detectado -> adiciona antigravity (.agents/skills)
-  const engines = new Set(detected);
-  if (engines.has('claude-code') && !engines.has('antigravity')) {
-    engines.add('antigravity');
-  }
-  return Array.from(engines);
+async function defaultCheckboxPrompt(detected) {
+  const { checkbox } = await import('@inquirer/prompts');
+  const choices = getAllEngineChoices().map((c) => ({
+    ...c,
+    checked: detected.includes(c.value),
+  }));
+  return checkbox({
+    message:
+      'Quais engines de IA o projeto usa? (espaco pra marcar/desmarcar, enter pra confirmar)',
+    choices,
+    instructions: false,
+  });
 }
 
 async function runInit(opts) {
@@ -104,12 +104,32 @@ async function runInit(opts) {
   // Snapshot detected engines BEFORE scaffolds (init cria AGENTS.md symlink que
   // contaria como antigravity em re-detect; queremos a foto do estado real do projeto).
   const detectedAtStart = detectEngines(projectRoot);
-  const engines = resolveEngines(opts, projectRoot);
+
+  let resolved;
+  try {
+    resolved = await resolveEngines(opts, projectRoot, {
+      detect: detectEngines,
+      prompt: defaultCheckboxPrompt,
+    });
+  } catch (err) {
+    // ExitPromptError: user pressed Ctrl-C in checkbox
+    if (err?.name === 'ExitPromptError') {
+      throw new Error('xp-stack init: cancelado pelo usuario.');
+    }
+    throw err;
+  }
+  const engines = resolved.engines;
 
   if (engines.length === 0) {
+    if (resolved.mode === 'interactive') {
+      throw new Error(
+        'xp-stack init: nenhuma engine selecionada. Marque pelo menos uma engine no prompt (espaco) ou use --engine <csv>.'
+      );
+    }
     throw new Error(
       'xp-stack init: nenhuma engine detectada no projeto. ' +
-      'Use --engine <nome[,nome...]> pra forcar (ex: --engine claude-code).'
+      'Use --engine <nome[,nome...]> pra forcar (ex: --engine claude-code), ' +
+      'ou rode sem --yes pra escolher interativamente.'
     );
   }
 
@@ -265,7 +285,7 @@ export function registerInit(program) {
     .option('--cwd <path>', 'project root (default: process.cwd())')
     .option('--engine <names>', 'forca engines (csv): claude-code,codex,cursor,...')
     .option('--no-dual-mirror', 'desabilita dual mirror automatico (so engines detectadas)')
-    .option('--yes', 'pula prompts interativos (no-op em init — sera usado em update/uninstall)')
+    .option('--yes', 'pula prompts interativos: usa engines detectadas + dual mirror (CI/non-TTY behavior)')
     .option('--with-hooks', 'injeta hook Stop em .claude/settings.json (so se claude-code engine presente)')
     .action(async (opts) => {
       try {
