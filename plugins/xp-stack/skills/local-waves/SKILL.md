@@ -1,6 +1,6 @@
 ---
 name: local-waves
-description: Set up a local parallel-wave orchestrator in this project — copies orchestrate-wave.sh and README to scripts/orchestrate/. The orchestrator dispatches N headless workers (claude -p Sonnet) in isolated git worktrees per task, blocks on BLOCKERS.md discipline, and aggregates a summary. Alternative to remote orchestrators like Paperclip when you want sync local execution without infrastructure. Invoke explicitly via /xp-stack:local-waves-setup. Opt-in.
+description: "[LEGACY — pré-Agent View 2026-05-11] Set up a local parallel-wave orchestrator in this project — copies orchestrate-wave.sh and README to scripts/orchestrate/. The orchestrator dispatches N headless workers (claude -p Sonnet) in isolated git worktrees per task, blocks on BLOCKERS.md discipline, and aggregates a summary. Alternative to remote orchestrators like Paperclip when you want sync local execution without infrastructure. Invoke explicitly via /xp-stack:local-waves-setup. Opt-in."
 disable-model-invocation: true
 allowed-tools:
   - Bash(bash *)
@@ -17,6 +17,8 @@ allowed-tools:
 
 # Local Waves Orchestrator — Setup
 
+> **Legacy notice:** Esta skill foi a recomendação canônica antes do lançamento do **Agent View nativo do Claude Code** (https://claude.com/blog/agent-view-in-claude-code, 11-mai-2026). Pra novos projetos use **Agent View** via Agent tool nativo (`model: "sonnet"` + `isolation: "worktree"` + prompt invoca `caveman:caveman`). `local-waves` segue funcional como fallback ou pra projetos que rodam fora do Claude Code (não-interativo, CI, etc.).
+
 Set up a local parallel-wave orchestrator in your project. Optional, opt-in. Invoke explicitly when you decide you want this — the regular `bootstrap` does NOT install it.
 
 ## Mental model
@@ -27,16 +29,16 @@ Set up a local parallel-wave orchestrator in your project. Optional, opt-in. Inv
 
 Worker permissions: `--permission-mode acceptEdits` + `--allowedTools` with specific allowlist (no `--dangerously-skip-permissions`). If a worker hits something outside the allowlist OR needs a credential / business decision not provided, it **stops, writes `BLOCKERS.md` in the worktree, commits WIP, and exits without opening a PR**. The orchestrator collects this and presents to the Pilot.
 
-## Trade-off vs `xp-stack:paperclip-orchestrator`
+## Trade-off vs `xp-stack:paperclip-orchestrator` and Agent View
 
-| Criterion | local-waves (this) | Paperclip |
-|---|---|---|
-| Execution model | Local sync, blocks until done | Remote async, droplet-hosted |
-| Latency | Minutes (block-and-summarize) | Hours-days (heartbeat cycle, async review) |
-| Persistence | None (session-bound) | Yes (DB-backed) |
-| Multi-developer | No | Yes |
-| Infrastructure | None | VPS (~$10/mo) + Anthropic OAuth subscription |
-| When to choose | You're solo, want isolated execution per task without infra | You want a 24/7 review queue or async dev/review separation |
+| Criterion | local-waves (this) | Paperclip | **Agent View (recomendado)** |
+|---|---|---|---|
+| Execution model | Local sync, headless | Remote async, droplet-hosted | Native Claude Code, parallel sessions |
+| Latency | Minutes (block-and-summarize) | Hours-days (heartbeat cycle, async review) | Seconds (parallel dispatch) |
+| Persistence | None (session-bound) | Yes (DB-backed) | Session-bound (Agent View UI) |
+| Multi-developer | No | Yes | No (single Pilot) |
+| Infrastructure | None | VPS (~$10/mo) + Anthropic OAuth subscription | None |
+| When to choose | Solo, headless, fallback (CI/non-interactive) | Multi-dev async, 24/7 review queue | **Solo or pair, interactive — default** |
 
 You can install **both** in the same project; they don't conflict (Paperclip uses `local/paperclip/`, local-waves uses `scripts/orchestrate/`).
 

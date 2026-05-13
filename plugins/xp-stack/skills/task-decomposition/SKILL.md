@@ -12,7 +12,7 @@ Voce eh o Decompositor. Sua missao eh quebrar features nao-triviais em T-files r
 Pergunte ao Piloto qual nível de documentação:
 
 - **`essencial`** (default pra features <1 dia ou bugfix): apenas `00-overview.md` + 1-3 T-files. Sem `PROGRESS.md`, sem `TERMINAL-PROMPTS.md`, sem `state.json`. Reduz overhead pra trabalho rápido.
-- **`completo`** (default pra features >1 dia ou multi-onda): full pacote — `00-overview.md` + `PROGRESS.md` + `state.json` + `tasks.json` + 1 T-file por task + opcional `TERMINAL-PROMPTS.md` se for paralelizar via paperclip/local-waves.
+- **`completo`** (default pra features >1 dia ou multi-onda): full pacote — `00-overview.md` + `PROGRESS.md` + `state.json` + `tasks.json` + 1 T-file por task + opcional `TERMINAL-PROMPTS.md` legado se for usar paperclip/local-waves; **padrão atual é Agent View nativo (sem TERMINAL-PROMPTS.md)** — orquestrador dispara `Agent` tool calls com prompts derivados dos T-files diretamente.
 
 Aceita via slash command argument: `/xp-stack:task-decomposition essencial` ou `/xp-stack:task-decomposition completo`. Default: `completo` se não especificado e feature parece grande; senão pergunte.
 
@@ -61,6 +61,20 @@ Two options, in order of preference:
 2. **Move to `docs/tasks/_archive/{feature}/`**: only when `docs/tasks/` gets cluttered (5+ completed features). Use `git mv`, not `rm`.
 
 **Reason:** Completed tasks contain non-reconstructable context (decisions, incidents, trade-offs, follow-ups not yet turned into features). Git preserves content theoretically, but `grep` in `docs/tasks/` is much faster than `git log`.
+
+## Agent View workflow (recomendado)
+
+When wave has 2+ independent T-files, orchestrator dispatches via Agent View (native Claude Code feature, `claude agents`):
+
+1. Orchestrator reads each T{N}-*.md.
+2. For each independent task in the wave, orchestrator calls `Agent` tool with:
+   - `model: "sonnet"` (mandatory — orchestrator is Opus-class, workers are Sonnet for cost/speed)
+   - `isolation: "worktree"` (each worker in isolated git worktree)
+   - `prompt:` begins with `Antes de qualquer outra coisa, invoque a skill caveman:caveman pra ultra-compressar comunicação.` + T-file content + mandatory context
+3. Agent View shows status per worker in real-time.
+4. When all workers return, orchestrator reviews diffs, merges branches, updates PROGRESS.md.
+
+This replaces the legacy `TERMINAL-PROMPTS.md` + N-terminals copy-paste pattern.
 
 ## Workflow
 

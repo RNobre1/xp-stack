@@ -1,0 +1,35 @@
+## Type
+
+- [ ] feat
+- [ ] fix
+- [ ] refactor
+- [ ] test
+- [ ] docs
+- [ ] chore
+
+## Summary
+
+<!-- 1-2 sentences focusing on the "why" -->
+
+## Mandatory for `fix:` PRs (delete this section if not a fix)
+
+### Hypotheses ranked
+<!-- List your top 3 hypotheses BEFORE the fix. Most-likely first. Cite evidence. -->
+1. ...
+2. ...
+3. ...
+
+### Root cause confirmed via
+<!-- A failing test before the fix, a log capture, a reproduction. Link required. -->
+- ...
+
+### Regression test
+<!-- Link to the test file that fails before the fix and passes after. Or "N/A — reason justified". -->
+- ...
+
+### systematic-debugging
+- [ ] `superpowers:systematic-debugging` skill was invoked before the first commit on this branch
+
+## Test plan
+- [ ] ...
+- [ ] ...

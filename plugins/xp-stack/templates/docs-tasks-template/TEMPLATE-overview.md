@@ -40,10 +40,11 @@
 
 ## How to execute
 
-**Start a task in a new terminal:**
+**Padrão Agent View (canônico):** orquestrador dispara workers paralelos via `Agent` tool nativo. Veja `TEMPLATE-orchestrator-prompt.md` neste mesmo template.
+
+Para uma única task (sem paralelização), o orquestrador pode executar inline:
 ```
-Read the file docs/tasks/{{feature-slug}}/T{N}-{{name}}.md and execute the task described in it.
-Branch: feat/{{feature-slug}}-T{N}. TDD mandatory. When done, open PR to main.
+Read docs/tasks/{{feature-slug}}/T{N}-{{name}}.md and execute. Branch: feat/{{feature-slug}}-T{N}. TDD mandatory. When done, open PR to main.
 ```
 
 **Parallelism allowed** (only include waves if you'll actually parallelize):
@@ -52,6 +53,8 @@ Branch: feat/{{feature-slug}}-T{N}. TDD mandatory. When done, open PR to main.
 |------|----------------|--------------|
 | 1 | {{T1 + T2}} | None |
 | 2 | {{T3 + T4 + T5}} | T1 complete |
+
+Each wave row implies a single orchestrator message with multiple `Agent` tool calls (model=sonnet + isolation=worktree + prompt invoking `caveman:caveman`).
 
 ---
 
