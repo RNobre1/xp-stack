@@ -2,9 +2,21 @@
 
 [![npm version](https://img.shields.io/npm/v/xp-stack.svg)](https://npmjs.com/package/xp-stack)
 
-Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, conventional commits e orquestração multi-agent opt-in.
+Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, conventional commits e **orquestração multi-agent nativa via Agent View** (Claude Code) com fallbacks opt-in.
 
-> **Versão atual: v1.0.0** (2026-05-03). Status: estável, pronto pra adoção em qualquer stack (TypeScript, Python, Go, bash, etc.).
+> **Versão atual: v2.0.0** (2026-05-13). Status: estável, pronto pra adoção em qualquer stack (TypeScript, Python, Go, bash, etc.). Veja [CHANGELOG.md](CHANGELOG.md) pro migration guide v1.x → v2.0.
+
+---
+
+## O que mudou na v2.0.0
+
+> **Breaking release.** Parallelization pattern shifts from manual `TERMINAL-PROMPTS.md` (N terminals + copy-paste) to Claude Code **Agent View** native. Mais detalhes em [CHANGELOG.md](CHANGELOG.md).
+
+- ✅ **Novo template canônico** `TEMPLATE-orchestrator-prompt.md` (substitui `TEMPLATE-terminal-prompts.md` removido)
+- ✅ **Padrão Sonnet+caveman+worktree** pra workers dispatched pelo orchestrator
+- ✅ **Nova skill opt-in `debugging-discipline`** — instala PR template + PreToolUse hook + settings deep-merge pra forçar disciplina em commits `fix:`
+- ✅ `akita-xp-rules`, `task-decomposition` atualizadas pra refletir Agent View
+- ✅ `local-waves` marcada como `[LEGACY]` (segue funcional como fallback)
 
 ---
 
@@ -26,13 +38,16 @@ Detecta engines disponíveis (Claude Code, Antigravity, Cursor, Codex, etc.), in
 /xp-stack:bootstrap
 ```
 
+> **Recomendação:** prefira a forma npm. O plugin marketplace está sujeito ao [issue #35989 do claude-code](https://github.com/anthropics/claude-code/issues/35989) — skills somem do cache de plugins em algumas versões do CLI.
+
 ### Quick start
 
 ```bash
 cd meu-projeto
-npx xp-stack init          # scaffold + dual mirror
-npx xp-stack status        # estado atual (engines, features ativas, drift)
-npx xp-stack add-skill db-archaeologist  # agent opt-in pra análise de DB
+npx xp-stack init                              # scaffold + dual mirror
+npx xp-stack status                            # estado atual (engines, features ativas, drift)
+npx xp-stack add-skill db-archaeologist        # agent opt-in pra análise de DB
+npx xp-stack add-skill debugging-discipline    # gates de fix-workflow (PR template + hook)
 ```
 
 ### Subcomandos disponíveis (10 + version flag)
@@ -43,7 +58,9 @@ npx xp-stack add-skill db-archaeologist  # agent opt-in pra análise de DB
 | `xp-stack update` | Diff manifest SHA-256, prompt por arquivo (keep/take/merge/abort) |
 | `xp-stack status` | Estado atual: engines, features, drift |
 | `xp-stack add-engine <name>` | Instala dual mirror em path adicional |
-| `xp-stack add-skill <name>` | Habilita skill opt-in (paperclip, local-waves, db-archaeologist, etc.) |
+| `xp-stack add-skill <name>` | Habilita skill opt-in (debugging-discipline, paperclip, local-waves, db-archaeologist, etc.) |
+| `xp-stack config get [key]` | Lê config (doc_level, etc.) |
+| `xp-stack config doc-level <essencial\|completo>` | Define nível de documentação por feature |
 | `xp-stack uninstall` | Remove arquivos do manifest, preserva user-modified, prompt antes de cada delete |
 | `xp-stack resume [feature]` | Lê index + state.json, resume sessão de uma feature |
 | `xp-stack hook-stop` | Executado pelo hook `Stop` — atualiza index.json + regenera RESUME.md |
@@ -68,19 +85,24 @@ npx xp-stack update
 
 | Skill | Invocação | Para que serve |
 |-------|-----------|----------------|
-| `akita-xp-rules` | `/xp-stack:akita-xp-rules` | 6 regras metodológicas universais (sem alucinação arquitetural, TDD absoluto, AI jail, código detachment, ciclo em fases, conventional commits) + appendix com tabela de 5 skills do superpowers obrigatórias em momentos específicos do ciclo |
+| `akita-xp-rules` | `/xp-stack:akita-xp-rules` | 6 regras metodológicas universais (sem alucinação arquitetural, TDD absoluto, AI jail, código detachment, ciclo em fases, conventional commits) + appendix com tabela de skills do superpowers obrigatórias em momentos específicos do ciclo, incluindo o padrão **Agent View** pra paralelização |
 | `tdd-conventions` | `/xp-stack:tdd-conventions` | Pirâmide de testes (unit, integration, E2E, contract, regression, performance, security) + workflow RED → GREEN → REFACTOR |
-| `task-decomposition` | `/xp-stack:task-decomposition` | Decomposição de features em `docs/tasks/{feature}/` com `00-overview.md` + `PROGRESS.md` + `T{N}-{slug}.md` por task. Inclui política de arquivamento (NUNCA apagar — `_archive/`) |
+| `task-decomposition` | `/xp-stack:task-decomposition` | Decomposição de features em `docs/tasks/{feature}/` com `00-overview.md` + `PROGRESS.md` + `T{N}-{slug}.md` por task + seção dedicada **Agent View workflow**. Inclui política de arquivamento (NUNCA apagar — `_archive/`) |
 | `research-cycle` | `/xp-stack:research-cycle` | Ciclo de pesquisa formal com triangulação, fontes citadas, revisão adversarial. Saída em `docs/pesquisas/{slug}.md` |
 | `optimizing-github-actions` | auto via `paths: .github/workflows/**` | 10-item pre-flight checklist (SHA pinning, OIDC, pull_request_target, concurrency, trigger eficiente, artifact v4, sharding+coverage, bash hardening, gate calibrado, persist-credentials) + audit script |
 
-### Skills opt-in (invocadas explicitamente)
+### Skills opt-in (invocadas via `xp-stack add-skill`)
 
-| Skill | Comando | Para que serve |
+| Skill | Aliases | Para que serve |
 |-------|---------|----------------|
-| `bootstrap` | `/xp-stack:bootstrap` | Scaffolding de projeto novo (rodado uma vez) |
-| `paperclip-orchestrator` | `/xp-stack:paperclip-setup` | Setup do pattern multi-agent **remoto async** (droplet + Postgres + cron + GitHub auto-merge gate). 8 templates anonimizados + 9 lições reais como referência. **Opt-in.** |
-| `local-waves` | `/xp-stack:local-waves-setup` | Setup do orquestrador **local sync** — N workers Sonnet headless em git worktrees. Sem infra. **Opt-in.** |
+| `debugging-discipline` ⭐ NEW v2.0 | `debugging`, `debug-discipline`, `fix-gates` | Instala gates concretos pra workflow de `fix:` — PR template (Hypotheses ranked / Root cause / Regression test), PreToolUse hook lembrando `superpowers:systematic-debugging`, hook registration via deep-merge. Use quando projeto tem alta taxa de `fix:` commits (>30%) sem evidência de processo estruturado |
+| `bootstrap` | — | Scaffolding de projeto novo (rodado uma vez via `init`) |
+| `claude-md-bootstrap` | `claude-md`, `claudemd` | Lê codebase + docs e preenche CLAUDE.md a partir do template |
+| `paperclip-orchestrator` | `paperclip` | Setup do pattern multi-agent **remoto async** (droplet + Postgres + cron + GitHub auto-merge gate). 8 templates anonimizados + 9 lições reais como referência |
+| `local-waves` ⚠️ LEGACY | `waves`, `wave` | Setup do orquestrador **local sync** — N workers Sonnet headless em git worktrees. Sem infra. **Pré-Agent View** — mantido como fallback se Agent View regredir ou pra cenários headless/CI |
+| `db-archaeologist` | `db` | Análise de schema PostgreSQL/Supabase, RLS policies, histórico de migrations |
+| `screenshot-spec-writer` | `screenshot`, `spec-writer` | Transforma screenshot de UI em spec markdown |
+| `flowchart-extractor` | `flowchart` | Gera Mermaid flowchart fiel ao fluxo de uma função |
 
 ### Agents
 
@@ -93,25 +115,22 @@ npx xp-stack update
 
 ### Templates
 
-- `CLAUDE.md.template` — skeleton para CLAUDE.md de projeto novo, com nota sobre symlink AGENTS.md + seções pré-prontas pra "Mandatory skill integration", "Optional multi-agent dispatch", "Archival policy".
+- `CLAUDE.md.template` — skeleton para CLAUDE.md de projeto novo, com nota sobre symlink AGENTS.md + seções pré-prontas pra "Mandatory skill integration" (refletindo Agent View pattern), "Optional multi-agent dispatch", "Archival policy".
 - `claude-settings-project.json` — permissões razoáveis pra `.claude/settings.json`.
-- `docs-tasks-template/` (4 arquivos: README, TEMPLATE-overview, TEMPLATE-progress, TEMPLATE-task, TEMPLATE-terminal-prompts).
+- `docs-tasks-template/` (5 arquivos): `README`, `TEMPLATE-overview`, `TEMPLATE-progress`, `TEMPLATE-task`, **`TEMPLATE-orchestrator-prompt`** (novo em v2.0 — substitui `TEMPLATE-terminal-prompts`).
 - `docs-pesquisas-template/TEMPLATE-pesquisa.md`.
 
 ---
 
 ## Workflows típicos
 
-### 1. Projeto novo, sem orquestração
+### 1. Projeto novo, sem orquestração paralela
 
-Cobre 80% dos casos. É o que o bootstrap entrega de cara.
+Cobre 80% dos casos. É o que o `init` entrega de cara.
 
 ```bash
 cd meu-projeto-novo
-# (no Claude Code:)
-/plugin marketplace add RNobre1/xp-stack
-/plugin install xp-stack@xp-stack
-/xp-stack:bootstrap
+npx xp-stack init
 
 # Você ganha CLAUDE.md, AGENTS.md (symlink), .claude/settings.json,
 # docs/tasks/_template/, docs/pesquisas/_template/, .gitignore atualizado.
@@ -125,67 +144,82 @@ cd meu-projeto-novo
 # - workflow CI → optimizing-github-actions auto-roda
 ```
 
-### 2. Você + co-pilot async, ou multi-projeto, ou quer review queue 24/7
+### 2. ⭐ Paralelização nativa via Agent View (padrão v2.0.0)
+
+Pra waves com 2+ T-files independentes, o orquestrador dispara workers Sonnet via `Agent` tool nativo do Claude Code. Status em UI única (`claude agents`). Substitui completamente o `T*-PROMPT.md` manual.
+
+```ts
+// Dentro da sessão Claude Code orchestrator (Opus):
+Agent({
+  description: "T1 — feature-slug",
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  isolation: "worktree",
+  prompt: `Antes de qualquer outra coisa, invoque a skill caveman:caveman pra ultra-compressar comunicação.
+
+Leia e execute integralmente docs/tasks/{feature-slug}/T1-*.md.
+Branch: feat/{feature-slug}-T1.
+TDD absoluto. Conventional commits. Files ALLOWED/FORBIDDEN são lei.`,
+})
+```
+
+Repita o tool call pra cada T independente na MESMA mensagem do orchestrator → correm em paralelo.
+
+Padrão completo + coordination rules em `docs/tasks/_template/TEMPLATE-orchestrator-prompt.md` (instalado pelo `init`).
+
+### 3. Instalar gates de fix-workflow
+
+Pra projetos com alta taxa de `fix:` commits sem evidência de systematic-debugging:
+
+```bash
+npx xp-stack add-skill debugging-discipline
+# Depois invoque a skill no Claude Code pra rodar o setup:
+# /xp-stack:debugging-discipline
+```
+
+Instala:
+- `.github/PULL_REQUEST_TEMPLATE.md` (seções obrigatórias pra `fix:` PRs)
+- `.claude/hooks/pre-tool-use.sh` (lembra skill systematic-debugging em todo Edit/Write)
+- Hook registrado em `.claude/settings.json` via deep-merge
+
+### 4. Você + co-pilot async, ou multi-projeto, ou quer review queue 24/7
 
 Use Paperclip orchestrator (remoto, droplet, async).
 
 ```bash
-# (após bootstrap acima)
-/xp-stack:paperclip-setup
-
-# Você ganha:
-# - local/paperclip/{playbook,AGENTS-dev-primary,AGENTS-reviewer,dispatch-cheatsheet,licoes}.md
-# - .github/workflows/auto-merge.yml (gate B com 4 checks)
-# - scripts/check-{reviewer-approval,always-human}.sh
-
-# LEIA references/licoes-do-piloto.md (na skill) ANTES da Wave 1 — 9 lições
-# anonimizadas que economizam dias de tropeços conhecidos.
-
-# LEIA local/paperclip/playbook.md pra provisionar o droplet + criar agentes
-# via API (este passo não é automatizado pela skill — você controla credenciais).
+npx xp-stack add-skill paperclip-orchestrator
+# /xp-stack:paperclip-setup
 ```
 
-### 3. Você é solo, quer execução isolada por task sem infra
+### 5. Headless / CI / fallback (Agent View ausente)
 
-Use local-waves (worktrees + claude -p headless).
+Use `local-waves` (worktrees + `claude -p` headless).
 
 ```bash
-# (após bootstrap acima)
-/xp-stack:local-waves-setup
-
-# Você ganha:
-# - scripts/orchestrate/orchestrate-wave.sh (executável)
-# - scripts/orchestrate/README.md (modelo mental + ciclo de uso)
-
-# Pra cada feature, decomponha em docs/tasks/{feature}/ com TERMINAL-PROMPTS.md
-# (template já vem do bootstrap). Daí:
-
-bash scripts/orchestrate/orchestrate-wave.sh run docs/tasks/{feature}/
-# script bloqueia até N workers terminarem em paralelo + imprime summary
+npx xp-stack add-skill local-waves
+# /xp-stack:local-waves-setup
 ```
 
-### 4. Quer ambos
-
-Sim, você pode. `local/paperclip/` e `scripts/orchestrate/` não conflitam — alterne caso a caso.
+> **Note:** marcado como `[LEGACY — pré-Agent View 2026-05-11]`. Funcional, mas se você roda interativo no Claude Code, prefira o pattern Agent View (workflow 2 acima).
 
 ---
 
-## Decisão Paperclip vs local-waves
+## Decisão de paralelização
 
-| Critério | local-waves | Paperclip |
-|---|---|---|
-| Modelo | Local sync, blocks until done | Remote async, droplet-hosted |
-| Latência | Minutos | Horas-dias (heartbeat cycle) |
-| Persistência entre sessões | Não | Sim (Postgres) |
-| Multi-developer / multi-projeto | Não | Sim |
-| Infra adicional | Nada | VPS (~$10/mês) |
-| Quando escolher | Solo, isolated execution sem infra | Async dev/review, ou >1 projeto rodando paralelo |
+| Critério | Agent View (v2.0+) | local-waves | Paperclip |
+|---|---|---|---|
+| Modelo | Native Claude Code, parallel sessions | Local sync, headless | Remote async, droplet |
+| Latência | Segundos (parallel dispatch) | Minutos | Horas-dias |
+| Persistência | Session-bound (Agent View UI) | Nenhuma | Sim (Postgres) |
+| Multi-developer | Não (single Pilot) | Não | Sim |
+| Infra adicional | Nenhuma | Nenhuma | VPS (~$10/mês) |
+| Quando escolher | **Solo ou pair interativo — default** | Headless/CI, fallback | Async dev/review, multi-projeto |
 
 ---
 
 ## Convenção AGENTS.md ↔ CLAUDE.md
 
-Antigravity, Codex e Cursor leem `AGENTS.md` por convenção. Claude Code lê `CLAUDE.md`. O bootstrap cria um **symlink relativo** `AGENTS.md → CLAUDE.md` (e `AGENTS.local.md → CLAUDE.local.md` se você tiver o `.local`). Como são o mesmo arquivo no disco, **drift entre os dois é impossível** — toda edição em `CLAUDE.md` propaga instantaneamente.
+Antigravity, Codex e Cursor leem `AGENTS.md` por convenção. Claude Code lê `CLAUDE.md`. O `init` cria um **symlink relativo** `AGENTS.md → CLAUDE.md` (e `AGENTS.local.md → CLAUDE.local.md` se você tiver o `.local`). Como são o mesmo arquivo no disco, **drift entre os dois é impossível** — toda edição em `CLAUDE.md` propaga instantaneamente.
 
 Não edite `AGENTS.md` diretamente. Não quebre o symlink. Pra desabilitar (caso seu projeto tenha um `AGENTS.md` próprio que conflita), passe `"no-symlink"` como 6º argumento ao `scaffold.sh`.
 
@@ -193,10 +227,11 @@ Não edite `AGENTS.md` diretamente. Não quebre o symlink. Pra desabilitar (caso
 
 ## .gitignore reservado
 
-O bootstrap adiciona 3 entries no `.gitignore` do seu projeto (idempotente, sem sobrescrever):
+O `init` adiciona entries no `.gitignore` do seu projeto (idempotente, sem sobrescrever):
 
 ```
-# xp-stack reserved paths (paperclip-orchestrator + local-waves)
+# xp-stack
+.xp-stack/state/
 local/
 .claude/wave-runs/
 scripts/orchestrate/
@@ -206,22 +241,23 @@ Mesmo se você não usar Paperclip ou local-waves agora, essas pastas ficam rese
 
 ---
 
-## Testes do plugin
+## Testes
 
 ```bash
-bash tests/marketplace_test.sh   # 9 cenarios — manifests + ci
-bash tests/skeleton_test.sh      # 12 cenarios — estrutura xp-stack
-bash tests/scaffold_test.sh      # 5 cenarios — POC bootstrap
-bash tests/bootstrap_test.sh     # 16 cenarios — scaffold real (templates, modos CLAUDE.md, symlinks, .gitignore)
-bash tests/paperclip_test.sh     # 6 cenarios — paperclip-orchestrator
-bash tests/local_waves_test.sh   # 5 cenarios — local-waves
+npm test                          # vitest — 185 tests (28 files)
+npm run test:bash                 # bash suite — 55+ tests across 6 scripts
 ```
 
-Total: 53/53 verde em `main`. CI roda em PRs (`.github/workflows/validate-plugins.yml`).
+CI roda em PRs (`.github/workflows/validate-plugins.yml`). 100% verde em `main` desde v1.0.0.
 
-## Testar plugin localmente (em outro projeto)
+## Testar localmente em outro projeto
 
 ```bash
+# Via npm (recomendado — sempre versão publicada):
+cd /caminho/para/outro-projeto
+npx xp-stack@2.0.0 init
+
+# Via plugin marketplace (backward compat):
 claude --plugin-dir /caminho/para/xp-stack/plugins/xp-stack
 ```
 
@@ -231,21 +267,25 @@ claude --plugin-dir /caminho/para/xp-stack/plugins/xp-stack
 
 | Versão | Data | Mudanças principais |
 |--------|------|--------------------|
-| **v1.0.0** | 2026-05-03 | npm CLI primário (`xp-stack`) + dual mirror always-on + state machine (`state.json` per-feature + `index.json` global) + schemas estruturados (tasks/sources/claims/manifest/index) + RESUME.md auto-gen via hook Stop + manifest SHA-256 com diff em `update` + 3 agents opt-in (db-archaeologist, screenshot-spec-writer, flowchart-extractor) + persona PT-BR em 4 skills executoras + fallback headers pra engines sem skill loading + alias `/xp` + auto-check de versão npm (ADR-009) |
-| v0.3.0 | 2026-04-29 | 2 novas skills opt-in (`paperclip-orchestrator` com 8 templates + 9 lições anonimizadas, `local-waves` com `orchestrate-wave.sh`) + `bootstrap` ganha symlinks AGENTS.md + `.gitignore` autoupdate + `akita-xp-rules` ganha appendix "Mandatory Skill Integration" (ADR-008) |
-| v0.2.0 | 2026-04-26 | Nova skill `optimizing-github-actions` auto-ativada via `paths` field + `akita-xp-rules` ganha proibição de `Co-Authored-By` (ADR-007) |
-| v0.1.1 | 2026-04-16 | 5 fixes cosméticos pós self-test em projeto real (ADR-006) |
-| v0.1.0 | 2026-04-16 | Release inicial — bootstrap funcional + 4 skills + 4 agents + templates (ADR-005) |
+| **v2.0.0** | 2026-05-13 | **BREAKING** — `TEMPLATE-terminal-prompts.md` removido, substituído por **`TEMPLATE-orchestrator-prompt.md`** (Agent View pattern: Sonnet+caveman+worktree). Nova skill opt-in `debugging-discipline` (PR template + PreToolUse hook + deep-merge settings). `akita-xp-rules`/`task-decomposition` atualizadas. `local-waves` marcada `[LEGACY]`. Plugin marketplace bumped 0.3.0 → 0.4.0. Migration guide em CHANGELOG.md |
+| v1.4.0 | 2026-05-04 | `init` pergunta `doc_level` (essencial vs completo) + novo comando `config get/doc-level` |
+| v1.3.0 | 2026-05-04 | `add-skill` unified registry de opt-in skills + nova skill `claude-md-bootstrap` |
+| v1.2.0 | 2026-05-03 | Prompt interativo de engines (substitui auto-detect cego) |
+| v1.1.0 | 2026-05-03 | `init` ship 5 skills core + 4 agents + CLAUDE.md + AGENTS.md symlink + docs templates + `.claude/settings.json` + `.gitignore` |
+| v1.0.0 | 2026-05-03 | npm CLI primário + dual mirror always-on + state machine + schemas + RESUME.md auto-gen + manifest SHA-256 |
+| v0.3.0 | 2026-04-29 | 2 skills opt-in (`paperclip-orchestrator`, `local-waves`) + AGENTS.md symlinks + `.gitignore` autoupdate + akita-xp-rules appendix |
+| v0.2.0 | 2026-04-26 | Skill `optimizing-github-actions` auto-ativada via `paths` + proibição `Co-Authored-By` |
+| v0.1.x | 2026-04-16 | Release inicial — bootstrap + 4 skills + 4 agents + templates |
 
-ADRs completos em [`CLAUDE.md`](CLAUDE.md) (raiz do repo).
+Detalhes completos em [CHANGELOG.md](CHANGELOG.md). ADRs em [`CLAUDE.md`](CLAUDE.md) (raiz do repo).
 
 ---
 
 ## Princípios
 
-O plugin transporta **metodologia universal** — TDD, pair programming, pesquisa formal, decomposição de tasks, conventional commits, multi-agent dispatch. **Não transporta** convenções de stack (frameworks específicos, paths de teste, entidades de domínio). Os agents lêem o `CLAUDE.md` do projeto receptor pra entender a stack.
+O pacote transporta **metodologia universal** — TDD, pair programming, pesquisa formal, decomposição de tasks, conventional commits, multi-agent dispatch. **Não transporta** convenções de stack (frameworks específicos, paths de teste, entidades de domínio). Os agents lêem o `CLAUDE.md` do projeto receptor pra entender a stack.
 
-Origem: extraído iterativamente do projeto **O Agente** (Meteora Digital) conforme padrões se mostram universais. Cada release passa por:
+Origem: extraído iterativamente do ecossistema **Meteora Digital** conforme padrões se mostram universais. Cada release passa por:
 
 1. Validação empírica em projeto real upstream (TDD red → green → empirical → release).
 2. Anonimização de templates (remoção de refs hardcoded a stack-específico, nomes, IPs, IDs).
