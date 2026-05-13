@@ -115,10 +115,15 @@ describe('xp-stack init — scaffolding completo (v1.1.0 contract)', () => {
       'TEMPLATE-overview.md',
       'TEMPLATE-progress.md',
       'TEMPLATE-task.md',
-      'TEMPLATE-terminal-prompts.md',
+      'TEMPLATE-orchestrator-prompt.md',
     ]) {
       expect(existsSync(join(tmp, 'docs/tasks/_template', f))).toBe(true);
     }
+  });
+
+  it('NAO cria mais TEMPLATE-terminal-prompts.md (substituido por orchestrator-prompt em v2.0.0)', () => {
+    runInit();
+    expect(existsSync(join(tmp, 'docs/tasks/_template/TEMPLATE-terminal-prompts.md'))).toBe(false);
   });
 
   it('cria docs/pesquisas/_template/TEMPLATE-pesquisa.md', () => {

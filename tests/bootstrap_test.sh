@@ -90,7 +90,7 @@ test_templates_exist() {
   # docs-tasks-template/*  (README + 4 TEMPLATE-*.md)
   local missing=()
   local f
-  for f in README.md TEMPLATE-overview.md TEMPLATE-progress.md TEMPLATE-task.md TEMPLATE-terminal-prompts.md; do
+  for f in README.md TEMPLATE-overview.md TEMPLATE-progress.md TEMPLATE-task.md TEMPLATE-orchestrator-prompt.md; do
     if [ ! -f "$TEMPLATES_DIR/docs-tasks-template/$f" ]; then
       missing+=("docs-tasks-template/$f")
     fi

@@ -1,7 +1,7 @@
 {
   "name": "xp-stack",
-  "version": "0.3.0",
-  "description": "Complete XP/Akita methodology stack for Claude Code. Absolute TDD, pair programming, formal research with triangulation, rigorous task decomposition, conventional commits, multi-agent orchestration. Includes agents (researcher, research-critic, tdd, reviewer), skills (bootstrap, akita-xp-rules, tdd-conventions, task-decomposition, research-cycle, optimizing-github-actions, paperclip-orchestrator, local-waves), project templates with AGENTS.md symlink convention.",
+  "version": "0.4.0",
+  "description": "Complete XP/Akita methodology stack for Claude Code. Absolute TDD, pair programming, formal research with triangulation, rigorous task decomposition, conventional commits, multi-agent orchestration via native Agent View (Sonnet+caveman+worktree pattern). Includes agents (researcher, research-critic, tdd, reviewer), skills (bootstrap, akita-xp-rules, tdd-conventions, task-decomposition, research-cycle, optimizing-github-actions, paperclip-orchestrator, local-waves [legacy], debugging-discipline [opt-in]), project templates with AGENTS.md symlink convention.",
   "author": {
     "name": "Rafael Nobre",
     "email": "rnobre1223s@gmail.com"

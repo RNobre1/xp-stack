@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Pre-tool-use hook installed by xp-stack debugging-discipline skill.
+# Reminds the user to invoke superpowers:systematic-debugging when editing code.
+# Does NOT block — only prints reminder.
+
+TOOL_INPUT="${1:-}"
+
+# Heuristic: only nudge on code edits (skip docs/, .md, etc.)
+if echo "$TOOL_INPUT" | grep -qiE '\.(ts|tsx|js|jsx|py|rs|go|sql|sh)' && ! echo "$TOOL_INPUT" | grep -q 'docs/'; then
+  echo "[hook] Suspeita bug? Invoque skill superpowers:systematic-debugging antes de editar. Skill obrigatória se este edit corrige um sintoma. Ver CLAUDE.md."
+fi
+
+exit 0

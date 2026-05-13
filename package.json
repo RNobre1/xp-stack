@@ -1,7 +1,7 @@
 {
   "name": "xp-stack",
-  "version": "1.4.0",
-  "description": "Methodology stack for AI coding agents (Claude Code, Codex, Cursor, Antigravity, Gemini CLI). TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, multi-agent orchestration. Inspired by Reversa.",
+  "version": "2.0.0",
+  "description": "Methodology stack for AI coding agents (Claude Code, Codex, Cursor, Antigravity, Gemini CLI). TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, multi-agent orchestration via Agent View nativo (Sonnet+caveman+worktree). Inspired by Reversa.",
   "type": "module",
   "bin": {
     "xp-stack": "./bin/xp-stack"

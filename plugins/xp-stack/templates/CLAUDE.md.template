@@ -59,7 +59,7 @@ Five workflow skills are mandatory at specific moments. See the `xp-stack:akita-
 - **Phase 1 design** (any non-trivial feature) -> `superpowers:brainstorming`
 - **Any bug, test failure, or unexpected behavior** -> `superpowers:systematic-debugging`
 - **Before claiming "done"** (T-file `[x]`, PR open, "tests pass") -> `superpowers:verification-before-completion`
-- **2+ independent tasks in a wave** -> `superpowers:dispatching-parallel-agents` (+ `using-git-worktrees`)
+- **2+ independent tasks in a wave** -> Agent View (`claude agents`) com Agent tool nativo. Mandatório: `model: "sonnet"` + `isolation: "worktree"` + prompt invoca `caveman:caveman` antes da resposta. `superpowers:dispatching-parallel-agents` segue como referência de processo (design de waves), execução é via Agent tool.
 - **`.github/workflows/*.yml` edits** -> `xp-stack:optimizing-github-actions` (auto-activated via `paths` field)
 
 Install via `/plugin install superpowers` and confirm in `/plugin list`. If the project explicitly opts out of one (e.g. "no TDD for prototypes"), document the exception here and the user-level rule wins.

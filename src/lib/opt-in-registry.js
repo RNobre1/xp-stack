@@ -45,6 +45,11 @@ export const OPT_IN_SKILLS = {
     summary: 'Gera Mermaid flowchart fiel ao fluxo de uma funcao',
     aliases: ['flowchart'],
   },
+  'debugging-discipline': {
+    sourceRoot: 'templates/opt-in-skills',
+    summary: 'Instala gates de fix-workflow (PR template + hook PreToolUse) para enforcar disciplina de debug',
+    aliases: ['debug-discipline', 'fix-gates', 'debugging'],
+  },
 };
 
 /**
