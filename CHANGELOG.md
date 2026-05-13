@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.1] — 2026-05-13
+
+### Docs
+
+- **`README.md`** reescrito pra refletir v2.0.0:
+  - Versão atualizada de v1.0.0 (desatualizada) pra v2.0.0
+  - Nova seção "O que mudou na v2.0.0" no topo
+  - Workflow 2 (Agent View nativo) adicionado como padrão recomendado, com exemplo de `Agent` tool call (model=sonnet + isolation=worktree + caveman prefix)
+  - Workflow 3 (debugging-discipline) adicionado pra projetos com alta `fix:` ratio
+  - `local-waves` marcado `⚠️ LEGACY` na tabela de skills opt-in
+  - Skills opt-in expandidas (debugging-discipline, claude-md-bootstrap)
+  - Templates: 5 arquivos (TEMPLATE-orchestrator-prompt em vez de terminal-prompts)
+  - Tabela de decisão de paralelização expandida pra 3 colunas (Agent View / local-waves / Paperclip)
+  - Histórico de versões com v1.1-1.4 + v2.0.0 incluídos
+  - Aviso sobre issue #35989 do claude-code recomendando npm sobre plugin marketplace
+
+No code changes — patch release apenas pra atualizar README publicado no npm registry.
+
+---
+
 ## [2.0.0] — 2026-05-13
 
 > **Breaking release.** Parallelization pattern shifts from manual `TERMINAL-PROMPTS.md` (N terminals + copy-paste) to Claude Code **Agent View** native (single orchestrator dispatching N `Agent` tool calls). `local-waves` retained as legacy fallback. New opt-in skill `debugging-discipline` for projects with high `fix:` commit ratios.
