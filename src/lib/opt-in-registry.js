@@ -50,6 +50,11 @@ export const OPT_IN_SKILLS = {
     summary: 'Instala gates de fix-workflow (PR template + hook PreToolUse) para enforcar disciplina de debug',
     aliases: ['debug-discipline', 'fix-gates', 'debugging'],
   },
+  'code-review-automation': {
+    sourceRoot: 'templates/opt-in-skills',
+    summary: 'Instala gates de orchestrator self-review (slash command /review-pr, PR template section, PreToolUse hook em gh pr create/merge). Anti-viés família via adversarial persona prompting.',
+    aliases: ['review-auto', 'pr-review-gate', 'self-review', 'review'],
+  },
 };
 
 /**

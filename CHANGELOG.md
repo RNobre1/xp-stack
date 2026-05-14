@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] — 2026-05-13
+
+> **Minor release.** New opt-in skill `code-review-automation` enforces **orchestrator self-review** (NOT subagent dispatch) before `gh pr create` / `gh pr merge`. Combats family bias via different-capacity reviewer (Opus reviews Sonnet) + adversarial persona prompting. Zero extra cost — runs inside active Claude Code session.
+
+### Added
+
+- **`code-review-automation`** opt-in skill (in `templates/opt-in-skills/code-review-automation/`):
+  - Installs `.claude/commands/review-pr.md` (slash command guiding the **active orchestrator** through structured adversarial self-review — NOT a subagent dispatch)
+  - Appends "Orchestrator self-review findings" section to `.github/PULL_REQUEST_TEMPLATE.md` (idempotent — grep before append)
+  - Adds `gh pr (create|merge)` matcher to `.claude/hooks/pre-tool-use.sh` reminding to run `/review-pr` first
+  - Registers in `.claude/settings.json` via deep-merge if hook PreToolUse not registered yet
+  - Aliases: `review-auto`, `pr-review-gate`, `self-review`, `review`
+  - Rationale doc explaining anti-bias via different-capacity reviewer + Couch 2025 study reference
+
+### Changed
+
+- **`akita-xp-rules/SKILL.md`** Mandatory Skill Integration table: new row "Orchestrator self-review (before `gh pr create` / `gh pr merge`)" — explicit guidance that reviewer is the active orchestrator, not a dispatched subagent. New paragraph "Self-review vs subagent dispatch" explaining trade-offs (subagent reviewer = Sonnet = same family blind spots; orchestrator = Opus = different capacity within family).
+- **`TEMPLATE-orchestrator-prompt.md`** "Sequência típica de uma wave" section: new Step 5 ("Orchestrator self-review (NÃO dispatch reviewer subagent)") inserted between worker-complete and PR-open. Old steps 5-7 renumbered to 6-8. New row in "Por que cada campo" table: "Reviewer = orquestrador atual".
+
+### Why orchestrator-as-reviewer, not subagent reviewer?
+
+The intuitive choice would be `Agent({subagent_type: "reviewer", model: "sonnet"})` after each wave completes. We deliberately **do not** recommend this for code review. Reasons:
+
+1. **Same family blind spots:** workers are Sonnet, a Sonnet reviewer subagent shares the same blind spots — particularly around SDK shape drift (cf. lições L14/L17/L19 in agentes-internos), mock-vs-reality divergence, and convention-vs-implementation gaps that emerge from same-family pattern matching.
+2. **Different capacity within family:** Opus orchestrator reviewing Sonnet workers gets the benefits of model heterogeneity (more nuanced analysis, longer-context reasoning) without leaving the Claude family.
+3. **Context already loaded:** the orchestrator has the full plan, worker reports, T-file constraints, and wave history in context. Re-prompting a subagent costs tokens with no analytical gain.
+4. **Pilot oversight:** self-review unfolds in real time in the Pilot's session. Pilot can interrupt and redirect. Subagent dispatch is opaquer.
+5. **Adversarial persona prompting** (Simon Couch, Jan 2025) is documented to mitigate self-leniency when reviewing model output — the slash command bakes this in: "assume code is WRONG until proven otherwise."
+
+For **research review** (an output the orchestrator did not author), the `research-critic` subagent pattern remains correct — that is the inverse case.
+
+### Migration
+
+No breaking changes. Existing projects on v2.0.x can adopt by:
+
+```bash
+npx xp-stack@2.1.0 add-skill code-review-automation
+# Then invoke the skill in Claude Code to run the setup script:
+# /xp-stack:code-review-automation (or just describe what you want — auto-trigger on PT-BR phrase)
+```
+
+The setup script is idempotent: detects existing `.github/PULL_REQUEST_TEMPLATE.md` (from `debugging-discipline` v2.0.0) and appends section only if header absent; same for hook entries.
+
+---
+
 ## [2.0.1] — 2026-05-13
 
 ### Docs

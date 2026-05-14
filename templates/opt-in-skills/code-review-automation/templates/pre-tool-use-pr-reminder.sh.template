@@ -1,0 +1,5 @@
+
+# code-review-automation: lembra de rodar /review-pr antes de gh pr create/merge
+if echo "$TOOL_INPUT" | grep -qiE '\bgh pr (create|merge)\b'; then
+  echo "[review-pr reminder] Rodou /review-pr antes? Orchestrator self-review estruturado com adversarial persona. Cole findings no PR body sob '## Orchestrator self-review findings'. Pilot decide merge no GitHub."
+fi
