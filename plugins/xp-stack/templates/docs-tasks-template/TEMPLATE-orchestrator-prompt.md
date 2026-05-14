@@ -60,6 +60,7 @@ Repita pra cada task independente da wave (T2, T3, ...). Todos disparados na MES
 | `isolation: "worktree"` | FS isolation. Cada worker tem checkout próprio do main. Sem race condition em arquivos compartilhados. |
 | `subagent_type: "general-purpose"` | Tools `*`. Pra `Explore` (search only) ou `Plan` (design only) use os tipos específicos. |
 | Prompt invoca `caveman:caveman` no início | Pilot rule. Ultra-compressa output do worker pro orchestrator. Mantém precisão técnica. |
+| **Reviewer = orquestrador atual** | NÃO existe `subagent_type: "reviewer"` dispatched no fluxo. O orquestrador da sessão é o reviewer. Combate viés família (Opus revisa Sonnet) + adversarial persona via `/review-pr` ou checklist manual. Subagent reviewer só faz sentido em **research review** (`research-critic`), não code review. |
 
 ---
 
@@ -79,9 +80,20 @@ Repita pra cada task independente da wave (T2, T3, ...). Todos disparados na MES
 2. Orchestrator dispara N Agent tool calls em UMA mensagem (paralelo nativo).
 3. Agent View UI mostra status (working / waiting input / completed).
 4. Quando todos voltarem: orchestrator lê reports, roda `bun run check` em cada worktree.
-5. Orchestrator abre 1 PR por T-file (atualiza status em PROGRESS.md).
-6. Pilot revisa + mergeia PRs.
-7. Orchestrator avança pra próxima wave.
+5. **Orchestrator self-review (NÃO dispatch reviewer subagent):** pra cada worktree do worker que terminou, o orquestrador:
+   a. `cd <worker-worktree-path>`
+   b. `git diff main...HEAD` (vê o que de fato mudou)
+   c. **Invoca `/review-pr`** (instalado por `xp-stack add-skill code-review-automation`) OU executa checklist manual:
+      - Adversarial persona: "assuma código ERRADO até prova em contrário"
+      - Correctness · OWASP · conventions · test coverage · YAGNI
+   d. Categoriza findings: Block / Must Fix / Suggestion / Nit
+   e. **Se Block findings:** NÃO abre PR. SendMessage pro worker (agentId ainda vivo) OU edit direto + commit. Re-review.
+   f. **Se Must Fix / Suggestion / Nit apenas:** safe pra abrir PR. Cola findings no PR body sob `## Orchestrator self-review findings`.
+
+   > **Por que self-review e não subagent reviewer?** Workers são Sonnet, orquestrador é Opus — capacidade diferente dentro da família combate blind spots compartilhados. Subagent reviewer Sonnet teria os mesmos blind spots dos workers. Adversarial persona reforça anti-viés.
+6. Orchestrator abre 1 PR por T-file (atualiza status em PROGRESS.md).
+7. Pilot revisa + mergeia PRs.
+8. Orchestrator avança pra próxima wave.
 
 ---
 

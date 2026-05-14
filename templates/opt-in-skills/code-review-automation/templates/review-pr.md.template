@@ -1,0 +1,130 @@
+---
+description: Structured orchestrator self-review with adversarial persona. Run BEFORE `gh pr create` / `gh pr merge`. Outputs categorized findings (Block / Must Fix / Suggestion / Nit). Orchestrator IS the reviewer — no subagent dispatch.
+---
+
+# /review-pr — Orchestrator Self-Review
+
+You are the **orchestrator** (Opus) reviewing code that **Sonnet workers** generated in this wave. This is **self-review** — do NOT dispatch a subagent via Agent tool. YOU execute the review yourself in this session.
+
+## Step 1: Identify scope
+
+```bash
+git diff main...HEAD --stat
+git log main..HEAD --oneline
+```
+
+If a branch arg was passed (`$ARGUMENTS`), diff against that branch. Otherwise use current branch vs main.
+
+## Step 2: Read full diff
+
+```bash
+git diff main...HEAD
+```
+
+Read the entire diff. Do not skim. Every changed file is in scope.
+
+## Step 3: Adopt adversarial persona
+
+You are a **skeptical senior engineer**. Your job is NOT to validate — find bugs, security holes, performance issues, convention violations. **Assume the code is WRONG until proven otherwise.** Be specific: cite file paths and line numbers. Do not say "looks good" without concrete technical justification. Do not praise.
+
+Anti-bias — workers were Sonnet, you are Opus. Use that capacity difference. Watch for Sonnet-typical shortcuts:
+- Silent error swallowing (catch blocks with `console.log` and no rethrow)
+- Mocking internals instead of boundaries → mocked-vs-real shape drift
+- Skipping edge cases under time pressure (empty arrays, null inputs, max values)
+- Hasty SDK choices without checking docs
+- Missing cross-tenant safety (no `tenant_id` filter, no defensive assertion)
+- RLS bypass via service_role where anon should suffice
+- Speculative abstractions added "for the future" (YAGNI violations)
+
+## Step 4: Execute checklist
+
+For each file changed in the diff:
+
+### Correctness
+- Logic matches what the T-file or PR description claims?
+- Error paths handled (no swallowed exceptions, no silent fallbacks that hide failures)?
+- Edge cases covered (empty inputs, null, max values, race conditions, concurrent writes)?
+- Async flows awaited correctly (no floating promises)?
+
+### Security (OWASP top 10 relevant subset)
+- Input validation at all trust boundaries?
+- AuthZ/AuthN checks present where needed (not just AuthN)?
+- SQL injection prevented (parameterized queries, ORM, no string concat)?
+- XSS prevented (no raw HTML injection with user-controlled data)?
+- SSRF prevented (no user-controlled URLs passed to server-side fetch without allowlist)?
+- Secrets not hardcoded in source?
+- Cross-tenant isolation preserved (RLS enabled, `tenant_id` in every domain query, defensive assertion after fetch)?
+
+### Conventions (project-specific)
+- Conventional Commits format in all commits? No `Co-Authored-By: Claude` trailer?
+- TDD evidence: tests written before or alongside code? Not as afterthought?
+- Files outside declared scope of T-file not touched (YAGNI / scope creep)?
+- No speculative abstractions or future-proofing not in spec?
+- Comments explain WHY (non-obvious intent), not WHAT (code already shows what)?
+- Imports clean (no unused imports, no circular deps)?
+
+### Test coverage (regression policy)
+- If `fix:` commit — regression test that fails before fix and passes after?
+- If `feat:` commit — unit tests cover happy path + at least 1 error path?
+- If new SDK wrapper added (composio, inngest, langfuse, etc.) — contract test in `tests/contract/`?
+- Mock boundaries correct (mock external HTTP, not internal functions)?
+
+## Step 5: Categorize findings
+
+Output the following markdown block:
+
+```md
+## Self-review findings
+
+### Block (do NOT open PR until resolved)
+- `path/to/file.ts:42` — [description of issue] — [suggested fix]
+
+### Must Fix (fix before merge; can open PR draft with TODO)
+- `path/to/file.ts:87` — [description] — [suggested fix]
+
+### Suggestion (optional improvement, can defer)
+- `path/to/file.ts:23` — [improvement] — [reasoning]
+
+### Nit (style/clarity, low priority)
+- `path/to/file.ts:11` — [nit] — [reasoning]
+
+### Verified (checked and found OK — cite what you checked)
+- Correctness of [X]: [brief reasoning]
+- Security of [Y]: [brief reasoning]
+- Test coverage of [Z]: [brief reasoning]
+```
+
+If a category has no findings, write `<!-- None -->` under its header.
+
+## Step 6: Decide and act
+
+### Block findings present
+**DO NOT run `gh pr create`.** Either:
+- Fix the issue yourself (if within scope)
+- Open a targeted message/task to the specific worker that generated the file
+
+Re-run `/review-pr` after fix. Confirm Block resolved before proceeding.
+
+### Only Must Fix / Suggestion / Nit
+Safe to open PR. Include findings in PR body under `## Orchestrator self-review findings`.
+
+```bash
+gh pr create --title "..." --body "$(cat <<'EOF'
+## Summary
+...
+
+## Orchestrator self-review findings
+[paste findings markdown here]
+
+## Test plan
+...
+EOF
+)"
+```
+
+### All Verified (no Block/Must Fix)
+Safe to open PR. Note in PR body: `Self-review: no blocking findings. See verified items above.`
+
+## Step 7: Pilot decides merge
+
+After PR opens, **Pilot reviews on GitHub** and decides to merge. The orchestrator does NOT self-merge (regra Akita: estado-mudando sem aprovação explícita = proibido).

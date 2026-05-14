@@ -1,0 +1,16 @@
+
+## Orchestrator self-review findings
+
+> Orchestrator (Opus) self-reviewed worker output (Sonnet) using `/review-pr` slash command with adversarial persona. Paste output here OR reference the slash command run.
+
+### Block
+<!-- "None" or list: `path/file.ts:line` — issue — suggested fix -->
+
+### Must Fix
+<!-- "None" or list -->
+
+### Suggestion / Nit
+<!-- "None" or list -->
+
+### Verified
+<!-- briefly cite what was checked and found OK -->
