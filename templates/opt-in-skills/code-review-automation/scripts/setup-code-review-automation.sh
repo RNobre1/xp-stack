@@ -69,9 +69,26 @@ else
     echo "SKIP  $HOOK_DEST — review-pr reminder already present." >&2
     CONFLICTS=$((CONFLICTS + 1))
   else
-    # Append matcher block to existing hook
-    cat "$TEMPLATES_DIR/pre-tool-use-pr-reminder.sh.template" >> "$HOOK_DEST"
-    echo "PATCH $HOOK_DEST (appended review-pr reminder matcher)"
+    # Insert matcher block BEFORE 'exit 0' line if present (avoids appending after exit 0
+    # which would make the new matcher unreachable — found via self-review of v2.1.0 install).
+    # Fallback: append at EOF if no 'exit 0' line found.
+    FRAGMENT_CONTENT="$(cat "$TEMPLATES_DIR/pre-tool-use-pr-reminder.sh.template")"
+    if grep -qE '^exit[[:space:]]+0[[:space:]]*$' "$HOOK_DEST"; then
+      # Insert fragment before the first 'exit 0' line, preserving everything else
+      awk -v frag="$FRAGMENT_CONTENT" '
+        !inserted && /^exit[[:space:]]+0[[:space:]]*$/ {
+          print frag
+          print ""
+          inserted = 1
+        }
+        { print }
+      ' "$HOOK_DEST" > "$HOOK_DEST.tmp" && mv "$HOOK_DEST.tmp" "$HOOK_DEST"
+      echo "PATCH $HOOK_DEST (inserted review-pr reminder matcher before exit 0)"
+    else
+      # No exit 0 — safe to append at EOF
+      cat "$TEMPLATES_DIR/pre-tool-use-pr-reminder.sh.template" >> "$HOOK_DEST"
+      echo "PATCH $HOOK_DEST (appended review-pr reminder matcher at EOF)"
+    fi
     PATCHED=$((PATCHED + 1))
   fi
 fi

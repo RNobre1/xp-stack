@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1] — 2026-05-14
+
+### Fixed
+
+- **`code-review-automation` setup script**: when target project already had a `.claude/hooks/pre-tool-use.sh` ending with `exit 0` (typical when `debugging-discipline` was installed first), the new `gh pr (create|merge)` matcher was being **appended AFTER `exit 0`**, making it unreachable. Setup script now uses `awk` to insert the new matcher block **before** the first `exit 0` line. Fallback to EOF append if no `exit 0` present.
+
+> Bug was discovered via orchestrator self-review of the v2.1.0 install in the downstream consumer `meteora-digital/meteora-ai-platform` — the very pattern the skill is designed to enable found a bug introduced by a Sonnet worker. Self-review works.
+
+### Migration from 2.1.0
+
+If you installed `code-review-automation@2.1.0` and have `debugging-discipline` already present, your `.claude/hooks/pre-tool-use.sh` likely has the new matcher unreachable. Fix manually by moving the `# code-review-automation` block above the `exit 0` line, or re-run `npx xp-stack@2.1.1 add-skill code-review-automation` then `bash .claude/skills/code-review-automation/scripts/setup-code-review-automation.sh "$(pwd)"` (but only after deleting the broken matcher manually — the script detects `"review-pr reminder"` string and would SKIP). Quick verification: `grep -c "review-pr reminder" .claude/hooks/pre-tool-use.sh` should be `1`, and the line should be ABOVE `exit 0`.
+
+---
+
 ## [2.1.0] — 2026-05-13
 
 > **Minor release.** New opt-in skill `code-review-automation` enforces **orchestrator self-review** (NOT subagent dispatch) before `gh pr create` / `gh pr merge`. Combats family bias via different-capacity reviewer (Opus reviews Sonnet) + adversarial persona prompting. Zero extra cost — runs inside active Claude Code session.
