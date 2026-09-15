@@ -5,6 +5,11 @@
 >
 > **Audience:** Pilot + the architect orchestrator session.
 
+> **Scope note:** This playbook is an explicit Paperclip example. Before
+> enabling it, reconcile model/profile selection, review lanes, merge authority,
+> and Host capacity with the current session policy. Its choices are not
+> xp-stack-wide defaults.
+
 ---
 
 ## 1. Mental model
@@ -31,9 +36,9 @@ as a subprocess in the configured `cwd`, passing the Issue body as input.
                             +-----------+    +-------------------+
 ```
 
-**Architect = orchestrator session** (decomposes features, writes T-files, dispatches waves, has authority over always-human paths).
-**Paperclip = scheduler** (executes Sonnet/Opus on droplet with controlled cadence).
-**Pilot = final reviewer** (only reviews `feat/<slug> -> dev` PRs).
+**Architect = orchestrator session** (decomposes features, writes T-files, dispatches waves, has authority over configured always-human paths).
+**Paperclip = scheduler** (executes the models configured for this opt-in playbook on the droplet with controlled cadence).
+**Pilot = final reviewer for the branch flow shown here** (only reviews `feat/<slug> -> dev` PRs when that policy is selected).
 
 ---
 
@@ -147,7 +152,7 @@ Workflow `.github/workflows/auto-merge.yml` validates 4 checks before squash-mer
 3. **Reviewer agent approved** — script `scripts/check-reviewer-approval.sh` does `gh pr view --json reviews,comments` and looks for the reviewer agent comment with APPROVE.
 4. **Coverage >= 90% on diff** — fast-lane CI emits coverage artifact. Workflow reads it. **Skip coverage if diff is only `*.md` or new `*.test.*`** (no new code to test).
 
-**If all pass:** `gh pr merge --squash --delete-branch`.
+**If all pass:** `gh pr merge --squash --delete-branch` when the configured gate and current session authorization permit it.
 **If any fails:** comment on PR explaining + remove label `auto-merge`. Architect or Pilot decides next action.
 
 ---
@@ -156,11 +161,11 @@ Workflow `.github/workflows/auto-merge.yml` validates 4 checks before squash-mer
 
 Agents **may edit** the always-human paths when a feature requires. Writing SQL/yml/etc. is part of normal feature work.
 
-**What they CANNOT do:**
+**What they CANNOT do in this configured Paperclip flow:**
 - Push schema migrations to the live DB.
 - Execute deploy scripts.
 - `git push origin main`.
-- Manually merge PRs (auto-merge.yml or Pilot merges).
+- Manually merge PRs outside the configured auto-merge gate or authorized coordinator.
 
 **When PR touches always-human path:** auto-merge gate fails -> label removed -> architect or Pilot decides if to merge.
 
@@ -176,6 +181,12 @@ T-file (`docs/tasks/<feat>/<task-slug>.md` committed) is **canonical source**. P
 ## Task: <short title>
 
 Implement `docs/tasks/<feat>/<task-slug>.md`. Read T-file before any action.
+
+Contract source: `<resolved path/URI to akita-xp-rules/SKILL.md>`
+Contract revision: `<revision read from the resolved contract source>`
+Authorization reference: `<T-file/briefing/session-artifact section or decision ID>`
+If the worker has no skill loader, paste the exact canonical excerpt from the
+resolved source here with its reference and revision. Do not send only a pointer.
 
 ## Branching
 Base: `feat/<feat-slug>`. Create from `origin/dev` if doesn't exist.
@@ -267,13 +278,12 @@ GitHub Free 2000min/month -> ~470min slack. Configure billing for over-quota ($0
 
 ---
 
-## 11. Costs
+## 11. Resource accounting
 
-- **Anthropic subscription** (dev-primary Sonnet, reviewer Opus): flat monthly fee, already paid. **Do not capture per-token** — `budgetMonthlyCents: 0` in Paperclip.
-- **Other LLM providers:** zero. Not used in default setup (reviewer is Opus subscription).
-- **VPS:** ~$10/mo if dedicated to Paperclip; zero additional if shared with other projects.
-- **GitHub Actions:** Free 2000min/month + over-quota billing. Estimated ~1530min/month post-Paperclip.
-- **Tailscale:** zero (free tier).
+- **LLM/provider usage:** billing, quota, and latency depend on the configured accounts and models. `budgetMonthlyCents` is an accounting/control value, not a zero-cost guarantee; measure actual usage.
+- **VPS:** estimate for this example is ~$10/mo if dedicated to Paperclip; shared infrastructure still has its own cost and capacity trade-offs.
+- **GitHub Actions:** plan limits and over-quota billing depend on the repository account; measure actual minutes instead of assuming a free allowance.
+- **Tailscale:** use the plan and billing terms of the configured account.
 
 ---
 

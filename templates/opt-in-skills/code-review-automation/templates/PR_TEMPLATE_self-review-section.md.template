@@ -1,7 +1,9 @@
 
 ## Orchestrator self-review findings
 
-> Orchestrator (Opus) self-reviewed worker output (Sonnet) using `/review-pr` slash command with adversarial persona. Paste output here OR reference the slash command run.
+> Record the review pass selected by the current session: author self-inspection, optional triage, or independent final review. Mention the model/mechanism only when the session selected it. Paste `/review-pr` output or link to the recorded evidence.
+
+> This section is a visible reminder, not automatic semantic enforcement. Use the **Delivery evidence contract** in `akita-xp-rules` for behavior, base/candidate, commands/logs, applicable guards, limits, and review. Unknown or inconclusive evidence is not approval.
 
 ### Block
 <!-- "None" or list: `path/file.ts:line` — issue — suggested fix -->
@@ -13,4 +15,13 @@
 <!-- "None" or list -->
 
 ### Verified
-<!-- briefly cite what was checked and found OK -->
+<!-- briefly cite what was checked and found OK, including base/candidate and commands/logs -->
+
+### Review lane and authorization
+<!-- self-inspection | triage | independent final review; record the authorized integration/merge decision -->
+- Author agent/model: ...
+- Reviewer agent/model: ... (must both differ from author for an independent final review)
+- Checks executed now: ... (commands, timestamp, exit codes)
+- Fresh external evidence: ... (artifact/run, timestamp, candidate)
+- If triage only: state that it did not approve; unknown/inconclusive is not approval.
+<!-- An independent final review must populate one of the two evidence lines; otherwise state "inconclusive". -->

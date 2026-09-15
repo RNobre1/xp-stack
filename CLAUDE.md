@@ -1,6 +1,6 @@
 # xp-stack
 
-> Marketplace Claude Code para distribuicao do stack metodologico XP/Akita — TDD absoluto, pair programming, pesquisa formal, task decomposition, conventional commits.
+> Marketplace Claude Code para distribuicao do stack metodologico XP/Akita — TDD absoluto, pair programming, pesquisa formal, task decomposition orientada a evidencias, conventional commits e revisao conforme politica da sessao.
 
 ## Objetivo
 
@@ -13,7 +13,7 @@ Empacotar e distribuir o ferramental reusavel desenvolvido no projeto O Agente (
 
 ## Stack
 
-- **Testes:** bash puro (tests/*.sh), zero dependencias externas
+- **Testes:** Node/Vitest e bash (tests/*.sh), conforme os scripts do pacote
 - **CI/CD:** GitHub Actions (.github/workflows/validate-plugins.yml)
 - **Distribuicao:** Claude Code plugin system (>= outubro 2025)
 - **Linguagem dos scripts:** bash (scaffold, validacao)
@@ -28,8 +28,8 @@ RNobre1/xp-stack/
 ├── .github/workflows/                  # CI: validacao JSON + frontmatter
 ├── plugins/
 │   ├── xp-stack/                       # plugin principal
-│   │   ├── .claude-plugin/plugin.json  # manifest v0.1.0
-│   │   ├── skills/                     # 5 skills (invocaveis via /xp-stack:*)
+│   │   ├── .claude-plugin/plugin.json  # manifest (versao no JSON)
+│   │   ├── skills/                     # 9 skills (invocaveis via /xp-stack:*)
 │   │   ├── agents/                     # 4 agents (researcher, tdd, reviewer, research-critic)
 │   │   ├── templates/                  # templates copiados por bootstrap
 │   │   └── .mcp.json                   # stubs MCP opcionais
@@ -105,7 +105,7 @@ claude --plugin-dir ./plugins/xp-stack
 
 3. **`bootstrap` atualizado** (Camada A automatica): cria symlinks `AGENTS.md -> CLAUDE.md` (e `AGENTS.local.md -> CLAUDE.local.md` condicional), default-ON com opt-out via 6o arg `no-symlink`. Adiciona 3 entries reservadas no `.gitignore` (`local/`, `.claude/wave-runs/`, `scripts/orchestrate/`) idempotente, sem sobrescrever preexistente.
 
-4. **`akita-xp-rules` ganha appendix** "Mandatory Skill Integration" com tabela de 5 skills do superpowers obrigatorias em momentos especificos do ciclo Akita/XP (brainstorming antes de Fase 1, systematic-debugging antes de qualquer fix, verification-before-completion antes de marcar `[x]`, dispatching-parallel-agents pra waves 2+ tasks, optimizing-github-actions auto-via-paths em workflows). Anti-pattern: invocar skill por nome em narracao nao eh invocar skill.
+4. **`akita-xp-rules` ganha appendix** "Mandatory Skill Integration" com skills do superpowers obrigatorias quando seus gatilhos se aplicam (brainstorming antes de Fase 1, systematic-debugging antes de qualquer fix, verification-before-completion antes de marcar `[x]`, dispatching-parallel-agents pra waves 2+ tasks, optimizing-github-actions auto-via-paths em workflows). Anti-pattern: invocar skill por nome em narracao nao eh invocar skill.
 
 5. **`CLAUDE.md.template` ganha 3 secoes:** nota AGENTS.md symlink, "Mandatory skill integration" + "Optional multi-agent dispatch" + "Archival policy" (esta ultima ja existia em task-decomposition skill, agora visivel no CLAUDE.md).
 
@@ -143,6 +143,16 @@ claude --plugin-dir ./plugins/xp-stack
 
 **Ref:** `/tmp/plugin-update-2026-04-26.md` + arquivos staged em `/tmp/plugin-update-2026-04-26-files/`. Segundo uso do fluxo de sync O-Agente → claude-craft.
 
+### ADR-010 (v2.2.0, 2026-09-15) — contrato de evidências e roteamento conforme sessão
+
+**Decisao:** manter o **Delivery evidence contract** em `akita-xp-rules` como fonte única, com revisao declarada no proprio contrato. Consumidores portaveis usam o nome nu `akita-xp-rules`; cada T-file e briefing registra o caminho/URI resolvido, e o remetente anexa o trecho literal com referencia e revisao quando o worker nao tem skill loader. O namespace `/xp-stack:` fica restrito ao uso do plugin.
+
+**Revisao:** autoinspecao prepara o handoff; triagem e opcional e nunca aprova; a revisao final exige agente e modelo distintos do autor, alem de declarar checks executados no momento ou evidencia externa fresca. Coordenador so revisa quando nao foi autor e a politica permite. Modelo, perfil, mecanismo, isolamento, estilo e autoridade de merge seguem a politica da sessao/Host.
+
+**Evidencia e pausas:** base/candidato, comportamento, origem da expectativa, RED/GREEN, guardas, limites e autorizacao apontam para comandos, logs, arvores e referencias concretas. WIP/checkpoint e valido e nao exige commit limpo nem commit RED separado; reproducao posterior e marcada como tal. Politica de divida continua pertencendo ao projeto/sessao, sem autorizar divida nova por default.
+
+**Consequencias:** README, templates, agents e metadados textuais descrevem defaults portaveis e mecanismos opt-in. Distribuicao: npm 2.2.0 e plugin 0.6.0, com ciclos de versao separados. A release publica o conteudo e os metadados; scripts, CI, CLI, testes e installer nao participam desta decisao.
+
 ## Estado atual
 
 - [x] POC bootstrap empirico (feat/poc-bootstrap)
@@ -164,3 +174,5 @@ claude --plugin-dir ./plugins/xp-stack
 - **Loop manual cp + test -e em vez de cp -rn (2026-04-16):** BSD coreutils nao suporta `cp -rn` com a mesma semantica de GNU. Para garantir idempotencia portavel em scaffold.sh, usar loop `for f in "$SRC"/*; do [ ! -e "$DST/$(basename $f)" ] && cp "$f" "$DST/"; done`. Mais verboso, mais portavel, e explicito sobre intencao.
 - **Despersonalizacao de templates upstream eh trabalho real (2026-04-29):** ao trazer `local/paperclip/playbook.md` (~500 linhas, ~30 strings hardcoded) e `AGENTS-dev-primary.md` (~300 linhas) pro plugin na v0.3.0, mais de 50% do tempo de T3 foi grep+substitute de refs ao stack upstream (Vitest, Supabase, WhatsApp, Cohere, Resend, AssemblyAI, Hotmart) e nomes (Felipe, Rafael, IPs, Tailscale hostnames, gestao-ti, IDs Paperclip, PR numbers). Padrao de revisao adotado: `grep -rinE "(meteora|o-agente|209\.97|gestao-ti|RNobre|theagent_droplet|hotmart|Felipe|Vitest|Cohere|AssemblyAI|Resend|WhatsApp|Supabase)" templates/` deve retornar 0 matches OU so em comentarios prefixados com "if you use", "e.g.", "or equivalent", "Add your own". Pra v0.4.0+, considerar lint script `tests/no-upstream-refs.sh` que falha CI se algum match nao-prefixado. Validado empiricamente em T5 cenario B (anti-grep PASS).
 - **Idempotencia de .gitignore exige read-modify-write atomico (2026-04-29):** scaffold ganhou autoupdate de 3 entries (`local/`, `.claude/wave-runs/`, `scripts/orchestrate/`). Implementacao naive (`echo entry >> file`) duplica em re-execucao. Solucao adotada: `grep -qxF` antes de cada append + flag `HEADER_NEEDED` pra so emitir o header de comentario se houver pelo menos 1 entry nova + check de newline final do arquivo (`tail -c1 | od -An -c`) pra evitar concatenacao em mesma linha. Validado em cenario A.3 (count=1 apos 2a execucao).
+- **Contrato transportado precisa de fonte resolvida (2026-09-15):** um nome de skill ou namespace não basta quando T-files/prompts atravessam runtimes. A fonte única registra revisão e caminho/URI resolvido; workers sem loader recebem o trecho literal dessa fonte. Revisão final exige autor e revisor distintos em identidade e modelo, com checks atuais ou evidência externa fresca declarada.
+- **Comprovante de execução antes de repetir (2026-09-15):** ausência de saída ou de PID no ambiente atual não prova que uma checagem terminou. Preserve o handle e aguarde resultado ou cancelamento confirmado antes de iniciar outra. O contrato canônico passou a explicitar essa regra e o consumo do excerto já entregue a workers sem loader.

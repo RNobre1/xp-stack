@@ -23,13 +23,18 @@ Set up the Paperclip multi-agent orchestrator pattern in your project. Optional.
 
 - **`local/paperclip/`** (gitignored) with 5 per-role and operational files:
   - `playbook.md` — operations manual (waves, gates, troubleshooting)
-  - `AGENTS-dev-primary.md` — system prompt + safety checklist for dev workers (Sonnet-class models)
-  - `AGENTS-reviewer.md` — system prompt + scoring criteria for reviewer (Opus-class models)
+  - `AGENTS-dev-primary.md` — system prompt + safety checklist for dev workers (the playbook's example may use Sonnet)
+  - `AGENTS-reviewer.md` — system prompt + scoring criteria for reviewer (the playbook's example may use Opus)
   - `dispatch-cheatsheet.md` — copy-paste commands to launch waves
   - `licoes.md` — empty lessons file you fill in per wave
 - **`.github/workflows/auto-merge.yml`** — gate B workflow (4 checks: CI fast-lane green, no always-human path, reviewer approved, coverage ≥ 90% on diff)
 - **`scripts/check-reviewer-approval.sh`** + **`scripts/check-always-human.sh`** — gate B helpers
 - **`.gitignore`** — `local/` added if not already there
+
+The playbook and role files are an opt-in Paperclip example. Reconcile their
+model, profile, review, and merge settings with the current session/Host policy
+before enabling them. For behavior evidence, checkpoints, and optional triage,
+use the **Delivery evidence contract** in `akita-xp-rules`. The final reviewer must have a different agent identity and model from the author; a renamed context alone is insufficient, and the review must declare current checks or fresh external evidence before approval.
 
 The `references/licoes-do-piloto.md` (in this skill's directory) holds **9 anonymized lessons from a real Wave 1 pilot at the upstream project**: auto-merge YAML strict-parser quirks, gh CLI v2.x glob limits, GitHub Actions workflow snapshot caching, plugin Claude Code 4-element activation, label re-add post-comment trigger, fast-lane vs full CI scope mismatch. Read it once before your first wave.
 

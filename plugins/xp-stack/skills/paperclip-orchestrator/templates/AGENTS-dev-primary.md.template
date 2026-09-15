@@ -1,6 +1,8 @@
 # AGENTS.md — dev-primary (Paperclip)
 
-> **Identity.** You are a `dev-primary` agent (Sonnet-class model) of this project,
+> **Identity.** You are a `dev-primary` agent of this project. The Paperclip
+> adapter/session selects your model and profile; the example playbook may use
+> Sonnet, but this opt-in template does not set an xp-stack-wide default.
 > executed by the Paperclip orchestrator on a remote droplet. Your function:
 > implement tasks decomposed in T-files of this project, following absolute TDD
 > and Pair Programming Akita/XP discipline.
@@ -17,6 +19,14 @@ For each Paperclip Issue assigned to you, BEFORE any action:
 6. **Configuration files** — if the task touches config (models, plans, prices, feature flags).
 
 If Issue body contradicts T-file, T-file wins. If T-file contradicts `CLAUDE.md`, comment Issue requesting clarification.
+
+The **Delivery evidence contract** in `akita-xp-rules` defines the
+canonical slots for behavior, base/candidate, expectation origin, RED/GREEN,
+applicable guards, limits, and review. Fill the T-file's slots instead of
+creating a second contract here. The T-file/Issue handoff must include
+`Contract source` (resolved path/URI) and revision `<revision read from the resolved contract source>`. If your runtime
+has no skill loader, the architect must attach the exact excerpt from that
+source with its reference and revision; a bare pointer is insufficient.
 
 ## 2. Optional cost-reduction skill
 
@@ -69,7 +79,10 @@ git worktree remove /home/paperclip/worktrees/$ISSUE_ID
 - **Message follows type + scope + short description.** Example: `feat(plan-features): explicit type for tenants.features`.
 - **NEVER** add trailer `Co-Authored-By: Claude ...` — project policy.
 - **NEVER** force-push on shared branches (including your `task/...` after first push, unless nobody else has touched it).
-- Each TDD phase becomes 1 commit (red, green, refactor).
+- Record each TDD phase and its command/tree/exit-code evidence. Commit
+  boundaries follow the project workflow; a phase does not require an empty
+  or clean-tree commit. If historical RED is absent, record that fact and label
+  any later reproduction; never invent a past commit or command.
 
 ## 5. Always — before each commit
 
@@ -130,11 +143,11 @@ gh pr create \
 - **Edit `CLAUDE.local.md` / `AGENTS.local.md`** (gitignored, Pilot's content).
 - **Invent columns/tables not in migration files** (A14 anti-pattern — read schema first).
 
-## 8. Model + costs
+## 8. Model + resource accounting
 
-- **Default:** `claude-sonnet-4-6` (configured in Paperclip adapter).
-- **Override:** if T-file explicitly requests a different model, note the reason in PR notes.
-- **OAuth subscription:** shared. Quota rolling 5h. If you feel slowness/throttle, stop and comment Issue — Pilot decides cadence.
+- **Example default:** `claude-sonnet-4-6` (configured in the opt-in Paperclip adapter).
+- **Override:** the current session/Host policy or T-file may select a different model/profile; record the choice and reason in PR notes.
+- **Provider usage:** quota, latency, and billing depend on the configured account. Do not assume zero cost. If you feel slowness/throttle, stop and comment Issue — the authorized coordinator decides cadence.
 
 ## 9. Pre-decided choices (follow, do NOT re-discuss)
 
@@ -186,12 +199,14 @@ RED -> GREEN -> REFACTOR -> VERIFY
 
 | Phase | Action | Commit |
 |---|---|---|
-| **RED** | Write tests that fail for the right reasons (not import error). | `test(<scope>): scenarios <what>` |
+| **RED** | Write tests that fail for the right behavior (not import/configuration error); record the command, tree/commit, exit code, and log. | Commit only if the project workflow calls for it. |
 | **GREEN** | Minimum code to make tests pass. | `<feat\|fix\|refactor>(<scope>): <what>` |
 | **REFACTOR** | Cleanup, helper extraction if needed. **Only commit if real change.** | `refactor(<scope>): <what>` (optional) |
 | **VERIFY** | `Skill superpowers:verification-before-completion`. Run lint + typecheck + relevant tests. **Capture output BEFORE marking `[x]`** in T-file. | (no new commit) |
 
-Skipping RED phase = false regression test. **Never commit GREEN without RED commit before.**
+Skipping the RED observation weakens the evidence. If no historical RED exists,
+record `RED not recorded` or a clearly labeled retrospective reproduction;
+never manufacture a RED commit to satisfy a checklist.
 
 ## 13. Coverage >= 90% on touched files (auto-merge gate B item 4)
 
@@ -246,11 +261,11 @@ After you open the PR, the Routine `review-pending-prs` (cron `*/10min`) wakes t
 3. Read T-file referenced + CLAUDE.md + relevant ADRs
 4. (optional) Skill <project's chosen compression skill>
 5. Worktree create
-6. RED phase: tests fail
-7. git commit -m "test(...): scenarios"
+6. RED phase: tests fail for the intended behavior, and evidence is recorded
+7. Commit the RED phase only when the project workflow requires it
 8. GREEN phase: minimum code
-9. lint + typecheck + test (LOCAL, before commit)
-10. git commit -m "feat(...): <what>"
+9. Run the focused guards selected by impact (LOCAL, before any commit)
+10. Commit the implementation only when the project workflow requires it
 11. REFACTOR phase (if applicable)
 12. Skill superpowers:verification-before-completion
 13. git push origin task/<feat>/<task-slug>

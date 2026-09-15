@@ -1,6 +1,6 @@
 ---
 name: debugging-discipline
-description: Install fix-workflow discipline gates in the project — PR template (Hypotheses ranked / Root cause / Regression test), PreToolUse hook reminding systematic-debugging skill invocation, regression test policy. Opt-in. Use when project has high fix: commit ratio (>30%) or no evidence of structured debug process. Auto-trigger phrases (PT-BR) "instala debugging-discipline", "disciplina de debug", "gate de fix" e (EN) "install debugging discipline", "fix workflow gates".
+description: Install opt-in fix-workflow reminders in the project — PR template (ranked hypotheses / root cause / regression evidence) and a PreToolUse reminder for systematic-debugging. Use when a project has a high fix: commit ratio (>30%) or lacks visible structured-debug evidence. Auto-trigger phrases (PT-BR) "instala debugging-discipline", "disciplina de debug", "gate de fix" e (EN) "install debugging discipline", "fix workflow reminders".
 allowed-tools:
   - Bash(bash *)
   - Bash(cp *)
@@ -15,16 +15,18 @@ allowed-tools:
 
 > **Pra engines sem skill loading:** leia este file inteiro e siga as instruções como se fossem suas.
 
-# Debugging Discipline — Install fix-workflow gates
+# Debugging Discipline — Install fix-workflow reminders
 
-Installs concrete gates that make `superpowers:systematic-debugging` invocation visible and verifiable, instead of "documented but not practiced".
+Installs visible reminders and an evidence slot that make `superpowers:systematic-debugging` easier to practice. The hook reminds but does not block, and the PR template does not replace judgment or the project's required gates.
+
+Use the **Delivery evidence contract** in `akita-xp-rules` for base/candidate, behavior, commands/logs, applicable guards, and limits. Resolve the source path supplied by the environment and record it in each task or briefing. Record the debugging diagnosis there or link to the PR section; do not create a parallel state.
 
 ## When to install
 
 Auditar o repo target antes:
 - `git log --oneline -50 | grep -c '^[a-f0-9]\+ fix:'` — se >15 (30%+) é sintoma forte
 - Procurar evidência de "hypotheses ranked" / "root cause" em commits ou PRs recentes — se zero, instalar
-- Conferir se `superpowers:systematic-debugging` está listada no CLAUDE.md como mandatory — se sim, esta skill enforça
+- Conferir se `superpowers:systematic-debugging` está listada no CLAUDE.md como mandatory — se sim, esta skill torna o lembrete e a evidência visíveis
 
 Não instalar se:
 - Projeto tem menos de 10 commits (early stage)
@@ -34,16 +36,16 @@ Não instalar se:
 
 | Artifact | Path in target repo | What it does |
 |---|---|---|
-| PR template | `.github/PULL_REQUEST_TEMPLATE.md` | Section "Hypotheses ranked / Root cause / Regression test" mandatory if `Type: fix` |
+| PR template | `.github/PULL_REQUEST_TEMPLATE.md` | Section "Hypotheses ranked / Root cause / Regression test" makes applicable evidence visible for `Type: fix` |
 | PreToolUse hook | `.claude/hooks/pre-tool-use.sh` | Bash script printing reminder to invoke systematic-debugging when Edit/Write triggered |
 | Hook registration | `.claude/settings.json` (merge) | Registers the hook with matcher `Edit\|Write` |
-| Coverage policy | Note in CLAUDE.md | Reviewer verifies each `fix:` has regression test |
+| Coverage policy | Note in CLAUDE.md | Reviewer checks each applicable `fix:` regression evidence |
 
 ## Steps as the agent running this skill
 
 ### Step 1: Confirm intent + audit
 
-Ask the user (3 options): "Install debugging-discipline gates?"
+Ask the user (3 options): "Install debugging-discipline reminders?"
 - Yes — proceed
 - Audit first (run grep + git log) — show findings, ask again
 - No — abort

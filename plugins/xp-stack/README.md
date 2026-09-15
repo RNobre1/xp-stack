@@ -1,6 +1,7 @@
 # xp-stack
 
-Stack completo de metodologia XP/Akita para Claude Code.
+Stack completo de metodologia XP/Akita para Claude Code, com contrato de
+evidências de entrega e roteamento de agentes conforme a sessão/Host.
 
 ## O que inclui
 
@@ -8,12 +9,25 @@ Stack completo de metodologia XP/Akita para Claude Code.
 
 | Skill | Invocacao | Descricao |
 |-------|-----------|-----------|
-| akita-xp-rules | `/xp-stack:akita-xp-rules` | Regras metodologicas universais |
+| akita-xp-rules | `/xp-stack:akita-xp-rules` | Regras metodologicas universais + contrato canônico de evidências, autorização, checkpoints e revisão |
 | tdd-conventions | `/xp-stack:tdd-conventions` | Convencoes de TDD absoluto |
 | task-decomposition | `/xp-stack:task-decomposition` | Guia do ciclo de tasks |
 | research-cycle | `/xp-stack:research-cycle` | Guia do ciclo de pesquisa formal |
 | optimizing-github-actions | auto via `paths: .github/workflows/**` | Pre-flight checklist + decision matrices pra otimizar workflows GitHub Actions (cache, sharding, security, observabilidade, anti-patterns supply-chain) |
+| claude-md-bootstrap | `/xp-stack:claude-md-bootstrap` | Preenche CLAUDE.md a partir de evidências da codebase |
 | bootstrap | `/xp-stack:bootstrap` | Scaffold de projeto novo |
+
+Os padrões `paperclip-orchestrator` e `local-waves` são skills opt-in deste
+plugin. Os lembretes `debugging-discipline` e `code-review-automation` vivem
+em `templates/opt-in-skills/` para instalação explícita no projeto receptor;
+eles não são defaults universais.
+
+| Padrão opt-in | Uso |
+|---|---|
+| `paperclip-orchestrator` | Orquestração remota assíncrona com seus gates configurados |
+| `local-waves` | Orquestração local headless em worktrees |
+| `debugging-discipline` | Lembretes de evidência para investigação de `fix:` |
+| `code-review-automation` | Lembretes de revisão e comando `/review-pr` |
 
 ### Agents
 
@@ -37,9 +51,9 @@ O plugin **nao declara MCPs por padrao**. Se o seu projeto usa MCPs especificos 
 
 ## Status
 
-**V0.2.0** — adiciona skill `optimizing-github-actions` (engenharia de qualidade + otimizacao de workflows GitHub Actions, auto-ativada via `paths` field) + `akita-xp-rules` ganha regra Single-Author Commits (sem trailers Co-Authored-By). v0.1.1 funcional desde 2026-04-16 (validacao empirica em projeto real: 17 PASS / 5 WARN / 0 FAIL; WARNs corrigidos).
+**V0.6.0** — manifest do plugin com skills core e opt-in de orquestração, contrato de evidências de entrega e revisão orientada por política. O modelo, perfil, mecanismo de despacho e estilo de comunicação vêm da sessão/Host; Agent View, Sonnet e caveman são escolhas opt-in. A skill `bootstrap` é one-shot manual e as skills Paperclip/local-waves/code-review-automation/debugging-discipline permanecem opt-in.
 
-Skills e agents carregam conteudo real curado — metodologia generica universal, sem acoplamento a stack especifico. Agents (researcher, research-critic, tdd, reviewer) leem o `CLAUDE.md` do projeto receptor em runtime para aplicar convencoes especificas do stack.
+Skills e agents carregam conteudo real curado — metodologia generica universal, sem acoplamento a stack especifico. Agents (researcher, research-critic, tdd, reviewer) leem o `CLAUDE.md` do projeto receptor em runtime para aplicar convencoes especificas do stack. Em T-files e briefings transferidos, use o nome portável `akita-xp-rules`, registre o caminho/URI resolvido e a revisão do contrato; workers sem skill loader recebem o trecho literal da fonte.
 
 A skill `bootstrap` e **one-shot manual**: nao aparece no listing automatico de skills carregadas (comportamento por design via `disable-model-invocation: true`), so executa quando invocada explicitamente via `/xp-stack:bootstrap`. Isso evita que o modelo invoque bootstrap por engano em um projeto ja scaffoldado.
 

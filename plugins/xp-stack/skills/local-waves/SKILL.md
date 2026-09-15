@@ -1,6 +1,6 @@
 ---
 name: local-waves
-description: "[LEGACY — pré-Agent View 2026-05-11] Set up a local parallel-wave orchestrator in this project — copies orchestrate-wave.sh and README to scripts/orchestrate/. The orchestrator dispatches N headless workers (claude -p Sonnet) in isolated git worktrees per task, blocks on BLOCKERS.md discipline, and aggregates a summary. Alternative to remote orchestrators like Paperclip when you want sync local execution without infrastructure. Invoke explicitly via /xp-stack:local-waves-setup. Opt-in."
+description: "Use when explicitly setting up the optional local parallel-wave orchestrator in a project that needs headless workers in isolated worktrees. Copies orchestrate-wave.sh and README to scripts/orchestrate/ and aggregates a summary. Model, profile, and communication style follow the current session/Host policy; this is an opt-in alternative to Paperclip for local or non-interactive execution. Invoke via /xp-stack:local-waves-setup."
 disable-model-invocation: true
 allowed-tools:
   - Bash(bash *)
@@ -17,28 +17,28 @@ allowed-tools:
 
 # Local Waves Orchestrator — Setup
 
-> **Legacy notice:** Esta skill foi a recomendação canônica antes do lançamento do **Agent View nativo do Claude Code** (https://claude.com/blog/agent-view-in-claude-code, 11-mai-2026). Pra novos projetos use **Agent View** via Agent tool nativo (`model: "sonnet"` + `isolation: "worktree"` + prompt invoca `caveman:caveman`). `local-waves` segue funcional como fallback ou pra projetos que rodam fora do Claude Code (não-interativo, CI, etc.).
+> **Escopo:** Esta é uma opção explícita para execução local e headless. Em uma sessão interativa, selecione o mecanismo nativo que a política da sessão e a capacidade do Host suportarem; Agent View é uma interface possível, não um requisito. O script gerado continua sendo o exemplo operacional de `local-waves` para CI, modo não-interativo ou fallback.
 
 Set up a local parallel-wave orchestrator in your project. Optional, opt-in. Invoke explicitly when you decide you want this — the regular `bootstrap` does NOT install it.
 
 ## Mental model
 
-- **Orchestrator** = the Claude Code session you're running (Opus-class, auto mode). It's the brain.
+- **Orchestrator** = the current session running the selected mechanism. Its model and profile come from the session/Host policy.
 - **Script** = mechanical hand. The orchestrator invokes it via the Bash tool.
-- **Workers** = N instances of `claude -p` running Sonnet-class headless in separate git worktrees. They execute 1 task each in parallel.
+- **Workers** = N headless instances in separate git worktrees. The generated script's model choice is part of this opt-in mechanism; do not treat it as an xp-stack-wide default.
 
-Worker permissions: `--permission-mode acceptEdits` + `--allowedTools` with specific allowlist (no `--dangerously-skip-permissions`). If a worker hits something outside the allowlist OR needs a credential / business decision not provided, it **stops, writes `BLOCKERS.md` in the worktree, commits WIP, and exits without opening a PR**. The orchestrator collects this and presents to the Pilot.
+Worker permissions: `--permission-mode acceptEdits` + `--allowedTools` with specific allowlist (no `--dangerously-skip-permissions`). If a worker hits something outside the allowlist OR needs a credential / business decision not provided, it **stops, writes `BLOCKERS.md` in the worktree, may commit WIP according to this script, and exits without opening a PR**. The orchestrator collects this and presents to the Pilot. WIP is a checkpoint, not acceptance, and other workflows must not be forced to create a clean or WIP commit.
 
 ## Trade-off vs `xp-stack:paperclip-orchestrator` and Agent View
 
-| Criterion | local-waves (this) | Paperclip | **Agent View (recomendado)** |
+| Criterion | local-waves (this) | Paperclip | Native Agent dispatch |
 |---|---|---|---|
 | Execution model | Local sync, headless | Remote async, droplet-hosted | Native Claude Code, parallel sessions |
 | Latency | Minutes (block-and-summarize) | Hours-days (heartbeat cycle, async review) | Seconds (parallel dispatch) |
 | Persistence | None (session-bound) | Yes (DB-backed) | Session-bound (Agent View UI) |
 | Multi-developer | No | Yes | No (single Pilot) |
 | Infrastructure | None | VPS (~$10/mo) + Anthropic OAuth subscription | None |
-| When to choose | Solo, headless, fallback (CI/non-interactive) | Multi-dev async, 24/7 review queue | **Solo or pair, interactive — default** |
+| When to choose | Solo, headless, fallback (CI/non-interactive) | Multi-dev async, 24/7 review queue | Interactive work when the session/Host supports it |
 
 You can install **both** in the same project; they don't conflict (Paperclip uses `local/paperclip/`, local-waves uses `scripts/orchestrate/`).
 
@@ -99,3 +99,5 @@ Summarize what was created and tell the user:
 - **Only writes under `$(pwd)`** — never touches `~/.claude/` global, never modifies other repos.
 - **Does not run waves** — only installs the script. The orchestrator session you're in invokes `bash scripts/orchestrate/orchestrate-wave.sh run docs/tasks/<feature>/` when ready.
 - **Idempotent:** re-running this skill in the same project does not modify files created in previous runs.
+
+For task evidence, review lanes, authorization, checkpoints, and optional triage, follow the **Delivery evidence contract** in `akita-xp-rules`. Installing this opt-in mechanism does not approve a candidate or change the session's merge policy.

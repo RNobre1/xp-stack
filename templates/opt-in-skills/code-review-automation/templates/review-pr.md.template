@@ -1,24 +1,43 @@
 ---
-description: Structured orchestrator self-review with adversarial persona. Run BEFORE `gh pr create` / `gh pr merge`. Outputs categorized findings (Block / Must Fix / Suggestion / Nit). Orchestrator IS the reviewer — no subagent dispatch.
+description: Use when a project wants a structured adversarial review record before `gh pr create` or `gh pr merge`. Outputs categorized findings (Block / Must Fix / Suggestion / Nit) for the review lane selected by the current session and Host policy.
 ---
 
-# /review-pr — Orchestrator Self-Review
+# /review-pr — Structured PR Review
 
-You are the **orchestrator** (Opus) reviewing code that **Sonnet workers** generated in this wave. This is **self-review** — do NOT dispatch a subagent via Agent tool. YOU execute the review yourself in this session.
+You are performing the review lane selected by the current session: author
+self-inspection, optional triage, or independent final review. The session/Host
+policy chooses the model, profile, isolation, and dispatch mechanism. The
+author's self-inspection prepares the handoff; it does not replace an
+independent final review when policy or risk requires one.
+
+For an independent final review, record the author and reviewer agent
+identities and models before deciding. Both must differ. A renamed context, new
+thread, or second prompt with the same identity/model does not qualify. A
+coordinator may review only when it did not author the implementation and the
+current policy permits the distinct reviewer.
+
+Resolve the **Delivery evidence contract** from `akita-xp-rules/SKILL.md` using
+the path supplied by the environment; use the plugin namespace only when the
+plugin is the loader. Record source path/URI and revision `<revision read from the resolved contract source>` in the
+task or briefing. A worker without a skill loader receives the exact canonical
+excerpt from that source, including the reference and revision.
 
 ## Step 1: Identify scope
 
 ```bash
-git diff main...HEAD --stat
-git log main..HEAD --oneline
+BASE_REF="${ARGUMENTS:-${BASE_REF:-main}}"
+git diff "$BASE_REF"...HEAD --stat
+git log "$BASE_REF"..HEAD --oneline
 ```
 
-If a branch arg was passed (`$ARGUMENTS`), diff against that branch. Otherwise use current branch vs main.
+If a branch arg was passed (`$ARGUMENTS`), use it as the base reference. Otherwise
+set `BASE_REF` to the base recorded in the T-file; `main` is this command's
+fallback example.
 
 ## Step 2: Read full diff
 
 ```bash
-git diff main...HEAD
+git diff "$BASE_REF"...HEAD
 ```
 
 Read the entire diff. Do not skim. Every changed file is in scope.
@@ -27,7 +46,7 @@ Read the entire diff. Do not skim. Every changed file is in scope.
 
 You are a **skeptical senior engineer**. Your job is NOT to validate — find bugs, security holes, performance issues, convention violations. **Assume the code is WRONG until proven otherwise.** Be specific: cite file paths and line numbers. Do not say "looks good" without concrete technical justification. Do not praise.
 
-Anti-bias — workers were Sonnet, you are Opus. Use that capacity difference. Watch for Sonnet-typical shortcuts:
+Use the adversarial perspective regardless of model. Watch for shortcuts such as:
 - Silent error swallowing (catch blocks with `console.log` and no rethrow)
 - Mocking internals instead of boundaries → mocked-vs-real shape drift
 - Skipping edge cases under time pressure (empty arrays, null inputs, max values)
@@ -57,17 +76,22 @@ For each file changed in the diff:
 
 ### Conventions (project-specific)
 - Conventional Commits format in all commits? No `Co-Authored-By: Claude` trailer?
-- TDD evidence: tests written before or alongside code? Not as afterthought?
+- TDD evidence: RED/GREEN commands, trees, exit codes, and logs reach the intended behavior? If RED was reproduced later, is it labeled as a reproduction rather than historical evidence?
 - Files outside declared scope of T-file not touched (YAGNI / scope creep)?
 - No speculative abstractions or future-proofing not in spec?
 - Comments explain WHY (non-obvious intent), not WHAT (code already shows what)?
 - Imports clean (no unused imports, no circular deps)?
+- Base/candidate and pending changes match the handoff?
 
 ### Test coverage (regression policy)
 - If `fix:` commit — regression test that fails before fix and passes after?
-- If `feat:` commit — unit tests cover happy path + at least 1 error path?
-- If new SDK wrapper added (composio, inngest, langfuse, etc.) — contract test in `tests/contract/`?
+- If `feat:` commit — the applicable test layer covers the happy path and the selected error path?
+- If a new service boundary exists — applicable contract/integration evidence is present?
 - Mock boundaries correct (mock external HTTP, not internal functions)?
+- Are skipped or pending checks explained rather than silently treated as green?
+
+Do not run the entire suite by reflex. Run the focused checks required by the
+task impact and project policy, and record commands, exit codes, and logs.
 
 ## Step 5: Categorize findings
 
@@ -76,7 +100,7 @@ Output the following markdown block:
 ```md
 ## Self-review findings
 
-### Block (do NOT open PR until resolved)
+### Block (do not integrate until resolved)
 - `path/to/file.ts:42` — [description of issue] — [suggested fix]
 
 ### Must Fix (fix before merge; can open PR draft with TODO)
@@ -92,21 +116,36 @@ Output the following markdown block:
 - Correctness of [X]: [brief reasoning]
 - Security of [Y]: [brief reasoning]
 - Test coverage of [Z]: [brief reasoning]
+
+### Evidence and review lane
+- Base/candidate/worktree: [references]
+- Commands, trees, exit codes, logs: [references]
+- Review lane: [self-inspection | triage | independent final review]
+- Triage status: [not applicable | confirmed | inconclusive | out-of-scope]
+- Author identity/model: [references]
+- Reviewer identity/model: [references; must differ from author]
+- Checks executed now: [commands + timestamp + exit codes, or `none`]
+- Fresh external evidence: [artifact/run + timestamp + candidate, or `none`]
 ```
 
 If a category has no findings, write `<!-- None -->` under its header.
 
-## Step 6: Decide and act
+For an independent final review, populate either **Checks executed now** or
+**Fresh external evidence**. If both are `none`, the result is inconclusive.
+Static triage may report findings but never satisfies final approval evidence.
+
+## Step 6: Report and route
 
 ### Block findings present
-**DO NOT run `gh pr create`.** Either:
+Do not integrate the candidate. Either:
 - Fix the issue yourself (if within scope)
 - Open a targeted message/task to the specific worker that generated the file
 
-Re-run `/review-pr` after fix. Confirm Block resolved before proceeding.
+The author reproduces and corrects confirmed findings. Re-run `/review-pr` or
+the selected review lane after the correction, and check the changed delta.
 
 ### Only Must Fix / Suggestion / Nit
-Safe to open PR. Include findings in PR body under `## Orchestrator self-review findings`.
+Include findings in PR body under `## Orchestrator self-review findings`.
 
 ```bash
 gh pr create --title "..." --body "$(cat <<'EOF'
@@ -123,8 +162,19 @@ EOF
 ```
 
 ### All Verified (no Block/Must Fix)
-Safe to open PR. Note in PR body: `Self-review: no blocking findings. See verified items above.`
+Note in PR body: `Review pass: no blocking findings. See verified items above.`
 
-## Step 7: Pilot decides merge
+### Optional triage pass
+If this command is being used for triage, it reports findings and does not
+approve the candidate. Use the evidence contract in `akita-xp-rules`;
+record location, concrete case, expected versus observed, evidence, severity,
+and confirmation. The author corrects confirmed findings, the recheck covers
+the changed delta, and an independent final reviewer evaluates the candidate.
+Unknown or inconclusive evidence is not approval.
 
-After PR opens, **Pilot reviews on GitHub** and decides to merge. The orchestrator does NOT self-merge (regra Akita: estado-mudando sem aprovação explícita = proibido).
+## Step 7: Authorized integration
+
+After the review pass, integrate or merge according to the current session and
+project authorization. Do not infer a fixed actor or impose a human-only merge
+rule when the authorized flow permits automation. Required independent review
+and security gates still apply.

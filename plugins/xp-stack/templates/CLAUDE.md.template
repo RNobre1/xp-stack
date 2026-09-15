@@ -22,47 +22,53 @@ This project follows strict **Pair Programming**: the user is the **Architect/Pi
 
 1. **No architectural hallucination** — User defines skeleton; AI fills incrementally.
 2. **Absolute TDD** — Tests first, code only to make a failing test pass.
-3. **Transparency** — Destructive actions (migrations, packages, deletions) require explicit approval.
+3. **Transparency** — Destructive actions (migrations, packages, deletions) require authorization from the current session; record an authorization already granted and ask only for a new or expanded action.
 4. **Correction with record** — Errors documented in Lessons Learned below.
 5. **YAGNI** — One task at a time. No speculative code.
 6. **Conventional Commits** — `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.
 
-See the `xp-stack:akita-xp-rules` skill for full rules.
+See the `akita-xp-rules` skill for full rules.
 
 ### Testing conventions
 
-Every feature follows the **TDD flow** (RED → GREEN → REFACTOR): write the failing test first, implement minimum code to make it pass, then refactor with the safety net in place. Cover the appropriate test types from the pyramid (unit, integration, E2E, contract, regression) for the project's stack. See the `xp-stack:tdd-conventions` skill for the full pyramid and workflow.
+Every functional increment follows the **TDD flow** (RED → GREEN → REFACTOR): write the failing test first, implement minimum code to make it pass, then refactor with the safety net in place. Select the applicable test types and guards from the pyramid according to impact, risk, and project policy; record omitted or pending checks. See the `tdd-conventions` skill for the full pyramid and workflow. Skill names here are portable; a plugin loader may prefix them with its namespace.
 
-### Development cycle (sequential phases)
+### Development cycle (per functional increment)
 
-When starting or expanding a module:
+When starting or expanding a module, apply the relevant phases to each functional increment. Independent fronts may be in different phases at the same time:
 
 1. **Foundation** — Draft architecture, data modeling, directory structure in this file. No practical code in this phase.
-2. **Tests** — Write 100% test scenarios (TDD) for planned features.
+2. **Tests** — Write the scenarios and test layers applicable to the increment's behavior and impact (TDD).
 3. **Implementation** — Code strictly to make tests pass. Focus on correctness; zero premature optimization.
 4. **Refactoring** — With tests passing, refactor, apply Design Patterns, optimize.
 5. **Integration** — Create presentation layer (components, endpoints).
-6. **CI/CD** — Configure linters, automatic tests, deploy scripts.
+6. **CI/CD** — Run the required linters, tests, security checks, and deploy gates for the project's policy and the increment's impact.
 
 ### Task decomposition
 
-Non-trivial features are decomposed into `docs/tasks/{feature-slug}/`. See `xp-stack:task-decomposition` skill for the full workflow and `docs/tasks/_template/` for the scaffolding.
+Non-trivial features are decomposed into `docs/tasks/{feature-slug}/`. See `task-decomposition` skill for the full workflow and `docs/tasks/_template/` for the scaffolding.
 
 ### Research cycle
 
-Non-trivial decisions (heavy library choice, architectural trade-off, product hypothesis, complex incident) must be backed by formal research in `docs/pesquisas/{slug}.md`. See `xp-stack:research-cycle` skill.
+Non-trivial decisions (heavy library choice, architectural trade-off, product hypothesis, complex incident) must be backed by formal research in `docs/pesquisas/{slug}.md`. See `research-cycle` skill.
 
 ### Mandatory skill integration
 
-Five workflow skills are mandatory at specific moments. See the `xp-stack:akita-xp-rules` appendix for the full table with rationale. Highlights:
+Workflow skills are mandatory at the moments their triggers apply. See the `akita-xp-rules` appendix for the full table with rationale. Highlights:
 
 - **Phase 1 design** (any non-trivial feature) -> `superpowers:brainstorming`
 - **Any bug, test failure, or unexpected behavior** -> `superpowers:systematic-debugging`
 - **Before claiming "done"** (T-file `[x]`, PR open, "tests pass") -> `superpowers:verification-before-completion`
-- **2+ independent tasks in a wave** -> Agent View (`claude agents`) com Agent tool nativo. Mandatório: `model: "sonnet"` + `isolation: "worktree"` + prompt invoca `caveman:caveman` antes da resposta. `superpowers:dispatching-parallel-agents` segue como referência de processo (design de waves), execução é via Agent tool.
-- **`.github/workflows/*.yml` edits** -> `xp-stack:optimizing-github-actions` (auto-activated via `paths` field)
+- **2+ independent tasks in a wave** -> use `superpowers:dispatching-parallel-agents` and `superpowers:using-git-worktrees` with the native mechanism supported by the current session and Host. Model, profile, isolation, UI, and communication style come from that policy; Agent View, `model: "sonnet"`, and `caveman:caveman` are optional examples.
+- **`.github/workflows/*.yml` edits** -> `optimizing-github-actions` (auto-activated via `paths` field)
 
 Install via `/plugin install superpowers` and confirm in `/plugin list`. If the project explicitly opts out of one (e.g. "no TDD for prototypes"), document the exception here and the user-level rule wins.
+
+### Delivery evidence and review lanes
+
+Use the **Delivery evidence contract** in `akita-xp-rules` for behavior, base/candidate, expectation origin, RED/GREEN evidence, applicable guards, limits, and review. The current environment supplies the resolvable source path/URI; each task and dispatch briefing records it with the contract revision. Author self-inspection prepares the handoff; an independent final review is selected by the current policy and risk, with author and reviewer agent identities and models both distinct. An optional triage pass may report confirmed, inconclusive, or out-of-scope findings, then the author rechecks the affected delta. Triage does not approve, and unknown is not approved.
+
+Authorization already granted in the current session applies to the exact scoped action; record a concrete T-file/briefing/session-artifact reference instead of asking again. A checkpoint records WIP, pending changes, last verified point, and next step without forcing a clean commit or claiming completion. Integration and merge follow the session/project authorization rather than an unconditional human-only rule.
 
 ### Optional multi-agent dispatch
 
@@ -142,7 +148,7 @@ tests/
 
 > Record significant architectural decisions here. Keep them short: context, decision, consequences.
 
-1. **Example: Adopted XP Stack via `RNobre1/claude-craft` plugin** — _{{date}}_ — Provides skills, agents, and templates for rigorous AI-assisted development. See the plugin's README and this project's `xp-stack:akita-xp-rules` skill.
+1. **Example: Adopted XP Stack via `RNobre1/claude-craft` plugin** — _{{date}}_ — Provides skills, agents, and templates for rigorous AI-assisted development. See the plugin's README and this project's `akita-xp-rules` skill.
 
 ## Lessons learned
 
@@ -153,7 +159,7 @@ tests/
 ## Do not
 
 - Bypass the TDD flow (write production code before tests)
-- Execute state-changing commands without explicit approval
+- Execute state-changing commands without current-session authorization
 - Add speculative code or abstractions "for the future"
 - Modify files outside the declared scope of the current task
 - Touch `~/.claude/` global without explicit approval

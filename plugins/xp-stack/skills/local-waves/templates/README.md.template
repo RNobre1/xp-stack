@@ -7,11 +7,11 @@
 
 ## Mental model
 
-- **Orchestrator** = the Claude Code session you have open (Opus-class, auto mode). It's the brain.
+- **Orchestrator** = the current session running the selected mechanism. Model and profile follow the session/Host policy.
 - **Script** = mechanical hand. The orchestrator invokes it via the Bash tool.
-- **Workers** = N instances of `claude -p` running Sonnet-class headless in separate worktrees. Each executes 1 task in parallel.
+- **Workers** = N headless instances in separate worktrees. The generated script contains this opt-in mechanism's model choice; it is not a global xp-stack default.
 
-Worker permissions: `--permission-mode acceptEdits` + `--allowedTools` with specific allowlist (no `--dangerously-skip-permissions`). If a worker hits something outside the allowlist OR needs a credential / business decision not provided, it **stops, writes `BLOCKERS.md` in the worktree, commits WIP, and exits without opening a PR**. The orchestrator collects this and presents to you.
+Worker permissions: `--permission-mode acceptEdits` + `--allowedTools` with specific allowlist (no `--dangerously-skip-permissions`). If a worker hits something outside the allowlist OR needs a credential / business decision not provided, it **stops, writes `BLOCKERS.md` in the worktree, may commit WIP according to this script, and exits without opening a PR**. The orchestrator collects this and presents to you. WIP is a checkpoint, not acceptance, and other workflows must not be forced to create a clean or WIP commit.
 
 ## Feature convention (pre-requisite)
 
@@ -41,10 +41,10 @@ The `task-decomposition` skill (from this same xp-stack plugin) ships templates 
 ./scripts/orchestrate/orchestrate-wave.sh status docs/tasks/{feature}/ --wave 1
 ```
 
-After the summary, you decide:
+After the summary, continue according to the current session and project authorization:
 - **Blockers**: provide credential/decision and manually dispatch a follow-up worker.
 - **CI red**: open a session in the worktree of the PR and fix (or dispatch another worker).
-- **All green**: merge in sequence (`gh pr merge --squash`), rebase following PRs if conflict.
+- **All green**: integrate or merge in sequence when authorized (`gh pr merge --squash` is an example), rebase following PRs if conflict.
 - **Wave 100% ok in dev**: `/compact` in the orchestrator session and run `run --wave N+1`.
 
 ## Configuration
@@ -91,9 +91,9 @@ The script injects a 6-rule prompt prefix before each task's body (search for `w
 1. **No mid-run intervention.** Workers are headless (`claude -p`). If one hangs or chooses the wrong path, you only find out at the end (via summary) or by observing `stream.jsonl` in another terminal (`tail -f`).
 2. **CLAUDE.md not auto-loaded in `-p`.** The worker prompt prefix tells the worker to read it before starting, but no guarantee. For tasks that depend heavily on CLAUDE.md, consider `--append-system-prompt "$(cat CLAUDE.md)"` — costs extra tokens.
 3. **MCP servers don't follow workers.** If the task needs an MCP, add `--mcp-config .mcp.json` to the `claude -p` command (see the `spawn_worker` line in the script).
-4. **Sequential merge is human.** Script does not merge. You decide order and resolve conflicts.
+4. **Sequential merge is deliberate.** Script does not merge. Follow the session's authorization for who or what integrates, and resolve conflicts in the authorized context.
 5. **TERMINAL-PROMPTS.md parser is naive.** Works in the format `## Onda N` + `### T{X}` + first ` ``` ` block. Conventions outside this shape require manual awk adjustment in the script.
-6. **Cost.** 3 Sonnets in parallel + Opus orchestrator ≈ $30-45 per wave of 3 tasks. Worth it for waves of independent tasks; for sequential tasks (chain of dependency), parallelizing doesn't help.
+6. **Resource accounting.** Parallel workers and the orchestrator consume provider quota, context, and wall-clock time. Measure actual usage for the configured accounts; do not assume zero cost. For sequential tasks (chain of dependency), parallelizing may not help.
 
 ## Suggested evolution
 
