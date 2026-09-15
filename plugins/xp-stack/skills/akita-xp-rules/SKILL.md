@@ -75,9 +75,9 @@ Apply the following flow to each functional increment. Independent fronts may be
 
 Task files, progress notes, and review prompts refer to this contract by name; they do not redefine its meaning. For every increment that changes behavior, keep these slots current:
 
-**Contract reference:** `akita-xp-rules / Delivery evidence contract` — revision `2026-09-15`.
+**Contract reference:** `akita-xp-rules / Delivery evidence contract` — revision `2026-09-15.1`.
 
-Resolve the path or URI that the current environment supplies for `akita-xp-rules/SKILL.md` and record it, with this revision, in each task and dispatch briefing. If a worker has no skill loader, the sender must attach the exact excerpt from that resolved source with the reference and revision; a bare name or inaccessible pointer is not a handoff. The excerpt is copied from the source, never re-authored as a competing contract.
+Resolve the path or URI that the current environment supplies for `akita-xp-rules/SKILL.md` and record it, with this revision, in each task and dispatch briefing. If a worker has no skill loader, the sender must attach the exact excerpt from that resolved source with the reference and revision; a bare name or inaccessible pointer is not a handoff. The excerpt is copied from the source, never re-authored as a competing contract. When a briefing already supplies this resolved reference, revision, and literal excerpt for a worker without a loader, use that handoff; the lack of an installed skill is not a reason to search the whole machine or install it again.
 
 | Slot | Record |
 |---|---|
@@ -87,6 +87,8 @@ Resolve the path or URI that the current environment supplies for `akita-xp-rule
 | **RED and GREEN evidence** | Commands, tree/commit exercised, exit codes, and relevant logs. A retrospective reproduction is labeled as such; never invent a historical RED. |
 | **Impact and applicable guards** | Affected consumers and the focused tests, lint/type/security/performance checks, or other guards selected for this impact, with omitted or pending checks explained. |
 | **Limits and review** | Pre-existing defects, unavailable evidence, surviving or inconclusive probes, and the review result for the identified candidate. |
+
+For a long-running check, record its execution environment, handle, workspace, and result location. Keep that check pending until the same execution reports completion or confirmed cancellation. Independent authorized work can continue without editing the tree under validation or consuming unavailable slots. Missing output, a lost handle, or an empty process search does not prove termination: process visibility can be scoped to a container or namespace. If the status is unknown, preserve it as pending and ask the execution service or coordinator to resolve it before starting a duplicate check. Authorization to run a check does not grant an additional concurrent slot.
 
 Checkboxes, a clean commit, a WIP commit, or a model's assertion do not prove behavior. Record the evidence that actually exercises the relevant assertion. Do not run an entire suite by reflex when focused checks answer the risk; follow the project's required gates and use broad validation at the integration boundary when applicable.
 

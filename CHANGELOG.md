@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Contrato de entrega:** `akita-xp-rules` passa a ser a fonte única do contrato de evidências (revisão `2026-09-15`). T-files e briefings registram `Contract source` com caminho/URI resolvido; workers sem skill loader recebem o trecho canônico literal com referência e revisão. Documentos portáveis usam o nome nu `akita-xp-rules`; o namespace `xp-stack:` fica restrito ao plugin.
+- **Contrato de entrega:** `akita-xp-rules` passa a ser a fonte única do contrato de evidências e de sua revisão vigente. T-files e briefings registram `Contract source` com caminho/URI resolvido; workers sem skill loader recebem o trecho canônico literal com referência e revisão. Documentos portáveis usam o nome nu `akita-xp-rules`; o namespace `xp-stack:` fica restrito ao plugin.
 - **Roteamento e revisão:** modelo, perfil, mecanismo, isolamento, estilo e autoridade de merge seguem a política da sessão/Host. Autoinspeção prepara o handoff; triagem é opcional e não aprova; revisão final exige agente e modelo distintos do autor e declara checks executados agora ou evidência externa fresca.
 - **Evidência e checkpoint:** RED/GREEN pode ser provado por comando, log, árvore e exit code sem commit separado. Reproduções posteriores são identificadas como retrospectivas; WIP/checkpoint permanece honesto. A política de dívida continua pertencendo ao projeto/sessão.
 - **Documentação e metadados:** README, CLAUDE.md, agents e templates alinham os padrões portáveis e os mecanismos opt-in. Descrições textuais de `package.json` e `plugin.json` foram atualizadas sem alterar versões, scripts, CI, CLI ou installer.
