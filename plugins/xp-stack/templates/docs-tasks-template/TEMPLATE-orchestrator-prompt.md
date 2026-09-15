@@ -1,106 +1,95 @@
-# {{Feature}} — Orchestrator Prompts (Agent View)
+# {{Feature}} — Orchestrator Prompts
 
-> **Padrão Agent View (canônico desde 2026-05-11):** o orquestrador dispara N tasks paralelas via `Agent` tool nativo + `claude agents` UI. Cada worker é Sonnet em worktree isolado. Substitui o legado `TERMINAL-PROMPTS.md` (copy-paste em N terminais).
+> This is a prompt template, not a global dispatch policy. Before dispatching, consult the current session's Agent Selection Guide, Host concurrency policy, available mechanisms, and the authorization already granted. Model, profile, isolation, UI, and communication style are selected there; this template does not make `Sonnet`, Agent View, or `caveman` universal.
 
-> **Quando NÃO usar:** se você não tem acesso ao Claude Code interativo (ex.: rodar em CI, em script headless), use `xp-stack:local-waves` como fallback. Pra multi-developer async use `xp-stack:paperclip-orchestrator`.
+> Use this prompt when parallel work is useful and authorized. For one task, execute the T-file in the current session. For explicit opt-in alternatives, see `xp-stack:local-waves` and `xp-stack:paperclip-orchestrator`.
 
 ---
 
 ## Mental model
 
-- **Orchestrator** = sessão Claude Code Opus-class atual. Lê T-files, dispara workers, consolida resultados, faz merge.
-- **Workers** = N Agent tool calls Sonnet-class. Cada um em worktree isolado (`isolation: "worktree"`). Invoca `caveman:caveman` no início pra ultra-compressar comunicação com o orchestrator.
-- **Agent View** = UI do Claude Code (`claude agents` ou seta esquerda) que mostra status de cada worker em tempo real.
+- **Orchestrator** = the current session. It reads the contract, coordinates work, and records decisions.
+- **Workers** = isolated task contexts when the selected mechanism and Host policy support them. Each receives one T-file and returns evidence or a checkpoint.
+- **Evidence contract** = the **Delivery evidence contract** in `xp-stack:akita-xp-rules`; task files provide slots and links instead of redefining its fields.
+- **Final reviewer** = an independent context or responsibility selected by policy and risk. Author self-inspection prepares the handoff but is not a universal substitute.
 
----
+## Dispatch pattern
 
-## Padrão de dispatch (Agent tool)
-
-Pra cada T-file da wave, o orquestrador faz **um** Agent tool call. Exemplo TypeScript pseudo-code:
+For each independent T-file in the wave, use the native dispatch mechanism selected by the session. This pseudo-call shows the contract without choosing a model or UI:
 
 ```ts
 Agent({
   description: "T1 — {{slug}}",
-  subagent_type: "general-purpose",
-  model: "sonnet",
-  isolation: "worktree",
-  prompt: `Antes de qualquer outra coisa, invoque a skill caveman:caveman pra ultra-compressar comunicação.
+  isolation: "{{selected by session/Host policy, when supported}}",
+  // Add model/profile only when explicitly selected by the current policy.
+  prompt: `Você é o executor da task T1 na wave {{N}} do feature {{feature-slug}}.
 
-Você é o worker T1 da wave {{N}} do feature {{feature-slug}}. Leia e execute integralmente o arquivo:
+Leia e execute integralmente:
 docs/tasks/{{feature-slug}}/T1-{{slug}}.md
 
-Branch: feat/{{feature-slug}}-T1 (já criado pelo worktree).
 Contexto obrigatório:
-- docs/tasks/{{feature-slug}}/00-overview.md (plano geral)
-- CLAUDE.md (convenções)
+- docs/tasks/{{feature-slug}}/00-overview.md
+- CLAUDE.md (e AGENTS.md se o projeto os usar como fonte única)
 - {{outros docs relevantes da feature}}
 
-Metodologia:
-- TDD absoluto (RED → GREEN → REFACTOR → VERIFICATION)
-- Conventional commits (sem Co-Authored-By: Claude)
-- Files ALLOWED/FORBIDDEN do T-file são lei
-- Ask before assume (use AskUserQuestion se ambíguo)
+Contrato de trabalho:
+- Preserve os arquivos ALLOWED/FORBIDDEN e o escopo do T-file.
+- Siga RED → GREEN → REFACTOR → VERIFY para o incremento, sem inventar RED histórico.
+- Registre comandos, árvore/base/candidato, exit codes, logs e guardas aplicáveis no T-file.
+- Faça autoinspeção preparatória antes da entrega.
+- Se houver triagem opcional selecionada pela sessão, retorne achados no formato do contrato; triagem não aprova nem edita sua implementação.
+- Em caso de bloqueio, preserve WIP, descreva o estado e o próximo passo exato.
 
-Quando terminar:
-- Commit local no worktree (não push ainda — orchestrator coordena)
-- Reporte em caveman: o que foi feito, hash do commit, blockers se houver
-- NÃO abra PR — orchestrator consolida e abre PRs separados`
+Quando terminar, devolva: comportamento observado, evidências e limites, estado da árvore, alterações pendentes, revisão/triagem (se houver) e bloqueios. Faça commit ou abra PR somente se isso estiver autorizado pelo fluxo atual.`
 })
 ```
 
-Repita pra cada task independente da wave (T2, T3, ...). Todos disparados na MESMA mensagem do orquestrador → correm em paralelo (Agent View mostra status).
+Dispatch independent tasks in the same orchestration turn when the mechanism supports parallelism. If it does not, run them serially or use an explicitly selected `xp-stack:local-waves` or `xp-stack:paperclip-orchestrator` flow; do not silently substitute a different mechanism.
 
----
+## Why each field
 
-## Por que cada campo
-
-| Campo | Por quê |
+| Field | Why |
 |---|---|
-| `model: "sonnet"` | Custo + velocidade. Orchestrator é Opus (planning); workers são Sonnet (execution). Skill `caveman:caveman` reduz tokens ~75% adicional. |
-| `isolation: "worktree"` | FS isolation. Cada worker tem checkout próprio do main. Sem race condition em arquivos compartilhados. |
-| `subagent_type: "general-purpose"` | Tools `*`. Pra `Explore` (search only) ou `Plan` (design only) use os tipos específicos. |
-| Prompt invoca `caveman:caveman` no início | Pilot rule. Ultra-compressa output do worker pro orchestrator. Mantém precisão técnica. |
-| **Reviewer = orquestrador atual** | NÃO existe `subagent_type: "reviewer"` dispatched no fluxo. O orquestrador da sessão é o reviewer. Combate viés família (Opus revisa Sonnet) + adversarial persona via `/review-pr` ou checklist manual. Subagent reviewer só faz sentido em **research review** (`research-critic`), não code review. |
-
----
+| `description` | Identifies the T-file and increment in status/output. |
+| `isolation` | Protects independent work when the selected mechanism supports worktrees or another isolation boundary. |
+| `model` / `profile` | Deliberate session choices. Omit them unless the current policy or Pilot selected them. |
+| `prompt` | Supplies the minimum project context and routes evidence to the shared contract. |
 
 ## Coordination rules
 
-- **Sem rebase entre branches paralelas mid-flight.** Workers commitam no próprio worktree.
-- **PROGRESS.md é atualizado pelo orchestrator no merge** — nunca pelo worker (evita conflict).
-- **Pre-flight obrigatório:** orchestrator roda `bun run check` (lint + typecheck + test) ANTES de abrir o PR de cada T.
-- **Workers param e reportam** se: precisam tocar file FORBIDDEN, encontram bug pré-existente, hit blocker.
-- **Orchestrator NÃO self-merge** PRs — Pilot revisa e mergeia (regra Akita).
+- Do not rebase or edit another worker's branch while it is in flight.
+- The orchestrator records decisions and updates `PROGRESS.md` after integrating the relevant evidence; workers do not rewrite shared progress concurrently.
+- Run focused tests and other guards selected by impact. A full suite belongs at the integration boundary or where project policy requires it; do not run it by reflex.
+- A worker stops and reports when it needs a forbidden file, a new authorization, a credential, or a business decision. Preserve a checkpoint instead of widening scope.
+- An already-granted authorization is sufficient for the exact scoped action. Record it and proceed; ask only for a new or expanded action.
+- A clean commit is not a completion condition. Pending changes and WIP belong in the checkpoint/evidence record.
 
----
+## Sequence for a wave
 
-## Sequência típica de uma wave
+1. Read `00-overview.md`, identify independent increments, and confirm base, allowed files, dependencies, and current authorization.
+2. Dispatch workers through the selected mechanism with isolated contexts when available.
+3. Collect each report and compare its base/candidate, diff, behavior, and evidence with the T-file.
+4. Run focused guards required by impact; classify missing or inconclusive evidence instead of calling it green.
+5. If the session selected an optional triage pass, give it the accepted scope, criteria, base/candidate, diff, consumers, and available evidence. It reports findings with location, case, expected/observed, evidence, severity, and confirmation.
+6. Send confirmed findings to the author. The author reproduces and corrects them; triage rechecks only the changed delta and property.
+7. Arrange the independent final review required by policy or risk (for example, Opus when the session routes it there). The reviewer decides from the candidate and evidence; triage or self-inspection does not approve it.
+8. Integrate, open a PR, merge, or pause according to the session and project authorization. Record the decision and update progress.
 
-1. Orchestrator lê `00-overview.md` e identifica a próxima wave (tasks pending + no deps abertas).
-2. Orchestrator dispara N Agent tool calls em UMA mensagem (paralelo nativo).
-3. Agent View UI mostra status (working / waiting input / completed).
-4. Quando todos voltarem: orchestrator lê reports, roda `bun run check` em cada worktree.
-5. **Orchestrator self-review (NÃO dispatch reviewer subagent):** pra cada worktree do worker que terminou, o orquestrador:
-   a. `cd <worker-worktree-path>`
-   b. `git diff main...HEAD` (vê o que de fato mudou)
-   c. **Invoca `/review-pr`** (instalado por `xp-stack add-skill code-review-automation`) OU executa checklist manual:
-      - Adversarial persona: "assuma código ERRADO até prova em contrário"
-      - Correctness · OWASP · conventions · test coverage · YAGNI
-   d. Categoriza findings: Block / Must Fix / Suggestion / Nit
-   e. **Se Block findings:** NÃO abre PR. SendMessage pro worker (agentId ainda vivo) OU edit direto + commit. Re-review.
-   f. **Se Must Fix / Suggestion / Nit apenas:** safe pra abrir PR. Cola findings no PR body sob `## Orchestrator self-review findings`.
+## Review outcomes
 
-   > **Por que self-review e não subagent reviewer?** Workers são Sonnet, orquestrador é Opus — capacidade diferente dentro da família combate blind spots compartilhados. Subagent reviewer Sonnet teria os mesmos blind spots dos workers. Adversarial persona reforça anti-viés.
-6. Orchestrator abre 1 PR por T-file (atualiza status em PROGRESS.md).
-7. Pilot revisa + mergeia PRs.
-8. Orchestrator avança pra próxima wave.
+Use the status that matches the evidence:
 
----
+- **Blocked:** required authorization, dependency, or correction is missing.
+- **Inconclusive:** evidence or behavior could not be established; it is not approval.
+- **Ready for independent review:** focused guards and handoff evidence are captured.
+- **Accepted:** the independent reviewer and required gates accepted the identified candidate under the authorized policy.
+- **Checkpoint:** WIP/pending changes and the exact next step are recorded; this is resumable progress, not a completed delivery.
 
-## Fallback se Agent View regredir (Research Preview)
+## Explicit opt-in mechanisms
 
-- `xp-stack:local-waves` — `claude -p` headless em worktrees (Sonnet workers, sem UI)
-- `xp-stack:paperclip-orchestrator` — async remoto droplet (multi-dev)
-- `TERMINAL-PROMPTS.md` legado (não recomendado, mas funciona) — copy-paste em N terminais
+- **Native Agent/Agent View:** use when the current session exposes it and its policy/capacity permit it. It is a mechanism choice, not a requirement.
+- **`xp-stack:local-waves`:** local, headless `claude -p` workers for explicitly selected non-interactive or fallback execution. Read that skill before setup.
+- **`xp-stack:paperclip-orchestrator`:** remote async Paperclip scheduling and its configured gates. Read that skill before setup.
+- **Legacy `TERMINAL-PROMPTS.md`:** use only when the selected local mechanism requires it.
 
-Quando rolar back: avise no `00-overview.md` da feature qual padrão usado.
+If a preferred mechanism regresses or is unavailable, choose another authorized mechanism and record the choice in the feature overview. Do not hardcode a model, compression skill, UI, or merge actor into the project-wide rules.

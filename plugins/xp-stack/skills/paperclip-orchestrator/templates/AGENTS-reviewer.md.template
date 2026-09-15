@@ -6,6 +6,13 @@
 > agents and comment a verdict **APPROVE** or **REQUEST_CHANGES** with literal tag
 > `[REVIEWER-AGENT]`.
 
+This is an explicit Paperclip reviewer pattern. The current session/Host policy
+still controls model, profile, capacity, and merge authorization. The **Delivery
+evidence contract** in `xp-stack:akita-xp-rules` is the source for behavior,
+base/candidate, RED/GREEN, applicable guards, limits, and review. The mechanical
+gates below are signals; presence of a file, commit, or label is not proof of
+behavior.
+
 ## 1. Trigger — how you wake up
 
 You have **no continuous schedule.** A Routine `review-pending-prs` (cron `*/10 * * * *`)
@@ -105,11 +112,13 @@ Restrict to scope or open ADR/new T-file via architect."
 fi
 ```
 
-#### Gate B — tests exist covering acceptance criteria
+#### Gate B — evidence and applicable guards cover acceptance criteria
 
 Each observable criterion in **"Acceptance criteria"** of the T-file should
-have at least 1 corresponding test in the diff. You don't need to RUN tests
-(fast-lane CI does that) — just check **existence** of tests.
+have evidence for an applicable check. You don't need to RUN tests in this
+Paperclip reviewer pattern (fast-lane CI does that), but do not treat test-file
+existence as proof. Read the T-file's evidence, base/candidate, and guard
+selection; missing or inconclusive behavior evidence is not approval.
 
 ```bash
 # Adjust test file pattern for your project's test framework conventions
@@ -181,10 +190,10 @@ done
 
 ### 3d. Final approval
 
-If all gates A-D passed:
+If all gates A-D passed and the candidate's behavior evidence is sufficient:
 
 ```bash
-comment_review "$PR_NUM" "APPROVE" "Diff respects T-file scope. Tests present. Commits follow Conventional. No always-human path touched."
+comment_review "$PR_NUM" "APPROVE" "Diff respects T-file scope. Applicable evidence and required gates were reviewed. Commits follow Conventional. No configured always-human path touched."
 ```
 
 ### 3e. Add label `review-done`
@@ -254,11 +263,11 @@ Re-adding label `auto-merge` after commenting APPROVE is MANDATORY.
 - **Force-push on any branch.**
 - **`gh pr review --approve`** (formal review). Use textual comment with tag `[REVIEWER-AGENT]`. (Reason: fine-grained PAT may not have formal review permission; comment is universal.)
 
-## 6. Model + costs
+## 6. Model + resource accounting
 
-- **Default:** `claude-opus-4-7` (configured in Paperclip adapter).
-- **Shared OAuth subscription.** Opus quota rolling 7d, rarely throttles in solo project. If throttled, stop and comment Issue.
-- **`budgetMonthlyCents: 0`** — flat fee, do not capture per-token.
+- **Example default:** `claude-opus-4-7` (configured in the opt-in Paperclip adapter).
+- **Session/Host policy:** it may select a different model or profile; record the choice when it affects the review.
+- **Provider usage:** quota, latency, and billing depend on the configured account. Do not assume zero cost. If throttled, stop and comment Issue.
 
 ## 7. When no PRs are pending
 
@@ -284,7 +293,7 @@ exit 0
 - **Test that mocks `localStorage` or `window.location.reload`** — common pattern in UI tests.
 - **Commit `refactor:` that moves 0 lines but reorganizes imports** — acceptable if pre-commit hook didn't veto.
 - **Coverage >= 90% on a TS file but test doesn't cover error path** — auto-merge.yml already evaluates coverage. You don't need to duplicate.
-- **PR with 1 commit only (no separate RED phase)** — if diff includes test AND code in same commit, acceptable if T-file doesn't require strict RED phase. But FLAG in the approval with note: "Consider separate TDD phases on next tasks."
+- **PR with 1 commit only (no separate RED phase)** — inspect the T-file. A missing historical RED may be recorded honestly as `RED not recorded` or a retrospective reproduction, but it cannot be presented as a historical phase or silently treated as proof. Request changes when the behavior evidence is insufficient.
 - **Helper exported instead of prop callback** (design decision) — if T-file declared "pre-decided", accept.
 
 ## 10. Patterns that are **NOT OK** (REQUEST_CHANGES)
@@ -308,7 +317,8 @@ For each APPROVE you give, annotate in the comment body:
 
 Review summary:
 - Scope: diff files match T-file (X expected, Y in diff)
-- Tests: <how many new tests, which scenarios covered>
+- Tests: <applicable scenarios and checks covered>
+- Evidence: <base/candidate, commands, exit codes/logs, and applicable guards checked>
 - Commits: <N commits, format OK>
 - Always-human: none touched
 - Coverage: auto-merge gate evaluates

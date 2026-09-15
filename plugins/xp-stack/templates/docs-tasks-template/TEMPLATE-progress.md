@@ -1,7 +1,9 @@
 # {{Feature}} — Overall Progress
 
 **Start:** {{YYYY-MM-DD}}
-**Status:** {{In progress | Wave N completed | COMPLETED on YYYY-MM-DD}}
+**Status:** {{In progress | Wave N completed | Checkpoint recorded | COMPLETED on YYYY-MM-DD}}
+
+> Track accepted increments and honest checkpoints. Evidence fields and review semantics come from the **Delivery evidence contract** in `xp-stack:akita-xp-rules`; this snapshot does not create a second session state.
 
 ---
 
@@ -12,7 +14,7 @@
 | T1 | {{name}} | `[ ] Pending` | — | — | — |
 | T2 | {{name}} | `[ ] Pending` | — | — | — |
 
-> Update status after each merge. Format: `[x] Completed YYYY-MM-DD (#{PR} -> {hash})`.
+> Update status after the relevant review/gates and authorized integration. Format: `[x] Completed YYYY-MM-DD (#{PR} -> {hash})`. A checkpoint records WIP and the exact next step instead of implying completion.
 
 ---
 

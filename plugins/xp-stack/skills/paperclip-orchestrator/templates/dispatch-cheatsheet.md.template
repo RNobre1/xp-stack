@@ -134,7 +134,7 @@ gh pr create \
 
 Details in docs/tasks/<your-feature-slug>/.
 
-Pilot reviews this PR and merges when ready."
+Merge or integrate this PR according to the current session and project authorization."
 ```
 
 ---

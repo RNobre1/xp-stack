@@ -1,6 +1,6 @@
 ---
 name: akita-xp-rules
-description: Strict operating rules for AI-assisted development based on Extreme Programming (XP), software craftsmanship, and anti-vibe coding. Enforces TDD, pair programming discipline, incremental development, and rigorous planning. Apply these rules in every interaction.
+description: Use when applying XP/Akita operating rules to AI-assisted development, including TDD, pair programming, incremental delivery, evidence-based completion, and policy-aware review.
 ---
 
 > **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
@@ -43,8 +43,8 @@ Skip se projeto não tem `.xp-stack/` instalado.
 ## Rule 3: Isolation, Security and Permissions (AI Jail)
 
 - **Isolated Execution Context:** AI executions must be strictly limited to the project's scope — whether running inside a container (Docker, dev container) or directly on the host workspace. The AI must not attempt to access systems or directories outside this scope, regardless of the execution mode. If the project's `CLAUDE.md` specifies container vs host workspace preference, respect it.
-- **Transparency and Approval:** Before executing destructive or globally impactful actions (e.g., running migrations, installing packages, deleting files, changing infrastructure), the AI must explain what it intends to do and await explicit user approval.
-- **No Silent Execution:** The AI must never execute state-changing commands without explicitly listing what will be done and receiving an "ok" from the user.
+- **Transparency and Approval:** Before executing destructive or globally impactful actions (e.g., running migrations, installing packages, deleting files, changing infrastructure), check whether the current session already authorized that exact action. If not, explain what it intends to do and await explicit user approval; if yes, record the authorization and proceed within scope.
+- **No Silent Execution:** The AI must not execute state-changing commands silently. When the current session has already authorized the scoped action, proceed and record that authorization; otherwise explain the action and wait for approval.
 
 ## Rule 4: Code Detachment and Autonomous Correction
 
@@ -54,14 +54,14 @@ Skip se projeto não tem `.xp-stack/` instalado.
 
 ## Rule 5: The Development Cycle in Phases (Workflow)
 
-Whenever we start or expand a module, the following sequential and non-negotiable flow must be followed:
+Apply the following flow to each functional increment. Independent fronts may be in different phases at the same time; a small change does not require inventing work that its impact does not call for.
 
 1. **Foundation (Design Phase):** Draft architecture, data modeling, and directory structure exclusively in `CLAUDE.md`. No practical code in this phase.
-2. **Tests (The Safety Net):** Write 100% test coverage (TDD) for the features planned in the previous phase.
+2. **Tests (The Safety Net):** Write the tests applicable to the increment's behavior and risk, as defined by the project's stack and quality gates. TDD remains absolute for production behavior.
 3. **Implementation (Brute Force):** Code strictly to make the created tests pass. Focus on readability and test passing; **zero** premature optimization.
 4. **Optimization (Refactoring):** With tests passing, analyze bottlenecks, refactor long code, apply appropriate Design Patterns, implement architecture optimizations. Add performance/load tests for identified critical points.
 5. **Output Interface (Integration):** Create the communication and presentation layer (frontend, bot, API endpoints, dashboards, etc.).
-6. **Deploy Pipeline (CI/CD):** Configure code validators (linters, formatters), automatic execution of the full test suite, static security analysis (SAST/DAST), and prepare CI/CD scripts. The pipeline is the final guardian: no code reaches production without passing all test layers.
+6. **Deploy Pipeline (CI/CD):** Run the validators and delivery checks required by the project's stack, impact, and policy. The pipeline remains the final guardian: required gates must pass before integration or release.
 
 ## Rule 6: Communication and Context
 
@@ -71,27 +71,57 @@ Whenever we start or expand a module, the following sequential and non-negotiabl
 - **Limited Scope Per Prompt:** Each interaction must focus on a single task or feature. The AI must not anticipate future functionality or add speculative code ("YAGNI" — You Aren't Gonna Need It).
 - **Ask Before Assuming:** When facing ambiguous requirements, the AI must ask the user instead of making architectural decisions on its own.
 
+## Delivery evidence contract (shared source)
+
+Task files, progress notes, and review prompts refer to this contract by name; they do not redefine its meaning. For every increment that changes behavior, keep these slots current:
+
+| Slot | Record |
+|---|---|
+| **Observable behavior and limits** | The user or consumer action, expected output, preserved behavior, and explicit exclusions. |
+| **Base and candidate** | Branch/commit base, candidate branch/commit, worktree, diff, and pending changes. A checkpoint may have no final candidate yet. |
+| **Expectation origin** | Pilot requirement, external contract, previously validated behavior, or an independent invariant. |
+| **RED and GREEN evidence** | Commands, tree/commit exercised, exit codes, and relevant logs. A retrospective reproduction is labeled as such; never invent a historical RED. |
+| **Impact and applicable guards** | Affected consumers and the focused tests, lint/type/security/performance checks, or other guards selected for this impact, with omitted or pending checks explained. |
+| **Limits and review** | Pre-existing defects, unavailable evidence, surviving or inconclusive probes, and the review result for the identified candidate. |
+
+Checkboxes, a clean commit, a WIP commit, or a model's assertion do not prove behavior. Record the evidence that actually exercises the relevant assertion. Do not run an entire suite by reflex when focused checks answer the risk; follow the project's required gates and use broad validation at the integration boundary when applicable.
+
+## Session choices, authorization, and checkpoints
+
+- **Model, profile, isolation, and communication style:** consult the current session's selection policy and Host capacity. `Sonnet`, `Agent View`, `caveman`, or any other model/UI/compression choice is an opt-in mechanism or experiment, never a universal default of this skill.
+- **Native mechanisms:** use the native Agent/tool/worktree mechanisms available to the session when they fit the task. `Agent View`, `xp-stack:local-waves`, and `xp-stack:paperclip-orchestrator` remain selectable examples; their own setup docs describe their scope.
+- **Authorization already granted:** act within the exact authorized scope without asking the same approval again. A new destructive action, external write, or scope expansion still needs its own authorization.
+- **Decision and record:** once a choice is settled, record it in the project's source of truth. Do not create a second session state merely to imitate Traycer or Autonomia.
+- **Checkpoint/pause:** preserve WIP, pending changes, the last verified point, and the exact next step. A checkpoint is honest progress, not an accepted delivery; never force a clean tree or fabricate a phase commit to make it look complete.
+- **Integration and merge:** follow the session and project authorization. Do not impose an unconditional human-only merge rule when the authorized flow permits automation, and do not bypass required review or security gates.
+
+## Review lanes and optional triage
+
+The author may perform a self-inspection to prepare the handoff. Where the current policy or risk requires it, the final decision comes from an independent reviewer with fresh context or a distinct responsibility. A child reviewer may be used or omitted according to the current session, Host, and capacity; this skill neither forbids nor mandates that mechanism.
+
+An optional triage pass is admitted only when the session selects it and has budget/capacity. It receives the accepted scope and criteria, base/candidate, diff, consumer references, and available evidence. It may read and run focused probes when authorized, but it does not edit the implementation, publish, or approve the candidate. Each finding records: **location, concrete case, expected versus observed, evidence, severity, and confirmation** (`confirmed`, `inconclusive`, or `out-of-scope`). Unknown is not approval. A confirmed finding returns to the author; the recheck covers the changed delta and property, then the independent final reviewer evaluates the candidate. The session may choose Sonnet for this experimental pass and Opus for the final review when its policy permits; those model names are not part of the contract. Do not run a full suite solely because triage exists.
+
 ---
 
 ## Appendix: Mandatory Skill Integration
 
-Five workflow skills close known process gaps in the Akita/XP cycle. They are **not optional reminders** — each one was added because skipping it caused real cost (debugging hours, regressions, supply-chain incidents, design rework). Invoke them at the trigger moment listed below, not "if you remember".
+Workflow skills close known process gaps in the Akita/XP cycle. They are **not optional reminders** when their trigger applies — each one was added because skipping it caused real cost (debugging hours, regressions, supply-chain incidents, design rework). Invoke the applicable skill at its trigger moment, not "if you remember".
 
 | Skill | Trigger | Gap it closes |
 |---|---|---|
 | `superpowers:brainstorming` | Phase 1 (Foundation) of any non-trivial feature (>1 day, multiple files, open requirements). Replaces ad-hoc draft of `00-overview.md`. | Jumping straight to T-files turns into design rework. Forces Pilot×AI alignment before code. |
 | `superpowers:systematic-debugging` | Before proposing a fix for **any** bug, test failure, or unexpected behavior — in prod, dev, or local. Do NOT guess hypotheses: generate ranked list, test top one. | Hypothesis-by-guess wastes hours. Ranked-and-tested cuts time substantially. Multiple real incidents cost days when this was skipped. |
-| `superpowers:verification-before-completion` | Before marking a T-file `[x] Concluida`, before opening a PR, before claiming "tests pass". Run lint + typecheck + relevant tests, capture output BEFORE any claim. | "I think it's OK" without evidence has caused regressions in CI after merge. Evidence before assertion. |
-| `superpowers:dispatching-parallel-agents` (+ `superpowers:using-git-worktrees`) | When a wave of tasks has 2+ independent T-files: dispatch via Claude Code **Agent View** (`claude agents`) using the native `Agent` tool. Each dispatch MUST set `model: 'sonnet'` + `isolation: 'worktree'`, and the prompt MUST begin by invoking the `caveman:caveman` skill (ultra-compressed communication). `superpowers:dispatching-parallel-agents` remains useful as **process reference** (how to design independent waves) but **execution is via Agent tool + Agent View, not `claude -p` headless or N manual terminals**. | Manual N-terminal parallelism is fragile (no orchestration, no context isolation, no result aggregation). Agent View centralizes status; Sonnet+caveman+worktree reduces token cost and cross-context noise. |
-| **Orchestrator self-review** (before `gh pr create` / `gh pr merge`) | **Opus orchestrator reviews Sonnet workers' code** — do NOT dispatch a subagent reviewer. The orchestrator that ran the wave is the reviewer. Use `/review-pr` slash command (install via `xp-stack add-skill code-review-automation`) for structured adversarial self-review. Categorize findings (Block / Must Fix / Suggestion / Nit) and paste in PR body. Pilot still merges — orchestrator never self-merges (regra Akita). | Pure family blind spots when subagent reviewer = same model as worker. Anti-bias: different model capacity within family (Opus reviewing Sonnet) + adversarial persona prompting ("assume code is WRONG until proven otherwise"). Zero extra cost — runs in active Claude Code session. |
+| `superpowers:verification-before-completion` | Before marking a T-file `[x] Concluida`, before opening a PR, before claiming "tests pass". Run the applicable project guards and focused tests, capture output BEFORE any claim. | "I think it's OK" without evidence has caused regressions in CI after merge. Evidence before assertion. |
+| `superpowers:dispatching-parallel-agents` (+ `superpowers:using-git-worktrees`) | When a wave has 2+ independent T-files and parallel work is authorized: dispatch through a native mechanism supported by the current session/Host, with isolated worktrees when available. Select model, profile, prompt style, and UI from the session policy; Agent View, Sonnet, and `caveman:caveman` are optional examples, not requirements. | Manual parallelism can lose isolation, status, or result aggregation. The selected native mechanism should provide the safeguards that this Host and task can support. |
+| **Independent final review** (before integration or publication when required) | The author performs self-inspection to prepare evidence. The final reviewer is selected by the current policy and risk, with fresh context or distinct responsibility. An optional triage pass can precede it; triage reports findings and never approves. | Self-review alone can miss defects; a fixed reviewer mechanism can be unavailable or wasteful. Keep the independence requirement while leaving routing to the session. |
 | `xp-stack:optimizing-github-actions` | Before any PR that touches `.github/workflows/*.yml`. Auto-activated via `paths` field in the skill frontmatter. Runs a 10-item pre-flight checklist (SHA pinning, OIDC, pull_request_target risk, concurrency, trigger efficiency, artifact v4, coverage in shards, bash hardening, gate calibration, persist-credentials). | Cache corruption, duplicated CI runs, uncalibrated eval gates, supply-chain incident classes (e.g. compromised popular actions). Universal across stacks. |
 
 **Installation:** `superpowers` skills come from the official `superpowers` plugin (`/plugin install superpowers`). `optimizing-github-actions` is part of this `xp-stack` plugin. Confirm via `/plugin list` after install.
 
-**Override priority:** if the project's `CLAUDE.md` (or user instructions) contradicts these defaults — for example, "this project does not use TDD" or "do not use formal research process for prototypes" — the project/user instructions win. These skills are defaults, not absolutes.
+**Override priority:** if the project's `CLAUDE.md`, user instructions, or current session policy contradicts these defaults, the more specific authorized instruction wins. TDD and applicable quality gates remain unless the Pilot explicitly records an exception.
 
 **Anti-pattern — invoking the skill name in narration is not invoking the skill.** Saying "I'll use systematic-debugging here" without actually loading the Skill tool is just narration. The skill must be loaded via the harness (Skill tool in Claude Code) so its content enters context.
 
-**Self-review vs subagent dispatch:** for code review specifically, prefer **orchestrator self-review** over `Agent({subagent_type: "reviewer"})`. Reasoning: (1) reviewer subagent would be Sonnet again — same family + same capacity as workers, doubling blind spots; (2) orchestrator already has full context (plan, worker reports, wave history) — re-prompting costs tokens with no gain; (3) Pilot sees self-review unfold in real time and can interrupt. The subagent reviewer pattern is fine for **research review** (`research-critic` agent) where the artifact is fresh content the orchestrator did not author — code review is the inverse.
+**Review routing:** self-inspection is preparation, not a universal substitute for independent review. If a triage pass is selected, send confirmed findings back to the author and recheck only the affected delta. The final reviewer may be a child agent, the orchestrator in a distinct review context, or another authorized mechanism; follow the current session and Host policy.
 
-**Fallback** — Agent View is Research Preview (launched 2026-05-11 https://claude.com/blog/agent-view-in-claude-code). If it regresses: the native `Agent` tool continues working without the Agent View UI. Final fallback is `xp-stack:local-waves` (`claude -p` headless).
+**Fallback:** when the preferred native mechanism is unavailable, choose another mechanism that the current policy and capacity allow. `xp-stack:local-waves` (`claude -p` headless) and `xp-stack:paperclip-orchestrator` (remote async) are explicit opt-in patterns, not global defaults.

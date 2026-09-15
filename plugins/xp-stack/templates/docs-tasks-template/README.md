@@ -20,7 +20,7 @@ cp docs/tasks/_template/TEMPLATE-terminal-prompts.md "docs/tasks/$FEATURE/TERMIN
 |---|---|---|
 | `00-overview.md` | Yes | General plan, diagnosis, task table, parallelism waves, how to execute |
 | `PROGRESS.md` | Yes | Live snapshot: status per task, metrics before/after, decisions, chronological history |
-| `T{N}-{slug}.md` | Yes (1+) | One task per file. TDD, allowed/forbidden files, acceptance criteria, execution log |
+| `T{N}-{slug}.md` | Yes (1+) | One task per file. TDD, evidence-contract slots, allowed/forbidden files, acceptance criteria, execution log |
 | `TERMINAL-PROMPTS.md` | Optional | Self-contained prompts to parallelize in worktrees/terminals |
 
 ## Conventions
@@ -28,14 +28,14 @@ cp docs/tasks/_template/TEMPLATE-terminal-prompts.md "docs/tasks/$FEATURE/TERMIN
 - **Feature slug** in kebab-case: `user-auth`, `payment-integration`, `search-feature`
 - **Task number** sequential from 1. Sub-tasks discovered in review become `T{N}.1`, `T{N}.2`, etc.
 - **Branch** per task: `feat/{feature-slug}-T{N}`
-- **Status checkboxes** at task header: `[ ] Planning` `[ ] In progress` `[ ] Tests passing` `[ ] Ready for review`
+- **Status checkboxes** at task header: `[ ] Planning` `[ ] In progress` `[ ] Evidence captured` `[ ] Ready for review`
 - **Conventional commits** matching the change type (`test:`, `feat:`, `refactor:`, `fix:`, `docs:`, `chore:`)
 
 ## Lifecycle
 
 1. **Planning**: create `00-overview.md` with diagnosis and task table. Create each `T{N}-{slug}.md` with objective, scope (allowed/forbidden files), acceptance criteria, and test scenarios. No practical code in this phase.
-2. **Execution**: each task becomes a branch, follows TDD (red -> green -> refactor -> verification), the executing session updates the **Execution log** inside the T-file.
-3. **Completion**: PR opened against main. After merge, update status in `00-overview.md` and `PROGRESS.md` to `[x] Completed YYYY-MM-DD (#PR -> hash)`.
+2. **Execution**: each task is a functional increment on its branch, follows TDD (red -> green -> refactor -> verification), and the executing session updates the **Execution log** with the evidence contract's commands, trees, exit codes, and logs.
+3. **Completion**: after the required independent review and project gates accept the candidate, integrate or open a PR according to the current session authorization. Update status in `00-overview.md` and `PROGRESS.md` to `[x] Completed YYYY-MM-DD (#PR -> hash)` only when the evidence supports it.
 4. **Archival** (when ALL tasks in the feature are completed): see section below.
 
 ## Archival policy — NEVER delete
@@ -51,6 +51,6 @@ Completed tasks **are not deleted**. Two options, in preference order:
 - **Onboarding**: new devs (or Claude in future sessions) read `docs/tasks/{completed-feature}/` to understand how we did that feature. Faster than reading 30 commits with `git log`.
 - **Pending follow-ups**: sub-tasks discovered during execution stay registered in the feature's `00-overview.md`. Deleting the folder loses the tech debt list.
 - **Audit**: when something breaks 3 months later, the first instinct should be "which feature touched this area?". A live folder answers in 1 second; git log takes 10+ minutes.
-- **Zero cost**: markdown is text. All tasks of a feature together fit in ~100KB. Not worth the risk of losing context to save that.
+- **Context preservation**: markdown is durable context. Keep completed task records available so decisions, incidents, and follow-ups remain discoverable.
 
 Git preserves content theoretically — but `CLAUDE.md` doesn't read `git log`, and neither do you, most of the time.
