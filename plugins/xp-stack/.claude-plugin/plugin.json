@@ -1,6 +1,6 @@
 {
   "name": "xp-stack",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Portable XP/Akita methodology stack for Claude Code. Absolute TDD, pair programming, formal research with triangulation, evidence-based task decomposition, conventional commits, and policy-aware review. Native Agent, Paperclip, and local-waves orchestration are opt-in patterns; model, profile, mechanism, and merge authority follow the current session/Host. Includes agents (researcher, research-critic, tdd, reviewer), skills (bootstrap, akita-xp-rules, tdd-conventions, task-decomposition, research-cycle, optimizing-github-actions, paperclip-orchestrator, local-waves), and project templates with AGENTS.md symlink convention.",
   "author": {
     "name": "Rafael Nobre",

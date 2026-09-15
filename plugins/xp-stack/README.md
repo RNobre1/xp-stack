@@ -51,7 +51,7 @@ O plugin **nao declara MCPs por padrao**. Se o seu projeto usa MCPs especificos 
 
 ## Status
 
-**V0.5.0** — manifest do plugin com skills core e opt-in de orquestração, contrato de evidências de entrega e revisão orientada por política. O modelo, perfil, mecanismo de despacho e estilo de comunicação vêm da sessão/Host; Agent View, Sonnet e caveman são escolhas opt-in. A skill `bootstrap` é one-shot manual e as skills Paperclip/local-waves/code-review-automation/debugging-discipline permanecem opt-in.
+**V0.6.0** — manifest do plugin com skills core e opt-in de orquestração, contrato de evidências de entrega e revisão orientada por política. O modelo, perfil, mecanismo de despacho e estilo de comunicação vêm da sessão/Host; Agent View, Sonnet e caveman são escolhas opt-in. A skill `bootstrap` é one-shot manual e as skills Paperclip/local-waves/code-review-automation/debugging-discipline permanecem opt-in.
 
 Skills e agents carregam conteudo real curado — metodologia generica universal, sem acoplamento a stack especifico. Agents (researcher, research-critic, tdd, reviewer) leem o `CLAUDE.md` do projeto receptor em runtime para aplicar convencoes especificas do stack. Em T-files e briefings transferidos, use o nome portável `akita-xp-rules`, registre o caminho/URI resolvido e a revisão do contrato; workers sem skill loader recebem o trecho literal da fonte.
 

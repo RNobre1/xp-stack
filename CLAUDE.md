@@ -28,7 +28,7 @@ RNobre1/xp-stack/
 ├── .github/workflows/                  # CI: validacao JSON + frontmatter
 ├── plugins/
 │   ├── xp-stack/                       # plugin principal
-│   │   ├── .claude-plugin/plugin.json  # manifest v0.5.0
+│   │   ├── .claude-plugin/plugin.json  # manifest (versao no JSON)
 │   │   ├── skills/                     # 9 skills (invocaveis via /xp-stack:*)
 │   │   ├── agents/                     # 4 agents (researcher, tdd, reviewer, research-critic)
 │   │   ├── templates/                  # templates copiados por bootstrap
@@ -143,7 +143,7 @@ claude --plugin-dir ./plugins/xp-stack
 
 **Ref:** `/tmp/plugin-update-2026-04-26.md` + arquivos staged em `/tmp/plugin-update-2026-04-26-files/`. Segundo uso do fluxo de sync O-Agente → claude-craft.
 
-### ADR-010 (Unreleased, 2026-09-15) — contrato de evidências e roteamento conforme sessão
+### ADR-010 (v2.2.0, 2026-09-15) — contrato de evidências e roteamento conforme sessão
 
 **Decisao:** manter o **Delivery evidence contract** em `akita-xp-rules` como fonte única, com revisao declarada no proprio contrato. Consumidores portaveis usam o nome nu `akita-xp-rules`; cada T-file e briefing registra o caminho/URI resolvido, e o remetente anexa o trecho literal com referencia e revisao quando o worker nao tem skill loader. O namespace `/xp-stack:` fica restrito ao uso do plugin.
 
@@ -151,7 +151,7 @@ claude --plugin-dir ./plugins/xp-stack
 
 **Evidencia e pausas:** base/candidato, comportamento, origem da expectativa, RED/GREEN, guardas, limites e autorizacao apontam para comandos, logs, arvores e referencias concretas. WIP/checkpoint e valido e nao exige commit limpo nem commit RED separado; reproducao posterior e marcada como tal. Politica de divida continua pertencendo ao projeto/sessao, sem autorizar divida nova por default.
 
-**Consequencias:** README, templates, agents e metadados textuais descrevem defaults portaveis e mecanismos opt-in. Versoes do pacote e do plugin permanecem inalteradas nesta atualizacao; scripts, CI, CLI, testes e installer nao participam desta decisao.
+**Consequencias:** README, templates, agents e metadados textuais descrevem defaults portaveis e mecanismos opt-in. Distribuicao: npm 2.2.0 e plugin 0.6.0, com ciclos de versao separados. A release publica o conteudo e os metadados; scripts, CI, CLI, testes e installer nao participam desta decisao.
 
 ## Estado atual
 

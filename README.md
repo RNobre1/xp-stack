@@ -4,7 +4,7 @@
 
 Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, evidências de entrega, revisão orientada por política, conventional commits e mecanismos opcionais de orquestração.
 
-> **Versão publicada: v2.1.1** (2026-05-14). Esta árvore contém ajustes de contrato ainda não publicados; veja a seção **Unreleased** em [CHANGELOG.md](CHANGELOG.md). O pacote segue adotável em qualquer stack (TypeScript, Python, Go, bash, etc.).
+> **Release v2.2.0** (2026-09-15): contrato de evidências, revisão independente e roteamento conforme a sessão. Veja [CHANGELOG.md](CHANGELOG.md). O pacote segue adotável em qualquer stack (TypeScript, Python, Go, bash, etc.).
 
 ---
 
@@ -57,7 +57,7 @@ npx xp-stack add-skill debugging-discipline    # lembretes de fix-workflow (PR t
 | Comando | O que faz |
 |---------|-----------|
 | `xp-stack init` | Scaffold inicial: manifest, dual mirror, templates, AGENTS.md symlink |
-| `xp-stack update` | Diff manifest SHA-256, prompt por arquivo (keep/take/merge/abort) |
+| `xp-stack update` | Detecta modificações locais via manifest; aplica a política explícita `--keep-mine` ou `--take-theirs` aos arquivos com drift |
 | `xp-stack status` | Estado atual: engines, features, drift |
 | `xp-stack add-engine <name>` | Instala dual mirror em path adicional |
 | `xp-stack add-skill <name>` | Habilita skill opt-in (debugging-discipline, paperclip, local-waves, db-archaeologist, etc.) |
@@ -72,11 +72,44 @@ npx xp-stack add-skill debugging-discipline    # lembretes de fix-workflow (PR t
 
 ## Atualizando
 
+Para atualizar o executável global:
+
 ```bash
-npx xp-stack update
-# ou plugin marketplace:
-/plugin marketplace update RNobre1/xp-stack
-/plugin install xp-stack@xp-stack
+npm install -g xp-stack@2.2.0
+```
+
+A versão do executável e o conteúdo já copiado para um projeto são coisas diferentes.
+**Limitação conhecida nesta release:** `xp-stack update` só trata arquivos que
+diferem do hash guardado no manifest. Um arquivo intacto da versão anterior não
+recebe o conteúdo novo, e repetir `init` também preserva arquivos existentes.
+Esta release publica as skills e templates novos; não altera esse comportamento
+do atualizador.
+
+Para adotar o conteúdo em um projeto existente, gere uma instalação de referência
+em uma pasta temporária e compare os arquivos antes de incorporar as mudanças:
+
+```bash
+xp_reference=$(mktemp -d)
+npx --yes xp-stack@2.2.0 init --cwd "$xp_reference" \
+  --engine claude-code,codex --no-dual-mirror --yes --doc-level essencial
+# Execute a partir da raiz do seu projeto. diff retorna 1 se houver diferenças.
+diff -ru .claude/skills "$xp_reference/.claude/skills"
+diff -ru .codex/skills "$xp_reference/.codex/skills"
+```
+
+Escolha apenas as engines que usa. Compare também `.claude/agents/` e os
+`docs/tasks/_template/` aplicáveis. Faça backup ou use uma branch; incorpore o
+conteúdo aprovado preservando convenções, hooks, estado e personalizações do
+projeto. Não use `uninstall` como atalho de migração: ele remove `.xp-stack/`,
+onde também fica o estado de trabalho. O manifest antigo não certifica arquivos
+substituídos manualmente; registre a origem e os hashes do que foi migrado.
+
+No marketplace, a atualização do plugin usa seu próprio cache versionado;
+ela não reexecuta os scaffolds que você já copiou para o projeto:
+
+```text
+/plugin marketplace update xp-stack
+/plugin update xp-stack@xp-stack
 ```
 
 ---
