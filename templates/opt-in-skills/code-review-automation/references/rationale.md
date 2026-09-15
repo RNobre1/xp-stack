@@ -1,5 +1,12 @@
 # Rationale — code-review-automation skill
 
+> This rationale records the historical gap that motivated the opt-in skill.
+> Current routing follows the **Delivery evidence contract** in
+> `xp-stack:akita-xp-rules`: author self-inspection prepares the handoff,
+> optional triage reports facts, and independent final review follows the
+> session/Host policy. The hook and PR section are reminders, not semantic
+> enforcement.
+
 ## Diagnóstico que originou esta skill
 
 Em auditoria no projeto `agentes-internos` (Meteora AI Platform, 2026-05):
@@ -9,15 +16,15 @@ Em auditoria no projeto `agentes-internos` (Meteora AI Platform, 2026-05):
 - Projeto usa Agent View: orchestrator Opus dispatcha workers Sonnet para waves paralelas — código gerado por múltiplos workers converge em PRs sem review de capacidade superior
 - Padrão: orchestrator termina wave → abre PR → Pilot merga → descoberta tardia de bugs
 
-Resultado: o slash command existia mas sem gate que forçasse sua invocação.
+Resultado histórico: o slash command existia, mas não havia um lembrete visível no momento da abertura do PR.
 
-## O problema raiz: slash command sem hook de enforcement
+## O problema raiz histórico: slash command sem hook de lembrete
 
-`reviewer.md` como slash command opcional = documento morto. Quando orchestrator está focado em terminar wave e abrir PR, não há atrito visível que force o self-review. O hook `pre-tool-use` que debugging-discipline instalou não cobria `gh pr create`/`gh pr merge` — apenas Edit/Write.
+`reviewer.md` como slash command opcional = documento morto. Na configuração auditada, quando o orchestrator estava focado em terminar wave e abrir PR, não havia atrito visível que lembrasse o self-review. O hook `pre-tool-use` que debugging-discipline instalou não cobria `gh pr create`/`gh pr merge` — apenas Edit/Write.
 
-Gates que esta skill instala:
+Artefatos que esta skill instala:
 - **PreToolUse matcher para Bash** com grep em `gh pr (create|merge)` → lembrete visível no momento exato antes do PR abrir
-- **Seção obrigatória no PR template** → Pilot vê campos vazios se orchestrator pulou o review; não-compliance é visível
+- **Seção no PR template** → campos de evidência ficam visíveis se o responsável pulou o review; não-compliance é visível para o revisor, sem bloqueio automático
 - **Slash command estruturado** → não apenas "faça um review", mas protocol exato com adversarial persona, checklist, categorização, e decisão explícita Block/Must Fix/Suggestion
 
 ## Referência: pesquisa Couch 2025 sobre viés de reviewer
@@ -27,18 +34,17 @@ Simon Couch (2025) — *"Position bias and family bias in LLM code review"*:
 - **Family bias** (mesmo modelo revisa próprio output) é menor que position bias, mas real e mensurável: blind spots sistemáticos compartilhados entre generator e reviewer do mesmo modelo
 - Mitigação mais documentada e eficaz: **adversarial persona prompting** — instruir o reviewer a "assumir que código está errado" antes de começar
 
-Aplicação aqui:
-- Workers = Sonnet (geração rápida)
-- Reviewer = Opus (sessão principal, maior capacidade de raciocínio)
+Aplicação na configuração histórica:
+- O experimento escolheu Sonnet para geração e Opus para revisão, uma assimetria possível quando a sessão autoriza
 - Persona adversarial injeta viés oposto ao natural ("validar") → reviewer procura ativamente falhas
 
 ## Referência: Agent View blog post Meteora (2026-05-11)
 
-Decisão de adotar Agent View nativo (ADR-0024) como padrão de paralelização:
+Decisão histórica de adotar Agent View nativo (ADR-0024) como padrão de paralelização:
 - Orchestrator Opus dispatcha workers Sonnet via Agent tool com `isolation: "worktree"` + `model: "sonnet"`
 - Workers reportam findings ao orchestrator; orchestrator consolida e abre PRs
 - Problema identificado: gap entre "workers terminam" e "PR abre" — nenhum checkpoint de review estruturado
-- Esta skill preenche exatamente esse gap
+- Esta skill foi criada para preencher esse gap; a sessão atual pode escolher outro mecanismo
 
 ## Complementaridade com debugging-discipline
 
@@ -51,22 +57,22 @@ Decisão de adotar Agent View nativo (ADR-0024) como padrão de paralelização:
 - Appenda seção nova ao PR template existente (self-review findings em vez de fix-workflow)
 - Adiciona slash command que debugging-discipline não instala
 
-Script `setup-code-review-automation.sh` detecta debugging-discipline instalado e faz append idempotente. Projetos com ambas as skills têm coverage completo:
+Script `setup-code-review-automation.sh` detecta debugging-discipline instalado e faz append idempotente. Projetos com ambas as skills deixam estes lembretes visíveis:
 - Edit/Write → lembrete systematic-debugging
 - `gh pr create`/`merge` → lembrete /review-pr
 - PR template → seção fix-workflow + seção self-review findings
 
-## Por que orchestrator é o reviewer (não subagent)
+## Trade-off de revisão (decisão da sessão)
 
-Dispatchar subagent reviewer cria:
-- Custo adicional de contexto (subagent não tem o plano, T-files, reports dos workers)
-- Latência de dispatch + espera
-- Output do subagent chega como texto — orchestrator ainda precisa processar e decidir
+Uma autoinspeção do orquestrador pode aproveitar o contexto já aberto e reduzir
+uma passagem de handoff, mas continua sendo preparação quando o risco exige
+independência. Um revisor filho ou outro contexto pode ser selecionado pela
+sessão quando trouxer uma perspectiva útil; não há proibição ou obrigação
+universal.
 
-Orchestrator como reviewer:
-- Já tem o contexto completo
-- Executa review na thread principal → Pilot vê em tempo real
-- Capacidade Opus real (não Sonnet mascarando Opus)
-- Zero overhead de dispatch
+Qualquer passe adicional consome tempo, contexto e cota conforme a conta
+configurada. Meça a troca no experimento; não trate o passe como custo zero.
 
-Único trade-off: orchestrator pode ter blind spot na própria wave. Mitigado por adversarial persona + checklist explícito que força questionar cada arquivo.
+O revisor final usa contexto fresco ou responsabilidade distinta conforme a
+política. A persona adversarial e o checklist ajudam, mas não transformam uma
+autoinspeção em aprovação final.

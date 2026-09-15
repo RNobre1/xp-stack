@@ -1,6 +1,6 @@
 ---
 name: code-review-automation
-description: Install orchestrator self-review gates for PR workflow — slash command /review-pr (structured adversarial self-review), PR template section, PreToolUse hook reminding before `gh pr create`/`gh pr merge`. Opt-in. Use when orchestrator dispatches Sonnet workers and wants Opus-level self-review BEFORE opening PR (without dispatching subagent reviewer — orchestrator IS the reviewer). Auto-trigger phrases (PT-BR) "instala code-review-automation", "self-review automation", "gate de PR", "review automation" e (EN) "install code review automation", "orchestrator self-review gates".
+description: Install opt-in review reminders for a PR workflow — slash command /review-pr (structured adversarial review), PR template section, and a PreToolUse reminder before `gh pr create`/`gh pr merge`. Use when a project wants review evidence visible before integration; the current session/Host policy selects the reviewer, model, and mechanism. Auto-trigger phrases (PT-BR) "instala code-review-automation", "self-review automation", "gate de PR", "review automation" e (EN) "install code review automation", "orchestrator review reminders".
 allowed-tools:
   - Bash(bash *)
   - Bash(cp *)
@@ -15,33 +15,39 @@ allowed-tools:
 
 > **Pra engines sem skill loading:** leia este file inteiro e siga as instruções como se fossem suas.
 
-# Code Review Automation — Orchestrator Self-Review Gates
+# Code Review Automation — PR Review Reminders
 
-Instala gates concretos que tornam orchestrator self-review **automático e estruturado** antes de cada PR. NÃO dispatcha subagent — o **orquestrador atual** (Opus) revisa código gerado pelos workers (Sonnet). Modelo combate viés família via capacidade diferente + adversarial persona.
+Instala lembretes visíveis para registrar revisão antes de um PR. A autoinspeção do autor prepara o handoff; a revisão final segue a política, o risco e as autorizações da sessão. O mecanismo pode usar o orquestrador, um revisor filho ou outro contexto independente; esta skill não escolhe modelo, perfil, UI ou estilo de comunicação. O hook lembra, mas não bloqueia.
 
-## Why orchestrator-as-reviewer (not subagent)
+Use the **Delivery evidence contract** in `xp-stack:akita-xp-rules` for the candidate's observable behavior, base, evidence, applicable guards, limits, and review result. Do not create a parallel review state.
+
+## Review lanes and independence
+
+### Author self-inspection
+
+The author can run `/review-pr` as a preparatory pass, recording concrete findings and verified evidence before handoff. This pass does not become the final decision when the session policy or risk requires an independent reviewer.
+
+### Optional triage
+
+If the current session explicitly selects a triage pass, provide the accepted scope, criteria, base/candidate, diff, consumer references, and available evidence. Triage reports location, case, expected versus observed, evidence, severity, and confirmation; it does not edit or approve. The author corrects confirmed findings, the pass rechecks the changed delta, and the independent final reviewer evaluates the candidate.
+
+### Independent final review
+
+The final reviewer is selected by the current session/Host policy. A child reviewer is allowed when authorized and useful; self-inspection remains preparation. Unknown or inconclusive evidence is not approval.
 
 ### Anti-viés família
 
 Pesquisa Simon Couch (2025) mostra: generator e reviewer do mesmo modelo/família compartilham blind spots sistemáticos. Workaround mais eficaz documentado: **adversarial persona prompting** ("assuma código errado até prova") + diferença de capacidade entre reviewer e generator.
 
-Neste workflow:
-- Workers = Sonnet (geração rápida, iterativa)
-- Reviewer = Opus (sessão principal, maior capacidade raciocínio)
-
-Opus revisando output Sonnet não elimina viés completamente, mas cria assimetria suficiente para capturar classes de erro que Sonnet-revisa-Sonnet não pega.
-
-### Zero custo extra
-
-Sessão Claude Code subscription já cobre. Nenhum Agent tool call adicional — orchestrator executa o review na própria thread.
+Neste workflow, a sessão pode escolher modelos distintos para executor, triagem e revisão final quando isso melhora a avaliação. Sonnet no passe experimental e Opus na revisão final são exemplos de uma escolha da sessão, não um requisito desta skill. Registre o consumo, latência e contexto usados; não assuma custo zero.
 
 ### Contexto rico
 
 Orchestrator já viu: plano original, T-files, reports dos workers, contexto de arquitetura (CLAUDE.md). Review não começa do zero — começa com contexto que nenhum subagent teria sem passar todo esse contexto de novo.
 
-### Pilot interrompe em tempo real
+### Visibility for the session
 
-Review acontece na thread principal. Pilot vê findings em tempo real, pode interromper, redirecionar, questionar. Subagent review seria assíncrono e opaco.
+The selected review mechanism should leave findings and evidence visible to the session. The Pilot can redirect or question it when the current workflow permits; visibility does not remove the independent-review requirement.
 
 ## When to install
 
@@ -59,10 +65,10 @@ git log --oneline -30 | grep -i "review\|self-review"
 ```
 
 Instalar quando:
-- Projeto usa Agent View pattern (dispatcha workers Sonnet)
+- Projeto tem PRs que precisam de revisão registrada antes da integração
 - Alta taxa de PR merge sem review documentado
-- Pilot quer gate estruturado antes de `gh pr create`
-- `superpowers:requesting-code-review` ou similar está no CLAUDE.md mas sem enforcement concreto
+- Pilot quer um lembrete estruturado antes de `gh pr create`
+- `superpowers:requesting-code-review` ou similar está no CLAUDE.md mas sem evidência visível
 
 Não instalar se:
 - Projeto não usa multi-agent (sem workers para revisar)
@@ -72,7 +78,7 @@ Não instalar se:
 
 | Artifact | Path in target repo | What it does |
 |---|---|---|
-| Slash command | `.claude/commands/review-pr.md` | `/review-pr` — orchestrator executa self-review estruturado com adversarial persona |
+| Slash command | `.claude/commands/review-pr.md` | `/review-pr` — registra uma autoinspeção ou revisão estruturada com persona adversarial |
 | PR template patch | `.github/PULL_REQUEST_TEMPLATE.md` | Append seção "## Orchestrator self-review findings" |
 | PreToolUse hook patch | `.claude/hooks/pre-tool-use.sh` | Matcher novo: lembra de `/review-pr` antes de `gh pr create`/`gh pr merge` |
 | Hook registration | `.claude/settings.json` | Garante hook PreToolUse registrado (idempotente se debugging-discipline já instalou) |
@@ -129,15 +135,15 @@ Informar ao usuário:
 
 ## How orchestrator uses /review-pr
 
-Quando orchestrator termina wave de workers e quer abrir PR:
+Quando uma implementação tem candidato e se prepara para abrir PR:
 
-1. Antes de `gh pr create`, rodar `/review-pr` (ou `/review-pr <branch>` se branch específico)
-2. Slash command guia orchestrator pelo diff completo com adversarial persona
+1. Antes de `gh pr create`, rodar `/review-pr` (ou `/review-pr <branch>` se branch específico), quando o fluxo selecionado pedir essa evidência
+2. Slash command guia o responsável pelo diff completo com adversarial persona
 3. Findings categorizados: Block / Must Fix / Suggestion / Nit
-4. Block present → NÃO abrir PR. Corrigir ou pedir ao worker que gerou o código
-5. Apenas Suggestion/Nit → abrir PR com findings no body
-6. Colar findings em `## Orchestrator self-review findings` no PR body
-7. Pilot decide merge no GitHub — orchestrator NÃO auto-merga (regra Akita)
+4. Block present → não integre o candidato. Corrija ou encaminhe ao autor responsável
+5. Colar findings em `## Orchestrator self-review findings` no PR body
+6. Quando a política exigir, encaminhar o candidato a uma revisão final independente
+7. Integração e merge seguem a autorização da sessão/projeto; este lembrete não fixa o ator
 
 ## Adversarial persona
 
@@ -149,15 +155,14 @@ Persona embutida no slash command `/review-pr`:
 
 > "Você é senior engineer cético. Sua função NÃO é validar — é achar bugs, falhas de segurança, problemas de performance, violações de convenção. **Assuma que o código está ERRADO até prova em contrário.** Seja específico, cite arquivos e linhas. Não elogie. Não diga 'parece bom' sem justificativa técnica concreta."
 
-Anti-bias adicional específico Meteora/xp-stack:
+Anti-bias adicional aplicável ao projeto:
 - Procure: hasty SDK choices, mocked-vs-real shape drift, missing cross-tenant safety, RLS bypasses, unhandled error paths, missing regression tests
-- Workers Sonnet tendem a: swallow errors silently, mock internals em vez de boundaries, pular edge cases em condições de tempo
-- Opus reviewer deve: ser cético exatamente nesses pontos
+- Trate atalhos, mocks internos, erros silenciosos e edge cases como hipóteses a verificar, independentemente do modelo selecionado
 
 ## Limits
 
 - Só escreve sob `$(pwd)` — nunca toca `~/.claude/` global
 - Idempotente: detecta arquivos existentes, faz append ou abort sem destruir
-- Hook lembra (não bloqueia) — gate semântico é o PR template
-- Slash command ESTRUTURA o review mas orchestrator executa (skill não dispatcha subagent)
+- Hook e PR template lembram e tornam a evidência visível; não são enforcement semântico
+- Slash command ESTRUTURA o review; o papel (autoinspeção, triagem ou revisão final) vem da sessão e da política
 - Complementa `debugging-discipline`: se já instalado, apenas appenda matcher novo ao hook existente e seção nova ao PR template

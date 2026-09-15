@@ -11,24 +11,24 @@
 
 <!-- 1-2 sentences focusing on the "why" -->
 
-## Mandatory for `fix:` PRs (delete this section if not a fix)
+## Evidence for `fix:` PRs (complete when applicable; explain omissions)
 
 ### Hypotheses ranked
-<!-- List your top 3 hypotheses BEFORE the fix. Most-likely first. Cite evidence. -->
+<!-- List your top hypotheses before the fix, most-likely first. Cite evidence. -->
 1. ...
 2. ...
 3. ...
 
 ### Root cause confirmed via
-<!-- A failing test before the fix, a log capture, a reproduction. Link required. -->
+<!-- A failing test before the fix, a log capture, or a reproduction. Link the command/log. -->
 - ...
 
 ### Regression test
-<!-- Link to the test file that fails before the fix and passes after. Or "N/A — reason justified". -->
+<!-- Link to the test that fails before the fix and passes after. If RED was not recorded historically, label a later reproduction honestly and explain the limit. -->
 - ...
 
 ### systematic-debugging
-- [ ] `superpowers:systematic-debugging` skill was invoked before the first commit on this branch
+- [ ] `superpowers:systematic-debugging` skill was invoked before proposing the fix
 
 ## Test plan
 - [ ] ...

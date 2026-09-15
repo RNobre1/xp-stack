@@ -1,5 +1,10 @@
 # Rationale — debugging-discipline skill
 
+> This is the historical rationale for an opt-in reminder. Current evidence,
+> authorization, checkpoints, and review semantics follow the **Delivery
+> evidence contract** in `xp-stack:akita-xp-rules`; the hook and PR section do
+> not enforce a decision automatically.
+
 ## Diagnóstico que originou esta skill
 
 Em auditoria no projeto `agentes-internos` (Meteora AI Platform, 2026-05):
@@ -14,9 +19,9 @@ Resultado: documentação sem atrito não muda comportamento.
 
 Quando uma regra existe só em texto (CLAUDE.md "use X skill"), ela não gera atrito. O agente lê, segue em frente, edita o código, commita. A regra existe no contexto mas não no workflow.
 
-Gates concretos mudam isso:
-- **PR template** com seção obrigatória para `fix:` → o PR *não pode ser submetido* sem preencher "Hypotheses ranked" e "Regression test". Torna o não-compliance visível para reviewer humano.
-- **PreToolUse hook** → toda vez que o agente abre um arquivo para editar, vê o lembrete. Não bloqueia — não é o papel do hook bloquear (isso seria paternalismo). O papel é tornar a invocação consciente.
+Artefatos visíveis ajudam a mudar isso:
+- **PR template** com seção para `fix:` → deixa "Hypotheses ranked" e "Regression test" disponíveis para o autor e o revisor avaliarem. Não bloqueia a submissão automaticamente.
+- **PreToolUse hook** → toda vez que o agente abre um arquivo para editar, vê o lembrete. Não bloqueia; o papel é tornar a invocação consciente.
 
 ## Caso concreto: Composio L14/L15/L16
 
@@ -34,8 +39,8 @@ Resultado esperado: 3 commits `fix:` virariam 1 commit `fix:` com diagnóstico c
 
 ## Por que hook não bloqueia
 
-Bloquear o Edit/Write tool introduz atrito destrutivo: o agente pode estar editando código *correto*, não um fix. O hook filtra por extensão de código (`.ts`, `.js`, etc.) e ignora `docs/`, mas não tem contexto semântico suficiente para saber "isso é um fix ou uma feature?". O gate semântico é o **PR template** — ali sim o agente declara o tipo e é forçado a preencher a seção de diagnóstico.
+Bloquear o Edit/Write tool introduz atrito destrutivo: o agente pode estar editando código *correto*, não um fix. O hook filtra por extensão de código (`.ts`, `.js`, etc.) e ignora `docs/`, mas não tem contexto semântico suficiente para saber "isso é um fix ou uma feature?". O template deixa o tipo e a evidência de diagnóstico visíveis para o revisor; a política da sessão decide o gate aplicável.
 
 ## Princípio Akita aplicado
 
-A regra "TDD absoluto" do método Akita inclui, implicitamente, regression test para cada bug corrigido: o teste deve falhar com o bug presente e passar após o fix. Sem um gate no PR template que exija essa evidência, a regra fica na categoria "documentada mas não praticada". Esta skill fecha esse gap.
+A regra "TDD absoluto" do método Akita inclui, implicitamente, regression test para cada bug corrigido: o teste deve falhar com o bug presente e passar após o fix. Sem um lembrete visível que aponte para essa evidência, a regra pode ficar na categoria "documentada mas não praticada". Esta skill torna o ponto de verificação explícito, sem substituir o julgamento da revisão.
