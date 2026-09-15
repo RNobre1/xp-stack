@@ -127,7 +127,7 @@ npx xp-stack update
 
 `akita-xp-rules` é o nome portátil do contrato canônico de entrega. O ambiente
 de execução fornece o caminho/URI real de `akita-xp-rules/SKILL.md`; cada T-file
-e briefing registra essa fonte e a revisão `2026-09-15`. Se o worker não tiver
+e briefing registra essa fonte e a revisão declarada nela. Se o worker não tiver
 skill loader, o remetente transfere o trecho canônico literal com sua referência
 e revisão, em vez de enviar apenas um ponteiro.
 
