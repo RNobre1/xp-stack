@@ -7,9 +7,12 @@
 > **Base:** `{{base branch/commit}}`
 > **Candidate:** `{{candidate branch/commit, or pending}}`
 > **Checkpoint:** {{none | WIP and exact next step below}}
+> **Contract source:** {{resolved path/URI supplied by the environment to `akita-xp-rules/SKILL.md`}}
+> **Contract revision:** `2026-09-15`
+> **Loaderless handoff:** {{exact canonical excerpt attached in the dispatch briefing, or `skill loader resolves source`}}
 > **Status:** `[ ] Planning` `[ ] In progress` `[ ] Evidence captured` `[ ] Ready for review`
 
-> Field meanings are defined once in the **Delivery evidence contract** section of `xp-stack:akita-xp-rules`. This file provides slots for that contract; it is not a second contract. A checkpoint or WIP tree is valid progress and does not claim an accepted candidate.
+> Field meanings are defined once in the **Delivery evidence contract** section of `akita-xp-rules`. This file provides slots for that contract; it is not a second contract. A checkpoint or WIP tree is valid progress and does not claim an accepted candidate.
 
 ---
 
@@ -25,7 +28,8 @@
 - **What other sessions are doing:** {{short summary of parallel tasks and why they won't conflict — or "None" if this task is solo}}
 - **Decisions already made:** {{relevant ADRs, patterns chosen in the overview — avoid re-deciding here}}
 - **Relevant CLAUDE.md sections:** {{list of sections the session should consult before starting}}
-- **Current authorization and policy:** {{already-granted scope, selected mechanism, and any review/merge authorization}}
+- **Current authorization and policy:** {{already-granted scope and selected mechanism}}
+- **Authorization reference:** {{concrete T-file/briefing/session-artifact section or decision ID}}
 
 ---
 
@@ -106,7 +110,7 @@
 
 ## Optional triage pass
 
-Run this section only when the current session explicitly selects and authorizes the pass. Use the **Delivery evidence contract** in `xp-stack:akita-xp-rules` for the full boundary and finding semantics.
+Run this section only when the current session explicitly selects and authorizes the pass. Use the **Delivery evidence contract** in `akita-xp-rules` for the full boundary and finding semantics.
 
 - **Triage mechanism/profile:** {{selected by current session/Host policy, or not selected}}
 - **Input checked:** {{scope, criteria, base/candidate, diff, consumers, and available evidence}}
@@ -114,7 +118,10 @@ Run this section only when the current session explicitly selects and authorizes
 - **Triage status:** {{not run | confirmed findings returned to author | inconclusive | out-of-scope}}
 - **Author correction:** {{reference to the reproduction and correction, or not applicable}}
 - **Delta recheck:** {{command/log/property rechecked after correction, or not applicable}}
+- **Author identity/model:** {{concrete agent identity and model}}
 - **Final independent review:** {{Opus or another policy-selected reviewer/context and result, or pending}}
+- **Reviewer identity/model:** {{must differ from the author identity/model; record the concrete selection}}
+- **Checks now or fresh external evidence:** {{commands + timestamp + exit codes, or artifact/run + timestamp + candidate}}
 
 Triage reports facts and gaps; it does not edit the implementation or approve the candidate. Unknown is not approved, and triage does not justify running the entire suite by reflex.
 

@@ -100,4 +100,4 @@ Summarize what was created and tell the user:
 - **Does not run waves** — only installs the script. The orchestrator session you're in invokes `bash scripts/orchestrate/orchestrate-wave.sh run docs/tasks/<feature>/` when ready.
 - **Idempotent:** re-running this skill in the same project does not modify files created in previous runs.
 
-For task evidence, review lanes, authorization, checkpoints, and optional triage, follow the **Delivery evidence contract** in `xp-stack:akita-xp-rules`. Installing this opt-in mechanism does not approve a candidate or change the session's merge policy.
+For task evidence, review lanes, authorization, checkpoints, and optional triage, follow the **Delivery evidence contract** in `akita-xp-rules`. Installing this opt-in mechanism does not approve a candidate or change the session's merge policy.

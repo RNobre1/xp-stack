@@ -2,7 +2,7 @@
 
 > This rationale records the historical gap that motivated the opt-in skill.
 > Current routing follows the **Delivery evidence contract** in
-> `xp-stack:akita-xp-rules`: author self-inspection prepares the handoff,
+> `akita-xp-rules`: author self-inspection prepares the handoff,
 > optional triage reports facts, and independent final review follows the
 > session/Host policy. The hook and PR section are reminders, not semantic
 > enforcement.
@@ -32,7 +32,7 @@ Artefatos que esta skill instala:
 Simon Couch (2025) — *"Position bias and family bias in LLM code review"*:
 - LLMs apresentam **position bias dominante**: tendem a aprovar código apresentado primeiro ou em posição de destaque
 - **Family bias** (mesmo modelo revisa próprio output) é menor que position bias, mas real e mensurável: blind spots sistemáticos compartilhados entre generator e reviewer do mesmo modelo
-- Mitigação mais documentada e eficaz: **adversarial persona prompting** — instruir o reviewer a "assumir que código está errado" antes de começar
+- A referência avalia **adversarial persona prompting** — instruir o reviewer a "assumir que código está errado" antes de começar — como uma hipótese de mitigação
 
 Aplicação na configuração histórica:
 - O experimento escolheu Sonnet para geração e Opus para revisão, uma assimetria possível quando a sessão autoriza

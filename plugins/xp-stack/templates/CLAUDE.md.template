@@ -27,7 +27,7 @@ This project follows strict **Pair Programming**: the user is the **Architect/Pi
 5. **YAGNI** — One task at a time. No speculative code.
 6. **Conventional Commits** — `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.
 
-See the `xp-stack:akita-xp-rules` skill for full rules.
+See the `akita-xp-rules` skill for full rules.
 
 ### Testing conventions
 
@@ -54,7 +54,7 @@ Non-trivial decisions (heavy library choice, architectural trade-off, product hy
 
 ### Mandatory skill integration
 
-Five workflow skills are mandatory at specific moments. See the `xp-stack:akita-xp-rules` appendix for the full table with rationale. Highlights:
+Workflow skills are mandatory at the moments their triggers apply. See the `akita-xp-rules` appendix for the full table with rationale. Highlights:
 
 - **Phase 1 design** (any non-trivial feature) -> `superpowers:brainstorming`
 - **Any bug, test failure, or unexpected behavior** -> `superpowers:systematic-debugging`
@@ -66,9 +66,9 @@ Install via `/plugin install superpowers` and confirm in `/plugin list`. If the 
 
 ### Delivery evidence and review lanes
 
-Use the **Delivery evidence contract** in `xp-stack:akita-xp-rules` for behavior, base/candidate, expectation origin, RED/GREEN evidence, applicable guards, limits, and review. Author self-inspection prepares the handoff; an independent final review is selected by the current policy and risk. An optional triage pass may report confirmed, inconclusive, or out-of-scope findings, then the author rechecks the affected delta. Triage does not approve, and unknown is not approved.
+Use the **Delivery evidence contract** in `akita-xp-rules` for behavior, base/candidate, expectation origin, RED/GREEN evidence, applicable guards, limits, and review. The current environment supplies the resolvable source path/URI; each task and dispatch briefing records it with the contract revision. Author self-inspection prepares the handoff; an independent final review is selected by the current policy and risk, with author and reviewer agent identities and models both distinct. An optional triage pass may report confirmed, inconclusive, or out-of-scope findings, then the author rechecks the affected delta. Triage does not approve, and unknown is not approved.
 
-Authorization already granted in the current session applies to the exact scoped action; record it instead of asking again. A checkpoint records WIP, pending changes, last verified point, and next step without forcing a clean commit or claiming completion. Integration and merge follow the session/project authorization rather than an unconditional human-only rule.
+Authorization already granted in the current session applies to the exact scoped action; record a concrete T-file/briefing/session-artifact reference instead of asking again. A checkpoint records WIP, pending changes, last verified point, and next step without forcing a clean commit or claiming completion. Integration and merge follow the session/project authorization rather than an unconditional human-only rule.
 
 ### Optional multi-agent dispatch
 
@@ -148,7 +148,7 @@ tests/
 
 > Record significant architectural decisions here. Keep them short: context, decision, consequences.
 
-1. **Example: Adopted XP Stack via `RNobre1/claude-craft` plugin** — _{{date}}_ — Provides skills, agents, and templates for rigorous AI-assisted development. See the plugin's README and this project's `xp-stack:akita-xp-rules` skill.
+1. **Example: Adopted XP Stack via `RNobre1/claude-craft` plugin** — _{{date}}_ — Provides skills, agents, and templates for rigorous AI-assisted development. See the plugin's README and this project's `akita-xp-rules` skill.
 
 ## Lessons learned
 

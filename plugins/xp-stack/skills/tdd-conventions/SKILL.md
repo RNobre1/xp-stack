@@ -46,5 +46,5 @@ Integrate each applicable layer into CI/CD at the boundary where the project req
 - **Input validation before config check:** Validate user input (return 400) before checking if external services are configured (return 500). This prevents masking user errors with infrastructure errors.
 - **Centralized mocks:** Keep shared mocks in a dedicated directory. Use factories instead of copying mocks.
 - **External APIs always mocked** in unit/integration tests. Use VCR/contract tests to validate real formats.
-- **Debt and warnings:** Record alerts, warnings, and small problems when they are found, then prioritize them by impact and project policy. Do not silently treat an unverified warning as harmless.
+- **Debt and warnings:** Follow the project's and current session's debt policy. Do not authorize new debt by default; record any exception, owner, and next step. Record alerts, warnings, and small problems when they are found instead of silently treating an unverified warning as harmless.
 - **Centralized configs:** Constants scattered across components must be centralized. Adding a new option should require editing only ONE file.

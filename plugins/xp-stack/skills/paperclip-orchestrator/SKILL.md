@@ -34,7 +34,7 @@ Set up the Paperclip multi-agent orchestrator pattern in your project. Optional.
 The playbook and role files are an opt-in Paperclip example. Reconcile their
 model, profile, review, and merge settings with the current session/Host policy
 before enabling them. For behavior evidence, checkpoints, and optional triage,
-use the **Delivery evidence contract** in `xp-stack:akita-xp-rules`.
+use the **Delivery evidence contract** in `akita-xp-rules`. The final reviewer must have a different agent identity and model from the author; a renamed context alone is insufficient, and the review must declare current checks or fresh external evidence before approval.
 
 The `references/licoes-do-piloto.md` (in this skill's directory) holds **9 anonymized lessons from a real Wave 1 pilot at the upstream project**: auto-merge YAML strict-parser quirks, gh CLI v2.x glob limits, GitHub Actions workflow snapshot caching, plugin Claude Code 4-element activation, label re-add post-comment trigger, fast-lane vs full CI scope mismatch. Read it once before your first wave.
 

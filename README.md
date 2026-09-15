@@ -2,20 +2,22 @@
 
 [![npm version](https://img.shields.io/npm/v/xp-stack.svg)](https://npmjs.com/package/xp-stack)
 
-Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, conventional commits e **orquestração multi-agent nativa via Agent View** (Claude Code) com fallbacks opt-in.
+Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, evidências de entrega, revisão orientada por política, conventional commits e mecanismos opcionais de orquestração.
 
-> **Versão atual: v2.0.0** (2026-05-13). Status: estável, pronto pra adoção em qualquer stack (TypeScript, Python, Go, bash, etc.). Veja [CHANGELOG.md](CHANGELOG.md) pro migration guide v1.x → v2.0.
+> **Versão publicada: v2.1.1** (2026-05-14). Esta árvore contém ajustes de contrato ainda não publicados; veja a seção **Unreleased** em [CHANGELOG.md](CHANGELOG.md). O pacote segue adotável em qualquer stack (TypeScript, Python, Go, bash, etc.).
 
 ---
 
-## O que mudou na v2.0.0
+## O que mudou na v2.0.0 (histórico)
 
 > **Breaking release.** Parallelization pattern shifts from manual `TERMINAL-PROMPTS.md` (N terminals + copy-paste) to Claude Code **Agent View** native. Mais detalhes em [CHANGELOG.md](CHANGELOG.md).
 
+> As escolhas abaixo descrevem a release v2.0.0. Hoje, o modelo, perfil, mecanismo de despacho, UI e estilo de comunicação vêm da política da sessão/Host; Agent View, Sonnet e caveman permanecem opções explícitas.
+
 - ✅ **Novo template canônico** `TEMPLATE-orchestrator-prompt.md` (substitui `TEMPLATE-terminal-prompts.md` removido)
-- ✅ **Padrão Sonnet+caveman+worktree** pra workers dispatched pelo orchestrator
-- ✅ **Nova skill opt-in `debugging-discipline`** — instala PR template + PreToolUse hook + settings deep-merge pra forçar disciplina em commits `fix:`
-- ✅ `akita-xp-rules`, `task-decomposition` atualizadas pra refletir Agent View
+- ✅ **Exemplo Sonnet+caveman+worktree** pra workers dispatched pelo orchestrator
+- ✅ **Nova skill opt-in `debugging-discipline`** — instala PR template + PreToolUse hook + settings deep-merge pra lembrar disciplina em commits `fix:`
+- ✅ `akita-xp-rules`, `task-decomposition` atualizadas pra refletir despacho orientado pela política da sessão
 - ✅ `local-waves` marcada como `[LEGACY]` (segue funcional como fallback)
 
 ---
@@ -47,7 +49,7 @@ cd meu-projeto
 npx xp-stack init                              # scaffold + dual mirror
 npx xp-stack status                            # estado atual (engines, features ativas, drift)
 npx xp-stack add-skill db-archaeologist        # agent opt-in pra análise de DB
-npx xp-stack add-skill debugging-discipline    # gates de fix-workflow (PR template + hook)
+npx xp-stack add-skill debugging-discipline    # lembretes de fix-workflow (PR template + hook)
 ```
 
 ### Subcomandos disponíveis (10 + version flag)
@@ -85,9 +87,9 @@ npx xp-stack update
 
 | Skill | Invocação | Para que serve |
 |-------|-----------|----------------|
-| `akita-xp-rules` | `/xp-stack:akita-xp-rules` | 6 regras metodológicas universais (sem alucinação arquitetural, TDD absoluto, AI jail, código detachment, ciclo em fases, conventional commits) + appendix com tabela de skills do superpowers obrigatórias em momentos específicos do ciclo, incluindo o padrão **Agent View** pra paralelização |
+| `akita-xp-rules` | `/xp-stack:akita-xp-rules` | 6 regras metodológicas universais + contrato canônico de evidências de entrega, autorização/checkpoint e revisão por política; o namespace `/xp-stack:` vale quando este plugin é o loader |
 | `tdd-conventions` | `/xp-stack:tdd-conventions` | Pirâmide de testes (unit, integration, E2E, contract, regression, performance, security) + workflow RED → GREEN → REFACTOR |
-| `task-decomposition` | `/xp-stack:task-decomposition` | Decomposição de features em `docs/tasks/{feature}/` com `00-overview.md` + `PROGRESS.md` + `T{N}-{slug}.md` por task + seção dedicada **Agent View workflow**. Inclui política de arquivamento (NUNCA apagar — `_archive/`) |
+| `task-decomposition` | `/xp-stack:task-decomposition` | Decomposição de features em `docs/tasks/{feature}/` com `00-overview.md` + `PROGRESS.md` + `T{N}-{slug}.md` por task e despacho conforme política da sessão. Inclui política de arquivamento (NUNCA apagar — `_archive/`) |
 | `research-cycle` | `/xp-stack:research-cycle` | Ciclo de pesquisa formal com triangulação, fontes citadas, revisão adversarial. Saída em `docs/pesquisas/{slug}.md` |
 | `optimizing-github-actions` | auto via `paths: .github/workflows/**` | 10-item pre-flight checklist (SHA pinning, OIDC, pull_request_target, concurrency, trigger eficiente, artifact v4, sharding+coverage, bash hardening, gate calibrado, persist-credentials) + audit script |
 
@@ -95,11 +97,12 @@ npx xp-stack update
 
 | Skill | Aliases | Para que serve |
 |-------|---------|----------------|
-| `debugging-discipline` ⭐ NEW v2.0 | `debugging`, `debug-discipline`, `fix-gates` | Instala gates concretos pra workflow de `fix:` — PR template (Hypotheses ranked / Root cause / Regression test), PreToolUse hook lembrando `superpowers:systematic-debugging`, hook registration via deep-merge. Use quando projeto tem alta taxa de `fix:` commits (>30%) sem evidência de processo estruturado |
+| `debugging-discipline` ⭐ NEW v2.0 | `debugging`, `debug-discipline`, `fix-gates` | Instala lembretes para workflow de `fix:` — PR template (Hypotheses ranked / Root cause / Regression test), PreToolUse reminder de `superpowers:systematic-debugging`, hook registration via deep-merge. Use quando projeto tem alta taxa de `fix:` commits (>30%) sem evidência de processo estruturado |
 | `bootstrap` | — | Scaffolding de projeto novo (rodado uma vez via `init`) |
 | `claude-md-bootstrap` | `claude-md`, `claudemd` | Lê codebase + docs e preenche CLAUDE.md a partir do template |
 | `paperclip-orchestrator` | `paperclip` | Setup do pattern multi-agent **remoto async** (droplet + Postgres + cron + GitHub auto-merge gate). 8 templates anonimizados + 9 lições reais como referência |
-| `local-waves` ⚠️ LEGACY | `waves`, `wave` | Setup do orquestrador **local sync** — N workers Sonnet headless em git worktrees. Sem infra. **Pré-Agent View** — mantido como fallback se Agent View regredir ou pra cenários headless/CI |
+| `local-waves` ⚠️ LEGACY | `waves`, `wave` | Setup do orquestrador **local sync** — N workers headless em git worktrees, com modelo selecionado pelo mecanismo/política opt-in. Sem infra; útil em cenários headless/CI |
+| `code-review-automation` | `review-auto`, `pr-review-gate`, `self-review`, `review` | Lembrete `/review-pr`, seção de evidências no PR e reminder PreToolUse; autoinspeção, triagem e revisão final seguem a política da sessão |
 | `db-archaeologist` | `db` | Análise de schema PostgreSQL/Supabase, RLS policies, histórico de migrations |
 | `screenshot-spec-writer` | `screenshot`, `spec-writer` | Transforma screenshot de UI em spec markdown |
 | `flowchart-extractor` | `flowchart` | Gera Mermaid flowchart fiel ao fluxo de uma função |
@@ -115,10 +118,22 @@ npx xp-stack update
 
 ### Templates
 
-- `CLAUDE.md.template` — skeleton para CLAUDE.md de projeto novo, com nota sobre symlink AGENTS.md + seções pré-prontas pra "Mandatory skill integration" (refletindo Agent View pattern), "Optional multi-agent dispatch", "Archival policy".
+- `CLAUDE.md.template` — skeleton para CLAUDE.md de projeto novo, com nota sobre symlink AGENTS.md + seções pré-prontas pra integração de skills, despacho conforme política, contrato de evidências e política de arquivamento.
 - `claude-settings-project.json` — permissões razoáveis pra `.claude/settings.json`.
 - `docs-tasks-template/` (5 arquivos): `README`, `TEMPLATE-overview`, `TEMPLATE-progress`, `TEMPLATE-task`, **`TEMPLATE-orchestrator-prompt`** (novo em v2.0 — substitui `TEMPLATE-terminal-prompts`).
 - `docs-pesquisas-template/TEMPLATE-pesquisa.md`.
+
+### Contrato de evidências
+
+`akita-xp-rules` é o nome portátil do contrato canônico de entrega. O ambiente
+de execução fornece o caminho/URI real de `akita-xp-rules/SKILL.md`; cada T-file
+e briefing registra essa fonte e a revisão `2026-09-15`. Se o worker não tiver
+skill loader, o remetente transfere o trecho canônico literal com sua referência
+e revisão, em vez de enviar apenas um ponteiro.
+
+Autoinspeção prepara o handoff; a revisão final exige agente e modelo distintos
+do autor e declara checks executados agora ou evidência externa fresca. Uma
+triagem estática reporta achados, mas não aprova.
 
 ---
 
@@ -144,30 +159,19 @@ npx xp-stack init
 # - workflow CI → optimizing-github-actions auto-roda
 ```
 
-### 2. ⭐ Paralelização nativa via Agent View (padrão v2.0.0)
+### 2. Paralelização conforme a sessão
 
-Pra waves com 2+ T-files independentes, o orquestrador dispara workers Sonnet via `Agent` tool nativo do Claude Code. Status em UI única (`claude agents`). Substitui completamente o `T*-PROMPT.md` manual.
+Pra waves com 2+ T-files independentes, o orquestrador consulta a política da
+sessão e a capacidade do Host e escolhe um mecanismo nativo compatível. Agent
+View, `local-waves` e Paperclip são opções; o modelo, perfil, isolamento, UI e
+estilo de comunicação não são defaults do pacote.
 
-```ts
-// Dentro da sessão Claude Code orchestrator (Opus):
-Agent({
-  description: "T1 — feature-slug",
-  subagent_type: "general-purpose",
-  model: "sonnet",
-  isolation: "worktree",
-  prompt: `Antes de qualquer outra coisa, invoque a skill caveman:caveman pra ultra-compressar comunicação.
+O prompt deve registrar a fonte e revisão do **Delivery evidence contract** e,
+para workers sem skill loader, anexar o trecho canônico literal. O padrão
+completo e as regras de coordenação estão em
+`docs/tasks/_template/TEMPLATE-orchestrator-prompt.md` (instalado pelo `init`).
 
-Leia e execute integralmente docs/tasks/{feature-slug}/T1-*.md.
-Branch: feat/{feature-slug}-T1.
-TDD absoluto. Conventional commits. Files ALLOWED/FORBIDDEN são lei.`,
-})
-```
-
-Repita o tool call pra cada T independente na MESMA mensagem do orchestrator → correm em paralelo.
-
-Padrão completo + coordination rules em `docs/tasks/_template/TEMPLATE-orchestrator-prompt.md` (instalado pelo `init`).
-
-### 3. Instalar gates de fix-workflow
+### 3. Instalar lembretes de fix-workflow
 
 Pra projetos com alta taxa de `fix:` commits sem evidência de systematic-debugging:
 
@@ -178,7 +182,7 @@ npx xp-stack add-skill debugging-discipline
 ```
 
 Instala:
-- `.github/PULL_REQUEST_TEMPLATE.md` (seções obrigatórias pra `fix:` PRs)
+- `.github/PULL_REQUEST_TEMPLATE.md` (seção para evidências aplicáveis em `fix:` PRs)
 - `.claude/hooks/pre-tool-use.sh` (lembra skill systematic-debugging em todo Edit/Write)
 - Hook registrado em `.claude/settings.json` via deep-merge
 
@@ -191,7 +195,7 @@ npx xp-stack add-skill paperclip-orchestrator
 # /xp-stack:paperclip-setup
 ```
 
-### 5. Headless / CI / fallback (Agent View ausente)
+### 5. Headless / CI com mecanismo opt-in
 
 Use `local-waves` (worktrees + `claude -p` headless).
 
@@ -200,20 +204,20 @@ npx xp-stack add-skill local-waves
 # /xp-stack:local-waves-setup
 ```
 
-> **Note:** marcado como `[LEGACY — pré-Agent View 2026-05-11]`. Funcional, mas se você roda interativo no Claude Code, prefira o pattern Agent View (workflow 2 acima).
+> **Note:** `local-waves` é um mecanismo opt-in para execução headless/CI ou fallback. Em sessões interativas, escolha o mecanismo nativo que a política e o Host suportarem.
 
 ---
 
 ## Decisão de paralelização
 
-| Critério | Agent View (v2.0+) | local-waves | Paperclip |
+| Critério | Native Agent/Agent View | local-waves | Paperclip |
 |---|---|---|---|
 | Modelo | Native Claude Code, parallel sessions | Local sync, headless | Remote async, droplet |
 | Latência | Segundos (parallel dispatch) | Minutos | Horas-dias |
-| Persistência | Session-bound (Agent View UI) | Nenhuma | Sim (Postgres) |
-| Multi-developer | Não (single Pilot) | Não | Sim |
+| Persistência | Conforme sessão | Nenhuma | Sim (Postgres) |
+| Multi-developer | Conforme mecanismo | Não | Sim |
 | Infra adicional | Nenhuma | Nenhuma | VPS (~$10/mês) |
-| Quando escolher | **Solo ou pair interativo — default** | Headless/CI, fallback | Async dev/review, multi-projeto |
+| Quando escolher | Quando a sessão/Host suportarem | Headless/CI, fallback | Async dev/review, multi-projeto |
 
 ---
 

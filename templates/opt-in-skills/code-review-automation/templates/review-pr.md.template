@@ -10,6 +10,18 @@ policy chooses the model, profile, isolation, and dispatch mechanism. The
 author's self-inspection prepares the handoff; it does not replace an
 independent final review when policy or risk requires one.
 
+For an independent final review, record the author and reviewer agent
+identities and models before deciding. Both must differ. A renamed context, new
+thread, or second prompt with the same identity/model does not qualify. A
+coordinator may review only when it did not author the implementation and the
+current policy permits the distinct reviewer.
+
+Resolve the **Delivery evidence contract** from `akita-xp-rules/SKILL.md` using
+the path supplied by the environment; use the plugin namespace only when the
+plugin is the loader. Record source path/URI and revision `2026-09-15` in the
+task or briefing. A worker without a skill loader receives the exact canonical
+excerpt from that source, including the reference and revision.
+
 ## Step 1: Identify scope
 
 ```bash
@@ -110,9 +122,17 @@ Output the following markdown block:
 - Commands, trees, exit codes, logs: [references]
 - Review lane: [self-inspection | triage | independent final review]
 - Triage status: [not applicable | confirmed | inconclusive | out-of-scope]
+- Author identity/model: [references]
+- Reviewer identity/model: [references; must differ from author]
+- Checks executed now: [commands + timestamp + exit codes, or `none`]
+- Fresh external evidence: [artifact/run + timestamp + candidate, or `none`]
 ```
 
 If a category has no findings, write `<!-- None -->` under its header.
+
+For an independent final review, populate either **Checks executed now** or
+**Fresh external evidence**. If both are `none`, the result is inconclusive.
+Static triage may report findings but never satisfies final approval evidence.
 
 ## Step 6: Report and route
 
@@ -146,7 +166,7 @@ Note in PR body: `Review pass: no blocking findings. See verified items above.`
 
 ### Optional triage pass
 If this command is being used for triage, it reports findings and does not
-approve the candidate. Use the evidence contract in `xp-stack:akita-xp-rules`;
+approve the candidate. Use the evidence contract in `akita-xp-rules`;
 record location, concrete case, expected versus observed, evidence, severity,
 and confirmation. The author corrects confirmed findings, the recheck covers
 the changed delta, and an independent final reviewer evaluates the candidate.

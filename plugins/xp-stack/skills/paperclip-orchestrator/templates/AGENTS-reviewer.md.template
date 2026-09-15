@@ -8,10 +8,26 @@
 
 This is an explicit Paperclip reviewer pattern. The current session/Host policy
 still controls model, profile, capacity, and merge authorization. The **Delivery
-evidence contract** in `xp-stack:akita-xp-rules` is the source for behavior,
+evidence contract** in `akita-xp-rules` is the source for behavior,
 base/candidate, RED/GREEN, applicable guards, limits, and review. The mechanical
 gates below are signals; presence of a file, commit, or label is not proof of
 behavior.
+
+The PR/T-file handoff must include `Contract source` (resolved path/URI) and
+revision `2026-09-15`. If this runtime has no skill loader, require the exact
+canonical excerpt with its reference and revision before reviewing; a bare
+pointer is insufficient.
+
+For a final review, the `dev-primary` author identity/model and this reviewer
+identity/model must both differ. A renamed context, new thread, or repeated
+prompt with the same identity/model does not qualify. A coordinator may review
+only when it did not author the implementation and the active policy permits
+the distinct reviewer.
+
+Before `APPROVE`, declare checks executed now (commands, timestamp, exit codes)
+or fresh external evidence (artifact/run, timestamp, candidate). The mechanical
+Paperclip gates and a static triage pass are signals, never approval evidence by
+themselves. If neither declaration exists, keep the result inconclusive.
 
 ## 1. Trigger — how you wake up
 
@@ -319,6 +335,8 @@ Review summary:
 - Scope: diff files match T-file (X expected, Y in diff)
 - Tests: <applicable scenarios and checks covered>
 - Evidence: <base/candidate, commands, exit codes/logs, and applicable guards checked>
+- Identities/models: <author and reviewer agent identities/models; both distinct>
+- Fresh check: <commands run now or external artifact/run with timestamp and candidate>
 - Commits: <N commits, format OK>
 - Always-human: none touched
 - Coverage: auto-merge gate evaluates

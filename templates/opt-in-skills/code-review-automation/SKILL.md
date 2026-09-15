@@ -19,7 +19,7 @@ allowed-tools:
 
 Instala lembretes visíveis para registrar revisão antes de um PR. A autoinspeção do autor prepara o handoff; a revisão final segue a política, o risco e as autorizações da sessão. O mecanismo pode usar o orquestrador, um revisor filho ou outro contexto independente; esta skill não escolhe modelo, perfil, UI ou estilo de comunicação. O hook lembra, mas não bloqueia.
 
-Use the **Delivery evidence contract** in `xp-stack:akita-xp-rules` for the candidate's observable behavior, base, evidence, applicable guards, limits, and review result. Do not create a parallel review state.
+Use the **Delivery evidence contract** in `akita-xp-rules` for the candidate's observable behavior, base, evidence, applicable guards, limits, and review result. Resolve the source path supplied by the environment and record it in each task or briefing. Do not create a parallel review state.
 
 ## Review lanes and independence
 
@@ -33,11 +33,16 @@ If the current session explicitly selects a triage pass, provide the accepted sc
 
 ### Independent final review
 
-The final reviewer is selected by the current session/Host policy. A child reviewer is allowed when authorized and useful; self-inspection remains preparation. Unknown or inconclusive evidence is not approval.
+The final reviewer is selected by the current session/Host policy. The author
+and reviewer agent identities and models must both differ. A child reviewer is
+allowed when authorized and useful; a coordinator may review only when it did
+not author the implementation and the policy permits the distinct identity and
+model. A renamed context or new thread alone does not qualify. Unknown or
+inconclusive evidence is not approval.
 
 ### Anti-viés família
 
-Pesquisa Simon Couch (2025) mostra: generator e reviewer do mesmo modelo/família compartilham blind spots sistemáticos. Workaround mais eficaz documentado: **adversarial persona prompting** ("assuma código errado até prova") + diferença de capacidade entre reviewer e generator.
+Uma referência de pesquisa discute que generator e reviewer do mesmo modelo/família podem compartilhar blind spots sistemáticos. **Adversarial persona prompting** ("assuma código errado até prova") e diferença de capacidade são hipóteses de mitigação a avaliar, não garantias.
 
 Neste workflow, a sessão pode escolher modelos distintos para executor, triagem e revisão final quando isso melhora a avaliação. Sonnet no passe experimental e Opus na revisão final são exemplos de uma escolha da sessão, não um requisito desta skill. Registre o consumo, latência e contexto usados; não assuma custo zero.
 
@@ -149,7 +154,7 @@ Quando uma implementação tem candidato e se prepara para abrir PR:
 
 ### Por que persona adversarial
 
-Generator e reviewer do mesmo contexto tendem a validar em vez de questionar. Pesquisa Couch 2025: "position bias dominates; family bias smaller but real; adversarial persona prompting é mitigação mais eficaz documentada".
+Generator e reviewer do mesmo contexto tendem a validar em vez de questionar. Uma referência de pesquisa descreve position bias e family bias e discute adversarial persona prompting como uma hipótese de mitigação; trate a eficácia como algo a verificar no contexto da sessão.
 
 Persona embutida no slash command `/review-pr`:
 

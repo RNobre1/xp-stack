@@ -3,7 +3,7 @@
 **Start:** {{YYYY-MM-DD}}
 **Status:** {{In progress | Wave N completed | Checkpoint recorded | COMPLETED on YYYY-MM-DD}}
 
-> Track accepted increments and honest checkpoints. Evidence fields and review semantics come from the **Delivery evidence contract** in `xp-stack:akita-xp-rules`; this snapshot does not create a second session state.
+> Track accepted increments and honest checkpoints. Evidence fields and review semantics come from the **Delivery evidence contract** in `akita-xp-rules`; this snapshot does not create a second session state.
 
 ---
 

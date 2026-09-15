@@ -2,7 +2,7 @@
 
 > This is the historical rationale for an opt-in reminder. Current evidence,
 > authorization, checkpoints, and review semantics follow the **Delivery
-> evidence contract** in `xp-stack:akita-xp-rules`; the hook and PR section do
+> evidence contract** in `akita-xp-rules`; the hook and PR section do
 > not enforce a decision automatically.
 
 ## Diagnóstico que originou esta skill

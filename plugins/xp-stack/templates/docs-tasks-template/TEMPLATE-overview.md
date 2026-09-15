@@ -3,7 +3,7 @@
 **Date:** {{YYYY-MM-DD}}
 **Objective:** {{One sentence with the problem and expected observable outcome. No process jargon.}}
 
-> Tasks are functional increments. Base/candidate, behavior, expectation origin, RED/GREEN evidence, applicable guards, limits, and review use the **Delivery evidence contract** in `xp-stack:akita-xp-rules`.
+> Tasks are functional increments. Base/candidate, behavior, expectation origin, RED/GREEN evidence, applicable guards, limits, and review use the **Delivery evidence contract** in `akita-xp-rules`. Record the resolved contract source in each T-file and dispatch briefing.
 
 ---
 

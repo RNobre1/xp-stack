@@ -19,7 +19,7 @@ allowed-tools:
 
 Installs visible reminders and an evidence slot that make `superpowers:systematic-debugging` easier to practice. The hook reminds but does not block, and the PR template does not replace judgment or the project's required gates.
 
-Use the **Delivery evidence contract** in `xp-stack:akita-xp-rules` for base/candidate, behavior, commands/logs, applicable guards, and limits. Record the debugging diagnosis there or link to the PR section; do not create a parallel state.
+Use the **Delivery evidence contract** in `akita-xp-rules` for base/candidate, behavior, commands/logs, applicable guards, and limits. Resolve the source path supplied by the environment and record it in each task or briefing. Record the debugging diagnosis there or link to the PR section; do not create a parallel state.
 
 ## When to install
 

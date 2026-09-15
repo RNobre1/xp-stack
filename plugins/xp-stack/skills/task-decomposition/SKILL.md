@@ -5,7 +5,7 @@ description: Use when decomposing non-trivial features into tracked tasks in doc
 
 > **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
 
-Voce eh o Decompositor. Sua missao eh quebrar features nao-triviais em T-files rastreaveis com fonte de verdade JSON (tasks.json) + render markdown derivado (00-overview.md). Cada task tem id, slug, title, status, deps, phase, confidence — nunca crie task sem esses campos. Para o contrato de comportamento e evidencia, use a secao **Delivery evidence contract** da skill `xp-stack:akita-xp-rules`; nao replique essa lista em cada T-file.
+Voce eh o Decompositor. Sua missao eh quebrar features nao-triviais em T-files rastreaveis com fonte de verdade JSON (tasks.json) + render markdown derivado (00-overview.md). Cada task tem id, slug, title, status, deps, phase, confidence — nunca crie task sem esses campos. Para o contrato de comportamento e evidencia, use a secao **Delivery evidence contract** da skill `akita-xp-rules`; nao replique essa lista em cada T-file. Cada T-file e briefing registra `Contract source` com o caminho/URI resolvido e a revisao; para workers sem loader, o remetente anexa o trecho literal da fonte.
 
 ## Doc level (escolha antes de começar)
 
@@ -48,7 +48,7 @@ Each task file must contain:
 - **Context**: larger feature, other sessions, decisions, CLAUDE.md refs
 - **Files ALLOWED to touch** (exhaustive list)
 - **Files FORBIDDEN** (exhaustive list)
-- **Observable behavior and limits, base/candidate, and expectation origin** (following `xp-stack:akita-xp-rules`)
+- **Observable behavior and limits, base/candidate, and expectation origin** (following `akita-xp-rules`)
 - **Execution order with TDD** (Phase 1: RED, Phase 2: GREEN, Phase 3: REFACTOR, Phase 4: VERIFICATION), with commands, trees, exit codes, and logs recorded
 - **Applicable guards** selected by impact, with omitted or pending checks explained
 - **Acceptance criteria**

@@ -75,6 +75,10 @@ Apply the following flow to each functional increment. Independent fronts may be
 
 Task files, progress notes, and review prompts refer to this contract by name; they do not redefine its meaning. For every increment that changes behavior, keep these slots current:
 
+**Contract reference:** `akita-xp-rules / Delivery evidence contract` — revision `2026-09-15`.
+
+Resolve the path or URI that the current environment supplies for `akita-xp-rules/SKILL.md` and record it, with this revision, in each task and dispatch briefing. If a worker has no skill loader, the sender must attach the exact excerpt from that resolved source with the reference and revision; a bare name or inaccessible pointer is not a handoff. The excerpt is copied from the source, never re-authored as a competing contract.
+
 | Slot | Record |
 |---|---|
 | **Observable behavior and limits** | The user or consumer action, expected output, preserved behavior, and explicit exclusions. |
@@ -90,16 +94,18 @@ Checkboxes, a clean commit, a WIP commit, or a model's assertion do not prove be
 
 - **Model, profile, isolation, and communication style:** consult the current session's selection policy and Host capacity. `Sonnet`, `Agent View`, `caveman`, or any other model/UI/compression choice is an opt-in mechanism or experiment, never a universal default of this skill.
 - **Native mechanisms:** use the native Agent/tool/worktree mechanisms available to the session when they fit the task. `Agent View`, `xp-stack:local-waves`, and `xp-stack:paperclip-orchestrator` remain selectable examples; their own setup docs describe their scope.
-- **Authorization already granted:** act within the exact authorized scope without asking the same approval again. A new destructive action, external write, or scope expansion still needs its own authorization.
+- **Authorization already granted:** act within the exact authorized scope without asking the same approval again. Record a concrete pointer to the authorization in the T-file or dispatch briefing (section, artifact, or decision ID). A new destructive action, external write, or scope expansion still needs its own authorization.
 - **Decision and record:** once a choice is settled, record it in the project's source of truth. Do not create a second session state merely to imitate Traycer or Autonomia.
 - **Checkpoint/pause:** preserve WIP, pending changes, the last verified point, and the exact next step. A checkpoint is honest progress, not an accepted delivery; never force a clean tree or fabricate a phase commit to make it look complete.
 - **Integration and merge:** follow the session and project authorization. Do not impose an unconditional human-only merge rule when the authorized flow permits automation, and do not bypass required review or security gates.
 
 ## Review lanes and optional triage
 
-The author may perform a self-inspection to prepare the handoff. Where the current policy or risk requires it, the final decision comes from an independent reviewer with fresh context or a distinct responsibility. A child reviewer may be used or omitted according to the current session, Host, and capacity; this skill neither forbids nor mandates that mechanism.
+The author may perform a self-inspection to prepare the handoff. Where the current policy or risk requires it, the final decision comes from an independent reviewer whose **agent identity and model both differ from the author**. Fresh context, a renamed role, a new thread, or a second prompt with the same author identity/model does not establish independence. A child reviewer may be used or omitted according to the current session, Host, and capacity; a coordinator may review only when it did not author the implementation and the policy permits the distinct reviewer identity/model.
 
 An optional triage pass is admitted only when the session selects it and has budget/capacity. It receives the accepted scope and criteria, base/candidate, diff, consumer references, and available evidence. It may read and run focused probes when authorized, but it does not edit the implementation, publish, or approve the candidate. Each finding records: **location, concrete case, expected versus observed, evidence, severity, and confirmation** (`confirmed`, `inconclusive`, or `out-of-scope`). Unknown is not approval. A confirmed finding returns to the author; the recheck covers the changed delta and property, then the independent final reviewer evaluates the candidate. The session may choose Sonnet for this experimental pass and Opus for the final review when its policy permits; those model names are not part of the contract. Do not run a full suite solely because triage exists.
+
+Every final review declares **Checks executed now** (commands, timestamp, and exit codes) or cites **Fresh external evidence** (artifact/run, timestamp, and candidate). A static triage pass is never that approval evidence; without either declaration, the final status is inconclusive.
 
 ---
 
@@ -113,7 +119,7 @@ Workflow skills close known process gaps in the Akita/XP cycle. They are **not o
 | `superpowers:systematic-debugging` | Before proposing a fix for **any** bug, test failure, or unexpected behavior — in prod, dev, or local. Do NOT guess hypotheses: generate ranked list, test top one. | Hypothesis-by-guess wastes hours. Ranked-and-tested cuts time substantially. Multiple real incidents cost days when this was skipped. |
 | `superpowers:verification-before-completion` | Before marking a T-file `[x] Concluida`, before opening a PR, before claiming "tests pass". Run the applicable project guards and focused tests, capture output BEFORE any claim. | "I think it's OK" without evidence has caused regressions in CI after merge. Evidence before assertion. |
 | `superpowers:dispatching-parallel-agents` (+ `superpowers:using-git-worktrees`) | When a wave has 2+ independent T-files and parallel work is authorized: dispatch through a native mechanism supported by the current session/Host, with isolated worktrees when available. Select model, profile, prompt style, and UI from the session policy; Agent View, Sonnet, and `caveman:caveman` are optional examples, not requirements. | Manual parallelism can lose isolation, status, or result aggregation. The selected native mechanism should provide the safeguards that this Host and task can support. |
-| **Independent final review** (before integration or publication when required) | The author performs self-inspection to prepare evidence. The final reviewer is selected by the current policy and risk, with fresh context or distinct responsibility. An optional triage pass can precede it; triage reports findings and never approves. | Self-review alone can miss defects; a fixed reviewer mechanism can be unavailable or wasteful. Keep the independence requirement while leaving routing to the session. |
+| **Independent final review** (before integration or publication when required) | The author performs self-inspection to prepare evidence. The final reviewer is selected by the current policy and risk, with agent identity and model both different from the author. An optional triage pass can precede it; triage reports findings and never approves. | Self-review alone can miss defects; a fixed reviewer mechanism can be unavailable or wasteful. Keep identity/model independence while leaving routing to the session. |
 | `xp-stack:optimizing-github-actions` | Before any PR that touches `.github/workflows/*.yml`. Auto-activated via `paths` field in the skill frontmatter. Runs a 10-item pre-flight checklist (SHA pinning, OIDC, pull_request_target risk, concurrency, trigger efficiency, artifact v4, coverage in shards, bash hardening, gate calibration, persist-credentials). | Cache corruption, duplicated CI runs, uncalibrated eval gates, supply-chain incident classes (e.g. compromised popular actions). Universal across stacks. |
 
 **Installation:** `superpowers` skills come from the official `superpowers` plugin (`/plugin install superpowers`). `optimizing-github-actions` is part of this `xp-stack` plugin. Confirm via `/plugin list` after install.
@@ -122,6 +128,6 @@ Workflow skills close known process gaps in the Akita/XP cycle. They are **not o
 
 **Anti-pattern — invoking the skill name in narration is not invoking the skill.** Saying "I'll use systematic-debugging here" without actually loading the Skill tool is just narration. The skill must be loaded via the harness (Skill tool in Claude Code) so its content enters context.
 
-**Review routing:** self-inspection is preparation, not a universal substitute for independent review. If a triage pass is selected, send confirmed findings back to the author and recheck only the affected delta. The final reviewer may be a child agent, the orchestrator in a distinct review context, or another authorized mechanism; follow the current session and Host policy.
+**Review routing:** self-inspection is preparation, not a universal substitute for independent review. If a triage pass is selected, send confirmed findings back to the author and recheck only the affected delta. The final reviewer may be a child agent, the coordinator only when it did not author the implementation and has a distinct authorized identity/model, or another authorized mechanism; a renamed context or new thread with the same identity/model does not qualify. Follow the current session and Host policy.
 
 **Fallback:** when the preferred native mechanism is unavailable, choose another mechanism that the current policy and capacity allow. `xp-stack:local-waves` (`claude -p` headless) and `xp-stack:paperclip-orchestrator` (remote async) are explicit opt-in patterns, not global defaults.

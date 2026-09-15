@@ -182,6 +182,12 @@ T-file (`docs/tasks/<feat>/<task-slug>.md` committed) is **canonical source**. P
 
 Implement `docs/tasks/<feat>/<task-slug>.md`. Read T-file before any action.
 
+Contract source: `<resolved path/URI to akita-xp-rules/SKILL.md>`
+Contract revision: `2026-09-15`
+Authorization reference: `<T-file/briefing/session-artifact section or decision ID>`
+If the worker has no skill loader, paste the exact canonical excerpt from the
+resolved source here with its reference and revision. Do not send only a pointer.
+
 ## Branching
 Base: `feat/<feat-slug>`. Create from `origin/dev` if doesn't exist.
 Your branch: `task/<feat-slug>/<task-slug>`.
