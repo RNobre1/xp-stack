@@ -14,7 +14,7 @@ gates below are signals; presence of a file, commit, or label is not proof of
 behavior.
 
 The PR/T-file handoff must include `Contract source` (resolved path/URI) and
-revision `2026-09-15`. If this runtime has no skill loader, require the exact
+revision `<revision read from the resolved contract source>`. If this runtime has no skill loader, require the exact
 canonical excerpt with its reference and revision before reviewing; a bare
 pointer is insufficient.
 

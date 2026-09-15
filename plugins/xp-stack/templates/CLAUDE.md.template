@@ -31,7 +31,7 @@ See the `akita-xp-rules` skill for full rules.
 
 ### Testing conventions
 
-Every functional increment follows the **TDD flow** (RED → GREEN → REFACTOR): write the failing test first, implement minimum code to make it pass, then refactor with the safety net in place. Select the applicable test types and guards from the pyramid according to impact, risk, and project policy; record omitted or pending checks. See the `xp-stack:tdd-conventions` skill for the full pyramid and workflow.
+Every functional increment follows the **TDD flow** (RED → GREEN → REFACTOR): write the failing test first, implement minimum code to make it pass, then refactor with the safety net in place. Select the applicable test types and guards from the pyramid according to impact, risk, and project policy; record omitted or pending checks. See the `tdd-conventions` skill for the full pyramid and workflow. Skill names here are portable; a plugin loader may prefix them with its namespace.
 
 ### Development cycle (per functional increment)
 
@@ -46,11 +46,11 @@ When starting or expanding a module, apply the relevant phases to each functiona
 
 ### Task decomposition
 
-Non-trivial features are decomposed into `docs/tasks/{feature-slug}/`. See `xp-stack:task-decomposition` skill for the full workflow and `docs/tasks/_template/` for the scaffolding.
+Non-trivial features are decomposed into `docs/tasks/{feature-slug}/`. See `task-decomposition` skill for the full workflow and `docs/tasks/_template/` for the scaffolding.
 
 ### Research cycle
 
-Non-trivial decisions (heavy library choice, architectural trade-off, product hypothesis, complex incident) must be backed by formal research in `docs/pesquisas/{slug}.md`. See `xp-stack:research-cycle` skill.
+Non-trivial decisions (heavy library choice, architectural trade-off, product hypothesis, complex incident) must be backed by formal research in `docs/pesquisas/{slug}.md`. See `research-cycle` skill.
 
 ### Mandatory skill integration
 
@@ -60,7 +60,7 @@ Workflow skills are mandatory at the moments their triggers apply. See the `akit
 - **Any bug, test failure, or unexpected behavior** -> `superpowers:systematic-debugging`
 - **Before claiming "done"** (T-file `[x]`, PR open, "tests pass") -> `superpowers:verification-before-completion`
 - **2+ independent tasks in a wave** -> use `superpowers:dispatching-parallel-agents` and `superpowers:using-git-worktrees` with the native mechanism supported by the current session and Host. Model, profile, isolation, UI, and communication style come from that policy; Agent View, `model: "sonnet"`, and `caveman:caveman` are optional examples.
-- **`.github/workflows/*.yml` edits** -> `xp-stack:optimizing-github-actions` (auto-activated via `paths` field)
+- **`.github/workflows/*.yml` edits** -> `optimizing-github-actions` (auto-activated via `paths` field)
 
 Install via `/plugin install superpowers` and confirm in `/plugin list`. If the project explicitly opts out of one (e.g. "no TDD for prototypes"), document the exception here and the user-level rule wins.
 

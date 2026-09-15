@@ -73,6 +73,8 @@ universal.
 Qualquer passe adicional consome tempo, contexto e cota conforme a conta
 configurada. Meça a troca no experimento; não trate o passe como custo zero.
 
-O revisor final usa contexto fresco ou responsabilidade distinta conforme a
-política. A persona adversarial e o checklist ajudam, mas não transformam uma
-autoinspeção em aprovação final.
+O revisor final deve ser outro agente e outro modelo em relação ao autor,
+conforme o contrato e a política vigente. Mantemos a persona adversarial como
+prática de baixo esforço para solicitar contraprovas; sua eficácia local ainda
+precisa ser medida. Ela e o checklist não transformam autoinspeção em aprovação
+final nem substituem evidência executável.

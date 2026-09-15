@@ -5,7 +5,7 @@
 > Use this prompt when parallel work is useful and authorized. For one task, execute the T-file in the current session. For explicit opt-in alternatives, see `local-waves` and `paperclip-orchestrator` (plugin namespaces may prefix these names when the plugin is the loader).
 
 > **Contract source:** {{resolved path/URI supplied by the environment to `akita-xp-rules/SKILL.md`}}
-> **Contract revision:** `2026-09-15`
+> **Contract revision:** `<revision read from the resolved contract source>`
 > **Authorization reference:** {{concrete T-file/briefing/session-artifact section or decision ID}}
 
 ---
@@ -32,10 +32,10 @@ Leia e execute integralmente:
 docs/tasks/{{feature-slug}}/T1-{{slug}}.md
 
 Contract source: {{resolved path/URI supplied by the environment to akita-xp-rules/SKILL.md}}
-Contract revision: 2026-09-15
+Contract revision: <revision read from the resolved contract source>
 If this worker has no skill loader, the sender MUST paste the exact canonical excerpt from that source here, including the reference and revision. Do not send only this pointer.
 Canonical excerpt for a worker without a skill loader:
-[BEGIN akita-xp-rules / Delivery evidence contract — revision 2026-09-15]
+[BEGIN akita-xp-rules / Delivery evidence contract — revision <revision read from the resolved contract source>]
 {{paste the exact excerpt from the resolved source; do not rewrite it}}
 [END akita-xp-rules / Delivery evidence contract]
 

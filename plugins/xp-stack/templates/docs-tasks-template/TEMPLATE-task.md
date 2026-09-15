@@ -8,7 +8,7 @@
 > **Candidate:** `{{candidate branch/commit, or pending}}`
 > **Checkpoint:** {{none | WIP and exact next step below}}
 > **Contract source:** {{resolved path/URI supplied by the environment to `akita-xp-rules/SKILL.md`}}
-> **Contract revision:** `2026-09-15`
+> **Contract revision:** `<revision read from the resolved contract source>`
 > **Loaderless handoff:** {{exact canonical excerpt attached in the dispatch briefing, or `skill loader resolves source`}}
 > **Status:** `[ ] Planning` `[ ] In progress` `[ ] Evidence captured` `[ ] Ready for review`
 

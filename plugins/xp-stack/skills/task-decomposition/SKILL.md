@@ -70,7 +70,7 @@ When a wave has 2+ independent T-files and parallel work is authorized, the orch
 
 1. Orchestrator reads each T{N}-*.md.
 2. For each independent task in the wave, dispatch with the isolation, model, profile, prompt style, and UI selected by that session/Host policy. Use isolated worktrees when the selected mechanism supports them.
-3. Agent View, `xp-stack:local-waves`, and `xp-stack:paperclip-orchestrator` are available patterns; none is a universal default, and `Sonnet`/`caveman:caveman` are optional choices.
+3. Agent View, `local-waves`, and `paperclip-orchestrator` are available patterns; none is a universal default, and `Sonnet`/`caveman:caveman` are optional choices.
 4. When workers return, collect their evidence, run focused guards, and route any selected triage findings back to the author. Arrange the independent final review and integrate or merge according to authorization.
 
 The legacy `TERMINAL-PROMPTS.md` + N-terminals pattern remains available only when the selected local mechanism needs it.

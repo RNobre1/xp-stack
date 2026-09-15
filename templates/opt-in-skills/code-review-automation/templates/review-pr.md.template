@@ -18,7 +18,7 @@ current policy permits the distinct reviewer.
 
 Resolve the **Delivery evidence contract** from `akita-xp-rules/SKILL.md` using
 the path supplied by the environment; use the plugin namespace only when the
-plugin is the loader. Record source path/URI and revision `2026-09-15` in the
+plugin is the loader. Record source path/URI and revision `<revision read from the resolved contract source>` in the
 task or briefing. A worker without a skill loader receives the exact canonical
 excerpt from that source, including the reference and revision.
 

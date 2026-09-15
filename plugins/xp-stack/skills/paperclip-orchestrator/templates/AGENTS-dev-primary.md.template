@@ -24,7 +24,7 @@ The **Delivery evidence contract** in `akita-xp-rules` defines the
 canonical slots for behavior, base/candidate, expectation origin, RED/GREEN,
 applicable guards, limits, and review. Fill the T-file's slots instead of
 creating a second contract here. The T-file/Issue handoff must include
-`Contract source` (resolved path/URI) and revision `2026-09-15`. If your runtime
+`Contract source` (resolved path/URI) and revision `<revision read from the resolved contract source>`. If your runtime
 has no skill loader, the architect must attach the exact excerpt from that
 source with its reference and revision; a bare pointer is insufficient.
 
