@@ -24,7 +24,9 @@ Invoke the skill from the plugin as `/xp-stack:durable-host-runs`; the slash nam
 
 ## Submit a command
 
-Choose a stable `--key` for the candidate and operation, and supply a stable `--candidate` identity such as `commit:<full-sha>`. The key, candidate, canonical cwd, and each argv element form the immutable request identity. Repeating an identical request returns the existing job. Reusing its key with a different candidate, cwd, or argv is refused.
+Choose a stable `--key` for the candidate and operation, and supply a stable `--candidate` identity such as `commit:<full-sha>`. The key, candidate, canonical cwd, each argv element, owner metadata, and declared resources form the immutable request identity. By default, owner records the Host name and Unix account plus `TRAYCER_TASK_ID` and `TRAYCER_AGENT_ID` when those environment variables are present. `--owner` can instead set an explicit stable owner identifier. Repeating an identical request returns the existing job. Reusing its key with a different candidate, cwd, argv, owner, or declared resources is refused.
+
+Declare resources with repeatable `--resource` values. They are opaque descriptions saved with the request; they do not reserve, measure, constrain, or release capacity. `status`, `follow`, and `cancel` read the owner saved at submission. A new observer after handoff does not replace it.
 
 Set `runner` to the installed script path or use the active skill's script path, then pass the command as an argv vector after `--`:
 
@@ -34,6 +36,8 @@ python3 "$runner" submit \
   --key "commit:<full-sha>:tests:unit" \
   --candidate "commit:<full-sha>" \
   --cwd "/path/to/checkout" \
+  --resource "declared:cpu=2" \
+  --resource "declared:ram=4g" \
   -- "$HOME/.traycer/locks/vaga-teste.sh" /usr/bin/printf '%s\n' 'job output'
 ```
 
@@ -58,7 +62,7 @@ python3 "$runner" status --key "commit:<full-sha>:tests:unit"
 python3 "$runner" follow --key "commit:<full-sha>:tests:unit"
 ```
 
-`status` reports `starting`, `running`, `stopping`, `completed`, `failed`, `cancelled`, `unknown`, or `not_found`, plus the command exit code when known, `supervisor_terminal`, and paths to the immutable request, event stream, command log, and receipt. A worker receipt by itself does not prove the whole systemd unit's process tree has ended: while the unit is active, status remains `stopping` and `supervisor_terminal` is false. Only act on the queue slot after the supervisor reports the unit terminal or confirms it has unloaded after execution. If the tree is confirmed but no useful exit code survived, status remains `unknown`, `supervisor_terminal` is true, and no null receipt is sealed. A worker exception is recorded as `worker_failed` with exit code 70; the status becomes final only after the supervisor confirms the unit ended. `follow` drains lifecycle events, prints a final `follow_finished` event, and exits nonzero (6) with `state: unknown` when the supervisor cannot establish the result; it does not keep polling that unknown state. The command's combined stdout/stderr is stored in `command.log` at the reported path.
+`status` reports `starting`, `running`, `stopping`, `completed`, `failed`, `cancelled`, `unknown`, or `not_found`, plus the command exit code when known, the saved owner and declared resources, `supervisor_terminal`, and paths to the immutable request, event stream, command log, and receipt. A worker receipt by itself does not prove the whole systemd unit's process tree has ended: while the unit is active, status remains `stopping` and `supervisor_terminal` is false. `LoadState=not-found` only confirms an unloaded job when this request already has a persisted `started` event; `enqueue_confirmed` alone and a default `ExecMainCode=0` do not prove it ran. A nonzero `systemctl show` result is unavailable evidence regardless of stderr text. Only act on the queue slot after the supervisor confirms the unit terminal. If the tree is confirmed but no useful exit code survived, status remains `unknown`, `supervisor_terminal` is true, and no null receipt is sealed. A worker exception is recorded as `worker_failed` with exit code 70; the status becomes final only after the supervisor confirms the unit ended. `follow` drains lifecycle events, retries at most three consecutive unknown supervisor observations with at least 250 ms between queries, then emits `follow_finished` with `state: unknown` and exits nonzero (6) if evidence remains inconclusive. A concrete state resets that budget; no retry launches another job. The command's combined stdout/stderr is stored in `command.log` at the reported path.
 
 If preflight fails before registration, retry with the same key after the user manager is available. If a request is already registered and its state is `unknown`, preserve it and inspect its unit, event stream, command log, and journal. A different explicit key is allowed only after authoritative supervisor evidence that the earlier unit never ran or its process tree is terminal; elapsed time alone is not evidence. Nothing removes the old record.
 
@@ -68,8 +72,8 @@ If preflight fails before registration, retry with the same key after the user m
 python3 "$runner" cancel --key "commit:<full-sha>:tests:unit"
 ```
 
-Cancellation first writes a private durable intent, then resolves the unit from that key's registration and asks the user systemd manager to stop that unit. The worker labels SIGTERM as `cancelled` only when that intent exists; unrelated signals are recorded as `signal` failures. Cancellation reports `confirmed: true` only after the synchronous stop or a follow-up supervisor query confirms termination. If the command finishes naturally during cancellation, the result is reread from its receipt and returned as already finished.
+Cancellation first writes a private durable intent, then resolves the unit from that key's registration and asks the user systemd manager to stop that unit. The worker labels SIGTERM as `cancelled` only when that intent exists; unrelated signals are recorded as `signal` failures. Cancellation reports `confirmed: true` only after a supervisor query confirms termination; a successful stop command or unavailable query alone is not proof. If the command finishes naturally during cancellation, the result is reread from its receipt and returned as already finished.
 
 The worker sends SIGTERM to the command's process group, waits up to five seconds, then sends SIGKILL to that group. With `KillMode=mixed`, systemd initially signals the worker and kills any remaining processes in the unit's cgroup after its stop timeout; descendants that escape the command process group may therefore not get a graceful signal. `supervisor_terminal: true` is the proof that the systemd unit's process tree is gone.
 
-The registration, cancellation intent, and receipt are read-only files; directories and mutable event/log files are private to the account. Nothing removes logs, records, receipts, failed systemd unit evidence, worktrees, or installed skill versions automatically. The tool does not configure lingering, reboot recovery, or host recovery.
+The registration, cancellation intent, and receipt are read-only files; directories and mutable event/log files are private to the account. Nothing removes logs, records, receipts, failed systemd unit evidence, worktrees, or installed skill versions automatically. To clear a failed systemd unit later, first preserve the journal and receipt, then an operator may run `systemctl --user reset-failed <unit>` explicitly. The tool never runs `reset-failed`. The worker records its direct child and signals that child's process group; systemd `KillMode=mixed` is the final cgroup boundary, so descendants that escape that process group may be killed by systemd without receiving the worker's graceful signal. The tool does not configure lingering, reboot recovery, or host recovery.

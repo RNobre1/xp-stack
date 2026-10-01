@@ -9,6 +9,7 @@ from pathlib import Path
 import pwd
 import signal
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -46,6 +47,7 @@ class FakeSystemctl:
         self.units: Dict[str, Dict[str, str]] = {}
         self.known_units = set()
         self.inspect_calls = 0
+        self.inspection_script: List[Optional[Dict[str, str]]] = []
         self._lock = threading.Lock()
 
     def preflight(self) -> None:
@@ -63,6 +65,9 @@ class FakeSystemctl:
     def inspect(self, unit: str) -> Optional[Dict[str, str]]:
         with self._lock:
             self.inspect_calls += 1
+            if self.inspection_script:
+                scripted = self.inspection_script.pop(0)
+                return dict(scripted) if scripted is not None else None
             status = self.units.get(unit)
             if status is not None:
                 return dict(status)
@@ -126,12 +131,27 @@ class DurableHostRunsTest(unittest.TestCase):
         self.fake = FakeSystemctl()
         self.manager = durable_run.RunManager(state_dir=self.root, systemctl=self.fake)
 
-    def submit(self, *, key: str = "candidate:test:pytest", candidate: str = "git:deadbeef", cwd: Optional[Path] = None, argv: Optional[List[str]] = None) -> dict:
+    def submit(
+        self,
+        *,
+        key: str = "candidate:test:pytest",
+        candidate: str = "git:deadbeef",
+        cwd: Optional[Path] = None,
+        argv: Optional[List[str]] = None,
+        owner: Optional[str] = None,
+        resources: Optional[List[str]] = None,
+    ) -> dict:
+        metadata = {}
+        if owner is not None:
+            metadata["owner"] = owner
+        if resources is not None:
+            metadata["resources"] = resources
         return self.manager.submit(
             key=key,
             candidate=candidate,
             cwd=str(self.cwd if cwd is None else cwd),
             argv=argv or [sys.executable, "-c", "print('ok')"],
+            **metadata,
         )
 
     def test_concurrent_identical_submits_start_only_one_unit(self) -> None:
@@ -191,6 +211,76 @@ class DurableHostRunsTest(unittest.TestCase):
         self.assertEqual(request["cwd"], str(self.cwd.resolve()))
         self.assertEqual(request["argv"], argv)
         self.assertIsInstance(request["argv"], list)
+
+    def test_owner_and_resources_are_persisted_and_unchanged_for_handoff_status(self) -> None:
+        key = "handoff:immutable-owner"
+        with patch.dict(
+            os.environ,
+            {"TRAYCER_TASK_ID": "task-origin", "TRAYCER_AGENT_ID": "agent-origin"},
+        ):
+            submitted = self.submit(key=key, resources=["declared:cpu=2", "declared:ram=4g"])
+        request = json.loads(Path(submitted["request_path"]).read_text(encoding="utf-8"))
+        expected_owner = {
+            "host": socket.gethostname(),
+            "user": pwd.getpwuid(os.getuid()).pw_name,
+            "traycer_task_id": "task-origin",
+            "traycer_agent_id": "agent-origin",
+        }
+        self.assertEqual(request["owner"], expected_owner)
+        self.assertEqual(request["resources"], ["declared:cpu=2", "declared:ram=4g"])
+
+        observer = durable_run.RunManager(state_dir=self.root, systemctl=self.fake)
+        with patch.dict(
+            os.environ,
+            {"TRAYCER_TASK_ID": "task-observer", "TRAYCER_AGENT_ID": "agent-observer"},
+        ):
+            status = observer.status(key)
+
+        self.assertEqual(status["owner"], expected_owner)
+        self.assertEqual(status["resources"], request["resources"])
+
+    def test_explicit_owner_and_declared_resources_are_immutable_payload(self) -> None:
+        first = self.submit(key="metadata:explicit", owner="pilot:rafael", resources=["cpu:2"])
+        request = json.loads(Path(first["request_path"]).read_text(encoding="utf-8"))
+
+        self.assertEqual(request["owner"], {"explicit": "pilot:rafael"})
+        self.assertEqual(request["resources"], ["cpu:2"])
+        with self.assertRaises(durable_run.PayloadConflict):
+            self.submit(key="metadata:explicit", owner="agent:handoff", resources=["cpu:2"])
+        with self.assertRaises(durable_run.PayloadConflict):
+            self.submit(key="metadata:explicit", owner="pilot:rafael", resources=["cpu:4"])
+        self.assertEqual(len(self.fake.submissions), 1)
+
+    def test_submit_cli_persists_explicit_owner_and_repeated_resource_declarations(self) -> None:
+        output = io.StringIO()
+        with patch.object(durable_run, "RunManager", return_value=self.manager), patch("sys.stdout", output):
+            exit_code = durable_run.main(
+                [
+                    "submit",
+                    "--key",
+                    "metadata:cli",
+                    "--candidate",
+                    "git:deadbeef",
+                    "--cwd",
+                    str(self.cwd),
+                    "--owner",
+                    "pilot:rafael",
+                    "--resource",
+                    "cpu:2",
+                    "--resource",
+                    "ram:4g",
+                    "--",
+                    sys.executable,
+                    "-c",
+                    "pass",
+                ]
+            )
+
+        result = json.loads(output.getvalue())
+        request = json.loads(Path(result["request_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(request["owner"], {"explicit": "pilot:rafael"})
+        self.assertEqual(request["resources"], ["cpu:2", "ram:4g"])
 
     def test_nonzero_command_exit_is_written_to_receipt_and_status(self) -> None:
         result = self.submit(argv=[sys.executable, "-c", "print('captured'); raise SystemExit(23)"])
@@ -450,7 +540,60 @@ class DurableHostRunsTest(unittest.TestCase):
             ),
         ):
             missing = supervisor.inspect("xp-stack-run-deadbeef.service")
-        self.assertEqual(missing["load_state"], "not-found")
+        self.assertIsNone(missing)
+
+    def test_not_found_default_snapshot_does_not_confirm_an_unstarted_unit(self) -> None:
+        submitted = self.submit(key="show:not-found-default")
+        self.fake.units[submitted["unit"]] = {
+            "load_state": "not-found",
+            "active_state": "inactive",
+            "sub_state": "dead",
+            "exec_main_code": "0",
+            "exec_main_status": "0",
+        }
+
+        status = self.manager.status("show:not-found-default")
+
+        self.assertEqual(status["state"], "unknown")
+        self.assertFalse(status["supervisor_terminal"])
+        self.assertFalse(Path(status["receipt_path"]).exists())
+
+    def test_cancel_does_not_confirm_termination_when_supervisor_query_is_unavailable(self) -> None:
+        class UnobservableAfterStop(FakeSystemctl):
+            unavailable = False
+
+            def stop(self, unit: str) -> bool:
+                self.stopped.append(unit)
+                self.unavailable = True
+                return True
+
+            def inspect(self, unit: str) -> Optional[Dict[str, str]]:
+                if self.unavailable:
+                    self.inspect_calls += 1
+                    return None
+                return super().inspect(unit)
+
+        supervisor = UnobservableAfterStop()
+        self.manager = durable_run.RunManager(state_dir=self.root, systemctl=supervisor)
+        self.submit(key="cancel:query-unavailable")
+
+        result = self.manager.cancel("cancel:query-unavailable")
+
+        self.assertEqual(supervisor.stopped, ["xp-stack-run-{}".format(durable_run._key_digest("cancel:query-unavailable")) + ".service"])
+        self.assertFalse(result["confirmed"])
+        self.assertFalse(result["supervisor_terminal"])
+        self.assertEqual(result["state"], "unknown")
+
+    def test_systemd_exec_failure_codes_are_supervisor_failures_not_signals(self) -> None:
+        for status_code in (200, 203):
+            with self.subTest(status_code=status_code):
+                receipt = durable_run.RunManager._receipt_from_supervisor(
+                    {"exec_main_code": "exited", "exec_main_status": str(status_code)},
+                    cancel_requested=True,
+                )
+
+                self.assertEqual(receipt["exit_code"], status_code)
+                self.assertEqual(receipt["termination"], "supervisor_error")
 
     def test_systemd_sigterm_exit_is_signal_without_cancel_intent(self) -> None:
         snapshot = {"exec_main_code": "1", "exec_main_status": "143"}
@@ -536,6 +679,11 @@ class DurableHostRunsTest(unittest.TestCase):
     def test_cancel_confirms_sync_supervisor_stop_when_unit_is_collected(self) -> None:
         self.fake.collect_after_stop = True
         submitted = self.submit(key="cancel:collected")
+        durable_run._append_event(
+            Path(submitted["request_path"]).parent,
+            "started",
+            unit=submitted["unit"],
+        )
 
         cancelled = self.manager.cancel("cancel:collected")
 
@@ -570,6 +718,12 @@ class DurableHostRunsTest(unittest.TestCase):
         self.manager = durable_run.RunManager(state_dir=self.root, systemctl=self.fake)
         submitted = self.submit(key="cancel:receipt-race")
         self.fake.receipt_path = submitted["receipt_path"]
+        # A real worker persists this before it can write its final receipt.
+        durable_run._append_event(
+            Path(submitted["request_path"]).parent,
+            "started",
+            unit=submitted["unit"],
+        )
 
         result = self.manager.cancel("cancel:receipt-race")
         events = [json.loads(line) for line in Path(submitted["events_path"]).read_text().splitlines()]
@@ -626,21 +780,78 @@ class DurableHostRunsTest(unittest.TestCase):
         self.fake.expose_started_units = False
         submitted = self.submit(key="follow:unknown")
         before = self.fake.inspect_calls
+        delays: List[float] = []
 
-        with patch.object(durable_run.time, "sleep", side_effect=AssertionError("follow polled unknown state")):
+        with patch.object(durable_run.time, "sleep", side_effect=lambda delay: delays.append(delay)):
             events = list(self.manager.follow("follow:unknown", poll_interval=0.01))
 
-        self.assertEqual(self.fake.inspect_calls - before, 1)
+        self.assertEqual(self.fake.inspect_calls - before, 3)
         self.assertEqual(events[-1]["event"], "follow_finished")
         self.assertEqual(events[-1]["state"], "unknown")
         self.assertEqual(events[-1]["unit"], submitted["unit"])
+        self.assertFalse(events[-1]["supervisor_terminal"])
+        self.assertEqual(len(delays), 2)
+        self.assertGreaterEqual(min(delays), 0.25)
+        self.assertEqual(len(self.fake.submissions), 1)
+
+    def test_follow_retries_one_transient_unknown_with_a_minimum_delay(self) -> None:
+        submitted = self.submit(key="follow:transient-unknown")
+        self.fake.inspection_script = [
+            None,
+            self.fake._active(),
+            {
+                "load_state": "loaded",
+                "active_state": "inactive",
+                "sub_state": "dead",
+                "exec_main_code": "1",
+                "exec_main_status": "0",
+            },
+        ]
+        before = self.fake.inspect_calls
+        delays: List[float] = []
+
+        with patch.object(durable_run.time, "sleep", side_effect=lambda delay: delays.append(delay)):
+            events = list(self.manager.follow("follow:transient-unknown", poll_interval=0))
+
+        self.assertEqual(events[-1]["event"], "follow_finished")
+        self.assertEqual(events[-1]["state"], "completed")
+        self.assertEqual(self.fake.inspect_calls - before, 3)
+        self.assertTrue(delays)
+        self.assertGreaterEqual(min(delays), 0.25)
+        self.assertEqual(len(self.fake.submissions), 1)
+        self.assertEqual(submitted["unit"], events[-1]["unit"])
+
+    def test_follow_unknown_budget_exhaustion_is_bounded_and_does_not_resubmit(self) -> None:
+        submitted = self.submit(key="follow:unknown-budget")
+        self.fake.inspection_script = [None] * 10
+        before = self.fake.inspect_calls
+        delays: List[float] = []
+
+        def bounded_sleep(delay: float) -> None:
+            delays.append(delay)
+            if len(delays) > 2:
+                raise AssertionError("follow exceeded its unknown observation budget")
+
+        with patch.object(durable_run.time, "sleep", side_effect=bounded_sleep):
+            events = list(self.manager.follow("follow:unknown-budget", poll_interval=0))
+
+        self.assertEqual(self.fake.inspect_calls - before, 3)
+        self.assertEqual(events[-1]["event"], "follow_finished")
+        self.assertEqual(events[-1]["state"], "unknown")
+        self.assertFalse(events[-1]["supervisor_terminal"])
+        self.assertEqual(len(delays), 2)
+        self.assertGreaterEqual(min(delays), 0.25)
+        self.assertEqual(len(self.fake.submissions), 1)
+        self.assertEqual(submitted["unit"], events[-1]["unit"])
 
     def test_follow_cli_returns_nonzero_and_prints_unknown_terminal_event(self) -> None:
         self.fake.expose_started_units = False
         self.submit(key="follow:cli-unknown")
         output = io.StringIO()
 
-        with patch.object(durable_run, "RunManager", return_value=self.manager), patch("sys.stdout", output):
+        with patch.object(durable_run, "RunManager", return_value=self.manager), patch("sys.stdout", output), patch.object(
+            durable_run.time, "sleep", return_value=None
+        ):
             exit_code = durable_run.main(["follow", "--key", "follow:cli-unknown", "--poll-seconds", "0"])
 
         lines = [json.loads(line) for line in output.getvalue().splitlines()]

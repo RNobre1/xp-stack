@@ -15,11 +15,16 @@ import pwd
 import secrets
 import signal
 import shutil
+import socket
 import stat
 import subprocess
 import sys
 import time
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
+
+
+FOLLOW_UNKNOWN_BUDGET = 3
+FOLLOW_MIN_POLL_SECONDS = 0.25
 
 
 class DurableRunError(Exception):
@@ -58,8 +63,70 @@ def _unit_for_key(key: str) -> str:
     return "xp-stack-run-{}.service".format(_key_digest(key))
 
 
-def _stable_payload(key: str, candidate: str, cwd: str, argv: Sequence[str]) -> dict:
+def _legacy_stable_payload(key: str, candidate: str, cwd: str, argv: Sequence[str]) -> dict:
     return {"key": key, "candidate": candidate, "cwd": cwd, "argv": list(argv)}
+
+
+def _stable_payload(
+    key: str,
+    candidate: str,
+    cwd: str,
+    argv: Sequence[str],
+    owner: dict,
+    resources: Sequence[str],
+) -> dict:
+    return {
+        "key": key,
+        "candidate": candidate,
+        "cwd": cwd,
+        "argv": list(argv),
+        "owner": owner,
+        "resources": list(resources),
+    }
+
+
+def _capture_owner(explicit_owner: Optional[str]) -> dict:
+    if explicit_owner is not None:
+        if not isinstance(explicit_owner, str) or not explicit_owner.strip() or "\x00" in explicit_owner:
+            raise DurableRunError("owner must be a non-empty NUL-free identifier")
+        return {"explicit": explicit_owner}
+
+    account = pwd.getpwuid(os.getuid())
+    owner = {"host": socket.gethostname(), "user": account.pw_name}
+    traycer_ids = {
+        "TRAYCER_TASK_ID": "traycer_task_id",
+        "TRAYCER_AGENT_ID": "traycer_agent_id",
+    }
+    for environment_name, field_name in traycer_ids.items():
+        value = os.environ.get(environment_name)
+        if value:
+            owner[field_name] = value
+    return owner
+
+
+def _validate_owner(owner: object) -> dict:
+    if not isinstance(owner, dict):
+        raise CorruptRecord("registration has invalid owner metadata")
+    if set(owner) == {"explicit"}:
+        value = owner.get("explicit")
+        if isinstance(value, str) and value.strip() and "\x00" not in value:
+            return owner
+        raise CorruptRecord("registration has invalid explicit owner")
+
+    allowed = {"host", "user", "traycer_task_id", "traycer_agent_id"}
+    if not {"host", "user"}.issubset(owner) or set(owner) - allowed:
+        raise CorruptRecord("registration has invalid host/account owner")
+    if any(not isinstance(value, str) or not value.strip() or "\x00" in value for value in owner.values()):
+        raise CorruptRecord("registration has invalid host/account owner")
+    return owner
+
+
+def _validate_resources(resources: object) -> List[str]:
+    if not isinstance(resources, list) or any(
+        not isinstance(value, str) or not value.strip() or "\x00" in value for value in resources
+    ):
+        raise CorruptRecord("registration has invalid declared resources")
+    return resources
 
 
 def _payload_digest(payload: dict) -> str:
@@ -206,8 +273,15 @@ def _validate_request(record: dict, expected_key: Optional[str] = None) -> dict:
         raise CorruptRecord("registration has invalid identity fields")
     if not isinstance(argv, list) or not argv or any(not isinstance(arg, str) for arg in argv):
         raise CorruptRecord("registration has invalid argv")
-    payload = _stable_payload(key, candidate, cwd, argv)
-    if record.get("schema") != 1 or digest != _payload_digest(payload):
+    if record.get("schema") == 1:
+        payload = _legacy_stable_payload(key, candidate, cwd, argv)
+    elif record.get("schema") == 2:
+        owner = _validate_owner(record.get("owner"))
+        resources = _validate_resources(record.get("resources"))
+        payload = _stable_payload(key, candidate, cwd, argv, owner, resources)
+    else:
+        raise CorruptRecord("registration has an unsupported schema")
+    if digest != _payload_digest(payload):
         raise CorruptRecord("registration payload digest does not match")
     if expected_key is not None and key != expected_key:
         raise CorruptRecord("registration key does not match its requested key")
@@ -277,15 +351,6 @@ class SystemdSupervisor:
         except (OSError, subprocess.TimeoutExpired):
             return None
         if result.returncode != 0:
-            detail = "{}\n{}".format(result.stderr, result.stdout).lower()
-            if any(marker in detail for marker in ("could not be found", "not found", "not loaded", "not-found", "no such unit")):
-                return {
-                    "load_state": "not-found",
-                    "active_state": "inactive",
-                    "sub_state": "dead",
-                    "exec_main_code": "",
-                    "exec_main_status": "",
-                }
             return None
         values = {}
         for line in result.stdout.splitlines():
@@ -376,7 +441,15 @@ class RunManager:
             raise CorruptRecord("final receipt is missing required fields")
         return receipt
 
-    def submit(self, key: str, candidate: str, cwd: str, argv: Sequence[str]) -> dict:
+    def submit(
+        self,
+        key: str,
+        candidate: str,
+        cwd: str,
+        argv: Sequence[str],
+        owner: Optional[str] = None,
+        resources: Optional[Sequence[str]] = None,
+    ) -> dict:
         if not isinstance(key, str) or not key.strip() or key != key.strip() or len(key) > 512:
             raise DurableRunError("key must be a non-empty stable string of at most 512 characters")
         if not isinstance(candidate, str) or not candidate.strip() or candidate != candidate.strip() or len(candidate) > 512:
@@ -393,7 +466,13 @@ class RunManager:
         if not canonical_cwd.is_dir():
             raise DurableRunError("cwd must be an existing directory")
 
-        payload = _stable_payload(key, candidate, str(canonical_cwd), args)
+        if isinstance(resources, (str, bytes)):
+            raise DurableRunError("resources must be a sequence of declared strings")
+        resource_values = list(resources or [])
+        if any(not isinstance(value, str) or not value.strip() or "\x00" in value for value in resource_values):
+            raise DurableRunError("resources must contain non-empty NUL-free strings")
+        captured_owner = _capture_owner(owner)
+        payload = _stable_payload(key, candidate, str(canonical_cwd), args, captured_owner, resource_values)
         digest = _payload_digest(payload)
         unit = _unit_for_key(key)
         paths = self._paths(key)
@@ -406,7 +485,7 @@ class RunManager:
                 record = _read_private_json(paths["request"], 0o400)
                 existing_payload = _validate_request(record, expected_key=key)
                 if _payload_digest(existing_payload) != digest:
-                    raise PayloadConflict("key already belongs to a different candidate, cwd, or argv")
+                    raise PayloadConflict("key already belongs to a different candidate, cwd, argv, owner, or declared resources")
             else:
                 try:
                     self.systemctl.preflight()
@@ -417,7 +496,7 @@ class RunManager:
                 _ensure_private_directory(paths["job_dir"])
                 record = dict(payload)
                 record.update({
-                    "schema": 1,
+                    "schema": 2,
                     "unit": unit,
                     "payload_sha256": digest,
                     "created_at": _now(),
@@ -426,7 +505,7 @@ class RunManager:
                     record = _read_private_json(paths["request"], 0o400)
                     existing_payload = _validate_request(record, expected_key=key)
                     if _payload_digest(existing_payload) != digest:
-                        raise PayloadConflict("key already belongs to a different candidate, cwd, or argv")
+                        raise PayloadConflict("key already belongs to a different candidate, cwd, argv, owner, or declared resources")
                 else:
                     _append_event(paths["job_dir"], "registered", unit=unit, candidate=candidate)
                     worker_argv = [
@@ -480,7 +559,9 @@ class RunManager:
             return None
         if main_code in ("1", "exited"):
             exit_code = status_value
-            if cancel_requested and status_value == 143:
+            if 200 <= status_value <= 255:
+                termination = "supervisor_error"
+            elif cancel_requested and status_value == 143:
                 termination = "cancelled"
             elif status_value >= 128:
                 termination = "signal"
@@ -539,8 +620,8 @@ class RunManager:
                     receipt = None
 
         unit_unloaded = bool(snapshot) and snapshot.get("load_state") == "not-found"
-        was_enqueued_or_started = _event_exists(paths["events"], "enqueue_confirmed") or _event_exists(paths["events"], "started")
-        supervisor_terminal = self._is_terminal(snapshot) or (unit_unloaded and was_enqueued_or_started)
+        was_started = _event_exists(paths["events"], "started")
+        supervisor_terminal = self._is_terminal(snapshot) or (unit_unloaded and was_started)
 
         if receipt is not None and supervisor_terminal:
             state = self._state_for_receipt(receipt)
@@ -563,6 +644,8 @@ class RunManager:
             "key": key,
             "candidate": record["candidate"],
             "cwd": record["cwd"],
+            "owner": record.get("owner"),
+            "resources": record.get("resources"),
             "unit": record["unit"],
             "state": state,
             "exit_code": exit_code,
@@ -605,23 +688,13 @@ class RunManager:
         if not intent_written and not _has_cancel_intent(paths["job_dir"], record):
             raise CorruptRecord("existing cancel intent does not match this registered job")
 
-        stop_confirmed = False
         try:
-            stop_confirmed = self.systemctl.stop(record["unit"]) is True
+            self.systemctl.stop(record["unit"])
         except Exception as exc:
             _append_event(paths["job_dir"], "cancel_command_error", error=str(exc))
-        try:
-            snapshot = self.systemctl.inspect(record["unit"])
-        except Exception:
-            snapshot = None
 
         result = self.status(key)
-        stop_confirmed_tree = stop_confirmed and (
-            snapshot is None
-            or snapshot.get("load_state") == "not-found"
-            or snapshot.get("active_state") in ("inactive", "failed")
-        )
-        if result.get("supervisor_terminal") or stop_confirmed_tree:
+        if result.get("supervisor_terminal"):
             result["supervisor_terminal"] = True
             actual_receipt = self._load_receipt(paths)
             exit_code = actual_receipt["exit_code"] if actual_receipt is not None else None
@@ -642,6 +715,7 @@ class RunManager:
         record, paths = loaded
         offset = 0
         remainder = b""
+        unknown_observations = 0
 
         def read_available() -> List[dict]:
             nonlocal offset, remainder
@@ -672,9 +746,20 @@ class RunManager:
             for event in read_available():
                 yield event
             status = self.status(key)
-            if status["state"] in ("completed", "failed", "cancelled", "unknown"):
+            unknown_without_terminal = (
+                status["state"] == "unknown" and not status.get("supervisor_terminal", False)
+            )
+            if unknown_without_terminal:
+                unknown_observations += 1
+            else:
+                unknown_observations = 0
+
+            terminal = status["state"] in ("completed", "failed", "cancelled") or (
+                status["state"] == "unknown" and status.get("supervisor_terminal", False)
+            ) or (unknown_without_terminal and unknown_observations >= FOLLOW_UNKNOWN_BUDGET)
+            if terminal:
                 # Worker final events are flushed before its receipt; drain once more
-                # after observing the terminal or inconclusive supervisor state.
+                # after observing terminal evidence or exhausting the bounded unknown budget.
                 for event in read_available():
                     yield event
                 yield {
@@ -687,7 +772,7 @@ class RunManager:
                     "supervisor_state": status.get("supervisor_state", "unavailable"),
                 }
                 return
-            time.sleep(max(0.05, poll_interval))
+            time.sleep(max(FOLLOW_MIN_POLL_SECONDS, poll_interval))
 
 
 def _open_private_append(path: Path):
@@ -848,6 +933,8 @@ def _build_parser() -> argparse.ArgumentParser:
     submit.add_argument("--key", required=True, help="stable idempotency key")
     submit.add_argument("--candidate", required=True, help="explicit candidate identity")
     submit.add_argument("--cwd", required=True, help="working directory")
+    submit.add_argument("--owner", help="explicit stable owner identifier; defaults to Host/account and available Traycer IDs")
+    submit.add_argument("--resource", action="append", default=[], help="opaque declared resource label; may be repeated")
     submit.add_argument("command", nargs=argparse.REMAINDER, help="argv after --; executed without a shell")
 
     status = commands.add_parser("status", help="show the supervisor state and final exit code")
@@ -888,7 +975,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             command = list(args.command)
             if command and command[0] == "--":
                 command = command[1:]
-            result = manager.submit(args.key, args.candidate, args.cwd, command)
+            result = manager.submit(
+                args.key,
+                args.candidate,
+                args.cwd,
+                command,
+                owner=args.owner,
+                resources=args.resource,
+            )
             _print_json(result)
             return 6 if not result.get("created") and result.get("state") == "unknown" else 0
         if args.action == "status":
