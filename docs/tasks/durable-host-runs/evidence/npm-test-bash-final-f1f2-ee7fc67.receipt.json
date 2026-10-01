@@ -1,0 +1,32 @@
+{
+  "branch": "feat/harness-durable-runs",
+  "captured_exit_code": 0,
+  "command": "npm run test:bash",
+  "command_argv": [
+    "npm",
+    "run",
+    "test:bash"
+  ],
+  "commit": "ee7fc670e2be5c2877c4af897239ce007b39f308",
+  "finished_at_utc": "2026-10-01T17:59:19Z",
+  "git_object_format": "sha1",
+  "host": "MacBook-Air-de-Rafael.local",
+  "host_exit_code": 0,
+  "host_pid": 74457,
+  "output_log": "docs/tasks/durable-host-runs/evidence/npm-test-bash-final-f1f2-ee7fc67.txt",
+  "run_id": "p1-final-gate-f1-f2-ee7fc67",
+  "started_at_utc": "2026-10-01T17:59:11Z",
+  "temporary_shims": {
+    "adapters": [
+      "head -n -1",
+      "stat -c %Y/%a",
+      "cp -rn"
+    ],
+    "path": "/var/folders/td/ty9kvf5112q_cx_dm7x24w6c0000gn/T//xp-stack-durable-final-gate-shims.XEhpEA"
+  },
+  "traycer_shell_id": "4099a703-ac98-4f75-8eff-0936d18ecbd4",
+  "tree": "f7ecaa004f402745e5efd38af33859043e8b0488",
+  "tree_hash_algorithm": "Git tree object SHA-1 (repository object format: sha1)",
+  "tree_hash_command": "git rev-parse HEAD^{tree}",
+  "working_tree_clean_at_start": true
+}
