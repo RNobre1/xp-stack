@@ -9,7 +9,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:bash": "bash tests/marketplace_test.sh && bash tests/skeleton_test.sh && bash tests/scaffold_test.sh && bash tests/bootstrap_test.sh && bash tests/paperclip_test.sh && bash tests/local_waves_test.sh"
+    "test:bash": "bash tests/marketplace_test.sh && bash tests/skeleton_test.sh && bash tests/scaffold_test.sh && bash tests/bootstrap_test.sh && bash tests/paperclip_test.sh && bash tests/local_waves_test.sh && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'durable_host_runs_test.py' -v"
   },
   "files": [
     "bin/",

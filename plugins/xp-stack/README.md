@@ -28,6 +28,9 @@ eles não são defaults universais.
 | `local-waves` | Orquestração local headless em worktrees |
 | `debugging-discipline` | Lembretes de evidência para investigação de `fix:` |
 | `code-review-automation` | Lembretes de revisão e comando `/review-pr` |
+| `durable-host-runs` | Execução opt-in em unidades transitórias `systemd --user`, com deduplicação e recibo privado |
+
+`durable-host-runs` é distribuída pelo plugin e por cópia manual para um prefixo pessoal versionado; o instalador do npm CLI não instala nem registra essa skill.
 
 ### Agents
 

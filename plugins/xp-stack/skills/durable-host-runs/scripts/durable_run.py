@@ -11,8 +11,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import pwd
 import secrets
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -34,6 +36,10 @@ class CorruptRecord(DurableRunError):
 
 class SubmissionFailed(DurableRunError):
     """The registration is durable, but systemd-run did not confirm enqueue."""
+
+
+class SupervisorUnavailable(DurableRunError):
+    """The user manager failed preflight before a registration was created."""
 
 
 def _now() -> str:
@@ -169,6 +175,23 @@ def _append_event(job_dir: Path, event: str, **details: object) -> None:
         os.close(fd)
 
 
+def _event_exists(path: Path, wanted: str) -> bool:
+    if not os.path.lexists(str(path)):
+        return False
+    try:
+        _check_private_file(path, 0o600)
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(event, dict) and event.get("event") == wanted:
+                return True
+    except (OSError, CorruptRecord):
+        return False
+    return False
+
+
 def _validate_request(record: dict, expected_key: Optional[str] = None) -> dict:
     try:
         key = record["key"]
@@ -210,12 +233,25 @@ class SystemdSupervisor:
             check=False,
         )
 
+    def preflight(self) -> None:
+        for executable in ("systemctl", "systemd-run"):
+            if shutil.which(executable) is None:
+                raise SupervisorUnavailable(
+                    "{} not found in PATH; no registration was written".format(executable)
+                )
+        try:
+            result = self._run(["systemctl", "--user", "show-environment"], timeout=5)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise SupervisorUnavailable("systemd user manager unavailable; no registration was written: {}".format(exc))
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "systemctl --user preflight failed").strip()
+            raise SupervisorUnavailable("systemd user manager unavailable; no registration was written: {}".format(detail))
+
     def submit(self, unit: str, cwd: str, worker_argv: List[str]) -> None:
         argv = [
             "systemd-run",
             "--user",
             "--no-block",
-            "--collect",
             "--unit={}".format(unit),
             "--working-directory={}".format(cwd),
             "--property=KillMode=mixed",
@@ -232,7 +268,7 @@ class SystemdSupervisor:
             raise SubmissionFailed("systemd-run could not confirm enqueue: {}".format(detail))
 
     def inspect(self, unit: str) -> Optional[Dict[str, str]]:
-        properties = ("LoadState", "ActiveState", "SubState", "Result", "ExecMainCode", "ExecMainStatus")
+        properties = ("LoadState", "ActiveState", "SubState", "ExecMainCode", "ExecMainStatus")
         argv = ["systemctl", "--user", "show", "--no-pager"]
         argv.extend("--property={}".format(name) for name in properties)
         argv.append(unit)
@@ -241,6 +277,15 @@ class SystemdSupervisor:
         except (OSError, subprocess.TimeoutExpired):
             return None
         if result.returncode != 0:
+            detail = "{}\n{}".format(result.stderr, result.stdout).lower()
+            if any(marker in detail for marker in ("could not be found", "not found", "not loaded", "not-found", "no such unit")):
+                return {
+                    "load_state": "not-found",
+                    "active_state": "inactive",
+                    "sub_state": "dead",
+                    "exec_main_code": "",
+                    "exec_main_status": "",
+                }
             return None
         values = {}
         for line in result.stdout.splitlines():
@@ -251,7 +296,6 @@ class SystemdSupervisor:
             "load_state": values.get("LoadState", ""),
             "active_state": values.get("ActiveState", ""),
             "sub_state": values.get("SubState", ""),
-            "result": values.get("Result", ""),
             "exec_main_code": values.get("ExecMainCode", ""),
             "exec_main_status": values.get("ExecMainStatus", ""),
         }
@@ -269,14 +313,8 @@ class RunManager:
 
     def __init__(self, state_dir: Optional[Path] = None, systemctl: Optional[object] = None) -> None:
         if state_dir is None:
-            xdg_state_home = os.environ.get("XDG_STATE_HOME")
-            if xdg_state_home:
-                base = Path(xdg_state_home).expanduser()
-                if not base.is_absolute():
-                    raise DurableRunError("XDG_STATE_HOME must be an absolute path")
-            else:
-                base = Path.home() / ".local" / "state"
-            state_dir = base / "xp-stack" / "durable-host-runs"
+            user_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+            state_dir = user_home / ".local" / "state" / "xp-stack" / "durable-host-runs"
         self.state_dir = Path(state_dir).expanduser().absolute()
         self.jobs_dir = self.state_dir / "jobs"
         self.systemctl = systemctl or SystemdSupervisor()
@@ -289,6 +327,7 @@ class RunManager:
             "events": job_dir / "events.jsonl",
             "log": job_dir / "command.log",
             "receipt": job_dir / "receipt.json",
+            "cancel_intent": job_dir / "cancel.intent",
         }
 
     def _ensure_layout(self) -> None:
@@ -327,8 +366,6 @@ class RunManager:
             return None
         record = _read_private_json(paths["request"], 0o400)
         payload = _validate_request(record, expected_key=key)
-        if record.get("payload_sha256") != _payload_digest(payload):
-            raise CorruptRecord("registration payload digest does not match")
         return record, paths
 
     def _load_receipt(self, paths: dict) -> Optional[dict]:
@@ -363,13 +400,21 @@ class RunManager:
         created = False
 
         with self._registry_lock():
-            _ensure_private_directory(paths["job_dir"])
+            if os.path.lexists(str(paths["job_dir"])):
+                _ensure_private_directory(paths["job_dir"])
             if os.path.lexists(str(paths["request"])):
                 record = _read_private_json(paths["request"], 0o400)
                 existing_payload = _validate_request(record, expected_key=key)
                 if _payload_digest(existing_payload) != digest:
                     raise PayloadConflict("key already belongs to a different candidate, cwd, or argv")
             else:
+                try:
+                    self.systemctl.preflight()
+                except Exception as exc:
+                    if isinstance(exc, SupervisorUnavailable):
+                        raise
+                    raise SupervisorUnavailable("systemd user manager preflight failed; no registration was written: {}".format(exc))
+                _ensure_private_directory(paths["job_dir"])
                 record = dict(payload)
                 record.update({
                     "schema": 1,
@@ -383,7 +428,7 @@ class RunManager:
                     if _payload_digest(existing_payload) != digest:
                         raise PayloadConflict("key already belongs to a different candidate, cwd, or argv")
                 else:
-                    _append_event(paths["job_dir"], "submitted", unit=unit, candidate=candidate)
+                    _append_event(paths["job_dir"], "registered", unit=unit, candidate=candidate)
                     worker_argv = [
                         os.path.abspath(sys.executable),
                         str(Path(__file__).resolve()),
@@ -393,6 +438,7 @@ class RunManager:
                     ]
                     try:
                         self.systemctl.submit(unit, str(canonical_cwd), worker_argv)
+                        _append_event(paths["job_dir"], "enqueue_confirmed", unit=unit)
                     except Exception as exc:
                         _append_event(paths["job_dir"], "submission_failed", error=str(exc))
                         raise SubmissionFailed(
@@ -408,26 +454,43 @@ class RunManager:
 
     @staticmethod
     def _is_terminal(snapshot: Optional[dict]) -> bool:
-        return bool(snapshot) and snapshot.get("load_state") != "not-found" and snapshot.get("active_state") in ("inactive", "failed")
+        if not snapshot or snapshot.get("load_state") == "not-found":
+            return False
+        if snapshot.get("active_state") == "failed":
+            return True
+        return snapshot.get("active_state") == "inactive" and RunManager._has_useful_exit(snapshot)
 
     @staticmethod
-    def _receipt_from_supervisor(snapshot: dict, cancel_requested: bool = False) -> dict:
+    def _has_useful_exit(snapshot: Optional[dict]) -> bool:
+        if not snapshot or snapshot.get("exec_main_code") not in ("1", "2", "3", "exited", "killed", "dumped"):
+            return False
+        try:
+            int(snapshot.get("exec_main_status", ""))
+            return True
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _receipt_from_supervisor(snapshot: dict, cancel_requested: bool = False) -> Optional[dict]:
         main_code = snapshot.get("exec_main_code", "")
         raw_status = snapshot.get("exec_main_status", "")
-        exit_code = None
-        termination = "unknown"
         try:
             status_value = int(raw_status)
         except (TypeError, ValueError):
-            status_value = None
-        if status_value is not None and main_code in ("1", "exited"):
+            return None
+        if main_code in ("1", "exited"):
             exit_code = status_value
-            termination = "cancelled" if cancel_requested and status_value == 143 else "supervisor"
-        elif status_value is not None and main_code in ("2", "3", "killed", "dumped"):
+            if cancel_requested and status_value == 143:
+                termination = "cancelled"
+            elif status_value >= 128:
+                termination = "signal"
+            else:
+                termination = "supervisor"
+        elif main_code in ("2", "3", "killed", "dumped"):
             exit_code = 128 + status_value
             termination = "cancelled" if cancel_requested else "signal"
-        elif cancel_requested:
-            termination = "cancelled"
+        else:
+            return None
         return {
             "schema": 1,
             "exit_code": exit_code,
@@ -448,36 +511,53 @@ class RunManager:
     def status(self, key: str) -> dict:
         loaded = self._load_request(key)
         if loaded is None:
-            return {"key": key, "state": "not_found", "exit_code": None}
+            return {"key": key, "state": "not_found", "exit_code": None, "supervisor_terminal": False}
         record, paths = loaded
         receipt = self._load_receipt(paths)
-        snapshot = None
-        if receipt is None:
-            try:
-                snapshot = self.systemctl.inspect(record["unit"])
-            except Exception:
-                snapshot = None
-            if self._is_terminal(snapshot):
-                final_receipt = self._receipt_from_supervisor(snapshot)
-                _write_json_once(paths["receipt"], final_receipt, mode=0o400)
+        try:
+            snapshot = self.systemctl.inspect(record["unit"])
+        except Exception:
+            snapshot = None
+
+        if receipt is None and self._is_terminal(snapshot) and self._has_useful_exit(snapshot):
+            final_receipt = self._receipt_from_supervisor(
+                snapshot,
+                cancel_requested=_has_cancel_intent(paths["job_dir"], record),
+            )
+            if final_receipt is not None:
+                wrote_receipt = _write_json_once(paths["receipt"], final_receipt, mode=0o400)
+                if wrote_receipt:
+                    _append_event(
+                        paths["job_dir"],
+                        "supervisor_receipt",
+                        exit_code=final_receipt["exit_code"],
+                        termination=final_receipt["termination"],
+                    )
                 try:
                     receipt = self._load_receipt(paths)
                 except CorruptRecord:
                     receipt = None
 
-        if receipt is not None:
+        unit_unloaded = bool(snapshot) and snapshot.get("load_state") == "not-found"
+        was_enqueued_or_started = _event_exists(paths["events"], "enqueue_confirmed") or _event_exists(paths["events"], "started")
+        supervisor_terminal = self._is_terminal(snapshot) or (unit_unloaded and was_enqueued_or_started)
+
+        if receipt is not None and supervisor_terminal:
             state = self._state_for_receipt(receipt)
-            exit_code = receipt["exit_code"]
-        elif not snapshot or snapshot.get("load_state") == "not-found":
-            state, exit_code = "unknown", None
-        elif snapshot.get("active_state") == "active":
-            state, exit_code = "running", None
-        elif snapshot.get("active_state") == "activating":
-            state, exit_code = "starting", None
-        elif snapshot.get("active_state") == "deactivating":
-            state, exit_code = "stopping", None
+        elif receipt is not None and snapshot and snapshot.get("active_state") in ("active", "activating", "deactivating"):
+            state = "stopping"
+        elif snapshot and snapshot.get("active_state") == "active":
+            state = "running"
+        elif snapshot and snapshot.get("active_state") == "activating":
+            state = "starting"
+        elif snapshot and snapshot.get("active_state") == "deactivating":
+            state = "stopping"
         else:
-            state, exit_code = "unknown", None
+            state = "unknown"
+
+        exit_code = receipt.get("exit_code") if receipt is not None else None
+        if state == "unknown" and supervisor_terminal and receipt is None:
+            exit_code = None
 
         return {
             "key": key,
@@ -486,6 +566,12 @@ class RunManager:
             "unit": record["unit"],
             "state": state,
             "exit_code": exit_code,
+            "supervisor_terminal": supervisor_terminal,
+            "supervisor_state": (
+                "{}/{}".format(snapshot.get("load_state", ""), snapshot.get("active_state", ""))
+                if snapshot
+                else "unavailable"
+            ),
             "request_path": str(paths["request"]),
             "events_path": str(paths["events"]),
             "log_path": str(paths["log"]),
@@ -495,15 +581,30 @@ class RunManager:
     def cancel(self, key: str) -> dict:
         loaded = self._load_request(key)
         if loaded is None:
-            return {"key": key, "state": "not_found", "confirmed": False, "exit_code": None}
+            return {"key": key, "state": "not_found", "confirmed": False, "exit_code": None, "supervisor_terminal": False}
         record, paths = loaded
-        current_receipt = self._load_receipt(paths)
-        if current_receipt is not None:
-            result = self.status(key)
-            result.update({"confirmed": True, "already_finished": True})
-            return result
+        before_stop = self.status(key)
+        if before_stop.get("supervisor_terminal"):
+            before_stop.update({
+                "confirmed": True,
+                "already_finished": before_stop["state"] != "cancelled",
+                "cancelled": before_stop["state"] == "cancelled",
+            })
+            return before_stop
 
-        _append_event(paths["job_dir"], "cancel_requested", unit=record["unit"])
+        current_receipt = self._load_receipt(paths)
+        details = {"unit": record["unit"]}
+        if current_receipt is not None:
+            details["reason"] = "tree-still-active"
+        _append_event(paths["job_dir"], "cancel_requested", **details)
+        intent_written = _write_json_once(
+            paths["cancel_intent"],
+            {"schema": 1, "key": key, "unit": record["unit"], "requested_at": _now()},
+            mode=0o400,
+        )
+        if not intent_written and not _has_cancel_intent(paths["job_dir"], record):
+            raise CorruptRecord("existing cancel intent does not match this registered job")
+
         stop_confirmed = False
         try:
             stop_confirmed = self.systemctl.stop(record["unit"]) is True
@@ -514,45 +615,48 @@ class RunManager:
         except Exception:
             snapshot = None
 
-        terminal = self._is_terminal(snapshot)
-        collected_after_confirmed_stop = stop_confirmed and (
-            snapshot is None or snapshot.get("load_state") == "not-found"
+        result = self.status(key)
+        stop_confirmed_tree = stop_confirmed and (
+            snapshot is None
+            or snapshot.get("load_state") == "not-found"
+            or snapshot.get("active_state") in ("inactive", "failed")
         )
-        if terminal or collected_after_confirmed_stop:
-            final_receipt = self._receipt_from_supervisor(snapshot or {}, cancel_requested=True)
-            _write_json_once(paths["receipt"], final_receipt, mode=0o400)
-            _append_event(paths["job_dir"], "cancel_confirmed", exit_code=final_receipt["exit_code"])
-            result = self.status(key)
+        if result.get("supervisor_terminal") or stop_confirmed_tree:
+            result["supervisor_terminal"] = True
+            actual_receipt = self._load_receipt(paths)
+            exit_code = actual_receipt["exit_code"] if actual_receipt is not None else None
+            _append_event(paths["job_dir"], "cancel_confirmed", exit_code=exit_code)
             result["confirmed"] = True
+            result["cancelled"] = bool(actual_receipt and actual_receipt.get("termination") == "cancelled")
+            result["already_finished"] = result["state"] in ("completed", "failed")
             return result
 
-        if snapshot and snapshot.get("active_state") == "deactivating":
-            state = "stopping"
-        elif snapshot and snapshot.get("active_state") in ("active", "activating"):
-            state = "running" if snapshot.get("active_state") == "active" else "starting"
-        else:
-            state = "unknown"
-        _append_event(paths["job_dir"], "cancel_unconfirmed", state=state)
-        result = self.status(key)
-        result.update({"confirmed": False, "state": state})
+        _append_event(paths["job_dir"], "cancel_unconfirmed", state=result["state"])
+        result["confirmed"] = False
         return result
 
     def follow(self, key: str, poll_interval: float = 0.25) -> Iterator[dict]:
         loaded = self._load_request(key)
         if loaded is None:
             raise DurableRunError("no registered job for key {!r}".format(key))
-        _, paths = loaded
+        record, paths = loaded
         offset = 0
         remainder = b""
-        while True:
+
+        def read_available() -> List[dict]:
+            nonlocal offset, remainder
             try:
-                with paths["events"].open("rb") as stream:
+                flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                fd = os.open(str(paths["events"]), flags)
+                _check_private_fd(fd, paths["events"], 0o600)
+                with os.fdopen(fd, "rb") as stream:
                     stream.seek(offset)
                     chunk = stream.read()
-                    offset += len(chunk)
             except FileNotFoundError:
                 chunk = b""
+            offset += len(chunk)
             remainder += chunk
+            result = []
             while b"\n" in remainder:
                 line, remainder = remainder.split(b"\n", 1)
                 if line:
@@ -561,11 +665,29 @@ class RunManager:
                     except (UnicodeDecodeError, ValueError) as exc:
                         raise CorruptRecord("invalid event record: {}".format(exc))
                     if isinstance(event, dict):
-                        yield event
-            state = self.status(key)["state"]
-            if state in ("completed", "failed", "cancelled"):
+                        result.append(event)
+            return result
+
+        while True:
+            for event in read_available():
+                yield event
+            status = self.status(key)
+            if status["state"] in ("completed", "failed", "cancelled", "unknown"):
+                # Worker final events are flushed before its receipt; drain once more
+                # after observing the terminal or inconclusive supervisor state.
+                for event in read_available():
+                    yield event
+                yield {
+                    "event": "follow_finished",
+                    "key": key,
+                    "unit": record["unit"],
+                    "state": status["state"],
+                    "exit_code": status.get("exit_code"),
+                    "supervisor_terminal": status.get("supervisor_terminal", False),
+                    "supervisor_state": status.get("supervisor_state", "unavailable"),
+                }
                 return
-            time.sleep(max(0.0, poll_interval))
+            time.sleep(max(0.05, poll_interval))
 
 
 def _open_private_append(path: Path):
@@ -573,6 +695,17 @@ def _open_private_append(path: Path):
     fd = os.open(str(path), flags, 0o600)
     _check_private_fd(fd, path, 0o600)
     return os.fdopen(fd, "ab", buffering=0)
+
+
+def _has_cancel_intent(job_dir: Path, record: dict) -> bool:
+    path = job_dir / "cancel.intent"
+    if not os.path.lexists(str(path)):
+        return False
+    try:
+        intent = _read_private_json(path, 0o400)
+    except CorruptRecord:
+        return False
+    return intent.get("schema") == 1 and intent.get("key") == record["key"] and intent.get("unit") == record["unit"]
 
 
 def run_worker(request_path: str) -> int:
@@ -607,7 +740,7 @@ def run_worker(request_path: str) -> int:
         with _open_private_append(log_path) as log:
             if cancel_signal[0] is not None:
                 code = 128 + int(cancel_signal[0])
-                termination = "cancelled"
+                termination = "cancelled" if _has_cancel_intent(job_dir, record) else "signal"
             else:
                 try:
                     child = subprocess.Popen(
@@ -623,6 +756,11 @@ def run_worker(request_path: str) -> int:
                     code, termination = 127, "spawn_error"
                 else:
                     process[0] = child
+                    if cancel_signal[0] is not None and child.poll() is None:
+                        try:
+                            os.killpg(child.pid, int(cancel_signal[0]))
+                        except ProcessLookupError:
+                            pass
                     killed_after_grace = False
                     while child.poll() is None:
                         if (
@@ -641,28 +779,65 @@ def run_worker(request_path: str) -> int:
                             continue
                     raw_code = child.returncode
                     if cancel_signal[0] is not None:
-                        code, termination = 128 + int(cancel_signal[0]), "cancelled"
+                        code = 128 + int(cancel_signal[0])
+                        termination = "cancelled" if _has_cancel_intent(job_dir, record) else "signal"
                     elif raw_code < 0:
                         code, termination = 128 + abs(raw_code), "signal"
                     else:
                         code, termination = raw_code, "command"
 
+        if cancel_signal[0] is not None:
+            _append_event(
+                job_dir,
+                "signal_received",
+                signal=int(cancel_signal[0]),
+                cancel_requested=termination == "cancelled",
+            )
         _append_event(job_dir, "command_exited", exit_code=code, termination=termination)
         _append_event(job_dir, "finished", exit_code=code, termination=termination)
-        _write_json_once(
-            job_dir / "receipt.json",
-            {
-                "schema": 1,
-                "exit_code": code,
-                "termination": termination,
-                "source": "worker",
-                "finished_at": _now(),
-            },
-            mode=0o400,
-        )
+        receipt = {
+            "schema": 1,
+            "exit_code": code,
+            "termination": termination,
+            "source": "worker",
+            "finished_at": _now(),
+        }
+        if not _write_json_once(job_dir / "receipt.json", receipt, mode=0o400):
+            try:
+                stored = _read_private_json(job_dir / "receipt.json", 0o400)
+                if stored.get("exit_code") != code or stored.get("termination") != termination:
+                    _append_event(
+                        job_dir,
+                        "receipt_write_refused",
+                        worker_exit_code=code,
+                        stored_exit_code=stored.get("exit_code"),
+                        stored_source=stored.get("source"),
+                    )
+            except CorruptRecord as exc:
+                _append_event(job_dir, "receipt_write_refused", worker_exit_code=code, stored_error=str(exc))
         return code
     finally:
         signal.signal(signal.SIGTERM, previous_term)
+
+
+def _record_worker_failure(request_path: str, error: Exception) -> None:
+    request_file = Path(request_path)
+    _ensure_private_directory(request_file.parent)
+    record = _read_private_json(request_file, 0o400)
+    _validate_request(record)
+    job_dir = request_file.parent
+    _append_event(job_dir, "worker_failed", error=str(error), exit_code=70)
+    _write_json_once(
+        job_dir / "receipt.json",
+        {
+            "schema": 1,
+            "exit_code": 70,
+            "termination": "worker_error",
+            "source": "worker",
+            "finished_at": _now(),
+        },
+        mode=0o400,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -700,6 +875,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         try:
             return run_worker(args.request)
         except Exception as exc:
+            try:
+                _record_worker_failure(args.request, exc)
+            except Exception as record_error:
+                print("durable-run could not persist worker failure: {}".format(record_error), file=sys.stderr, flush=True)
             print("durable-run worker failed: {}".format(exc), file=sys.stderr, flush=True)
             return 70
 
@@ -717,9 +896,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             _print_json(result)
             return 4 if result["state"] == "not_found" else 0
         if args.action == "follow":
+            unknown = False
             for event in manager.follow(args.key, poll_interval=args.poll_seconds):
                 _print_json(event)
-            return 0
+                if event.get("event") == "follow_finished" and event.get("state") == "unknown":
+                    unknown = True
+            return 6 if unknown else 0
         if args.action == "cancel":
             result = manager.cancel(args.key)
             _print_json(result)
@@ -731,6 +913,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 2
     except SubmissionFailed as exc:
         _print_json({"error": str(exc), "state": "unknown", "key": getattr(args, "key", None)}, sys.stderr)
+        return 3
+    except SupervisorUnavailable as exc:
+        _print_json({"error": str(exc), "state": "not_registered", "key": getattr(args, "key", None)}, sys.stderr)
         return 3
     except DurableRunError as exc:
         _print_json({"error": str(exc), "key": getattr(args, "key", None)}, sys.stderr)

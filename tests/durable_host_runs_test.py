@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 from pathlib import Path
+import pwd
 import signal
+import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple
@@ -32,25 +37,50 @@ class FakeSystemctl:
         self.expose_started_units = expose_started_units
         self.confirm_stop = confirm_stop
         self.collect_after_stop = collect_after_stop
+        self.preflight_error: Optional[Exception] = None
+        self.preflight_calls = 0
+        self.cancel_intent_at_stop: Optional[Path] = None
+        self.intent_was_present_at_stop = False
         self.submissions: List[Tuple[str, str, List[str]]] = []
         self.stopped: List[str] = []
         self.units: Dict[str, Dict[str, str]] = {}
+        self.known_units = set()
+        self.inspect_calls = 0
         self._lock = threading.Lock()
+
+    def preflight(self) -> None:
+        self.preflight_calls += 1
+        if self.preflight_error is not None:
+            raise self.preflight_error
 
     def submit(self, unit: str, cwd: str, worker_argv: List[str]) -> None:
         with self._lock:
             self.submissions.append((unit, cwd, list(worker_argv)))
             if self.expose_started_units:
+                self.known_units.add(unit)
                 self.units[unit] = self._active()
 
     def inspect(self, unit: str) -> Optional[Dict[str, str]]:
         with self._lock:
+            self.inspect_calls += 1
             status = self.units.get(unit)
-            return None if status is None else dict(status)
+            if status is not None:
+                return dict(status)
+            if unit in self.known_units:
+                return {
+                    "load_state": "not-found",
+                    "active_state": "inactive",
+                    "sub_state": "dead",
+                    "exec_main_code": "",
+                    "exec_main_status": "",
+                }
+            return None
 
     def stop(self, unit: str) -> bool:
         with self._lock:
             self.stopped.append(unit)
+            if self.cancel_intent_at_stop is not None:
+                self.intent_was_present_at_stop = self.cancel_intent_at_stop.exists()
             if not self.confirm_stop:
                 return False
             if self.collect_after_stop:
@@ -60,11 +90,19 @@ class FakeSystemctl:
                     "load_state": "loaded",
                     "active_state": "inactive",
                     "sub_state": "dead",
-                    "result": "success",
                     "exec_main_code": "2",
                     "exec_main_status": "15",
                 }
             return True
+
+    def finish(self, unit: str, exit_code: int, *, main_code: str = "1") -> None:
+        self.units[unit] = {
+            "load_state": "loaded",
+            "active_state": "inactive" if exit_code == 0 else "failed",
+            "sub_state": "dead",
+            "exec_main_code": main_code,
+            "exec_main_status": str(exit_code),
+        }
 
     @staticmethod
     def _active() -> Dict[str, str]:
@@ -72,7 +110,6 @@ class FakeSystemctl:
             "load_state": "loaded",
             "active_state": "active",
             "sub_state": "running",
-            "result": "",
             "exec_main_code": "",
             "exec_main_status": "",
         }
@@ -111,7 +148,17 @@ class DurableHostRunsTest(unittest.TestCase):
             results = [first.result(timeout=5), second.result(timeout=5)]
 
         self.assertEqual(len(self.fake.submissions), 1)
+        self.assertEqual(self.fake.preflight_calls, 1)
         self.assertEqual(sum(result["created"] for result in results), 1)
+
+    def test_default_registry_path_is_stable_across_shell_home_overrides(self) -> None:
+        alternate_home = Path(self.temp_dir.name) / "alternate-home"
+        alternate_state = Path(self.temp_dir.name) / "alternate-state"
+        with patch.dict(os.environ, {"HOME": str(alternate_home), "XDG_STATE_HOME": str(alternate_state)}):
+            manager = durable_run.RunManager(systemctl=self.fake)
+
+        actual_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+        self.assertEqual(manager.state_dir, actual_home / ".local/state/xp-stack/durable-host-runs")
 
     def test_same_key_with_different_candidate_is_rejected(self) -> None:
         first = self.submit()
@@ -150,6 +197,7 @@ class DurableHostRunsTest(unittest.TestCase):
         request_before = Path(result["request_path"]).read_bytes()
 
         worker_exit = durable_run.run_worker(result["request_path"])
+        self.fake.finish(result["unit"], 23)
         receipt = json.loads(Path(result["receipt_path"]).read_text(encoding="utf-8"))
         status = self.manager.status("candidate:test:pytest")
 
@@ -159,6 +207,63 @@ class DurableHostRunsTest(unittest.TestCase):
         self.assertEqual(status["state"], "failed")
         self.assertIn(b"captured", Path(result["log_path"]).read_bytes())
         self.assertEqual(Path(result["request_path"]).read_bytes(), request_before)
+
+    def test_worker_records_when_its_final_receipt_loses_an_existing_receipt_race(self) -> None:
+        submitted = self.submit(argv=[sys.executable, "-c", "raise SystemExit(0)"])
+        durable_run._write_json_once(
+            Path(submitted["receipt_path"]),
+            {
+                "schema": 1,
+                "exit_code": 23,
+                "termination": "supervisor",
+                "source": "systemd",
+                "finished_at": "test",
+            },
+        )
+
+        self.assertEqual(durable_run.run_worker(submitted["request_path"]), 0)
+        events = [json.loads(line) for line in Path(submitted["events_path"]).read_text().splitlines()]
+        conflicts = [event for event in events if event["event"] == "receipt_write_refused"]
+
+        self.assertEqual(json.loads(Path(submitted["receipt_path"]).read_text())["exit_code"], 23)
+        self.assertEqual(conflicts[-1]["worker_exit_code"], 0)
+        self.assertEqual(conflicts[-1]["stored_exit_code"], 23)
+
+    def test_receipt_does_not_confirm_tree_end_until_supervisor_is_terminal(self) -> None:
+        submitted = self.submit(argv=[sys.executable, "-c", "raise SystemExit(0)"])
+        self.assertEqual(durable_run.run_worker(submitted["request_path"]), 0)
+
+        while_main_exiting = self.manager.status("candidate:test:pytest")
+
+        self.assertEqual(while_main_exiting["state"], "stopping")
+        self.assertFalse(while_main_exiting["supervisor_terminal"])
+        self.fake.finish(submitted["unit"], 0)
+        after_supervisor = self.manager.status("candidate:test:pytest")
+        self.assertEqual(after_supervisor["state"], "completed")
+        self.assertTrue(after_supervisor["supervisor_terminal"])
+
+    def test_loaded_inactive_start_pending_state_does_not_seal_null_receipt(self) -> None:
+        submitted = self.submit(argv=[sys.executable, "-c", "raise SystemExit(0)"])
+        self.fake.units[submitted["unit"]] = {
+            "load_state": "loaded",
+            "active_state": "inactive",
+            "sub_state": "dead",
+            "exec_main_code": "0",
+            "exec_main_status": "0",
+        }
+
+        early = self.manager.status("candidate:test:pytest")
+
+        self.assertEqual(early["state"], "unknown")
+        self.assertFalse(early["supervisor_terminal"])
+        self.assertFalse(Path(submitted["receipt_path"]).exists())
+        self.assertEqual(durable_run.run_worker(submitted["request_path"]), 0)
+        self.fake.finish(submitted["unit"], 0)
+        late = self.manager.status("candidate:test:pytest")
+        receipt = json.loads(Path(submitted["receipt_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(late["state"], "completed")
+        self.assertEqual(late["exit_code"], 0)
+        self.assertEqual(receipt["source"], "worker")
 
     def test_cancel_signal_racing_after_command_exit_preserves_real_exit_code(self) -> None:
         submitted = self.submit()
@@ -187,6 +292,71 @@ class DurableHostRunsTest(unittest.TestCase):
         self.assertEqual(receipt["exit_code"], 0)
         self.assertEqual(receipt["termination"], "command")
 
+    def test_sigterm_without_durable_cancel_intent_is_a_signal_failure(self) -> None:
+        submitted = self.submit(argv=[sys.executable, "-c", "import time; time.sleep(10)"])
+        timer = threading.Timer(0.1, lambda: os.kill(os.getpid(), signal.SIGTERM))
+        timer.start()
+        try:
+            worker_exit = durable_run.run_worker(submitted["request_path"])
+        finally:
+            timer.cancel()
+        receipt = json.loads(Path(submitted["receipt_path"]).read_text(encoding="utf-8"))
+
+        self.assertEqual(worker_exit, 143)
+        self.assertEqual(receipt["termination"], "signal")
+        self.assertEqual(receipt["exit_code"], 143)
+        self.assertFalse((Path(submitted["request_path"]).parent / "cancel.intent").exists())
+
+    def test_sigterm_during_spawn_is_forwarded_to_child_process_group(self) -> None:
+        marker = Path(self.temp_dir.name) / "child-handled-sigterm"
+        ready = Path(self.temp_dir.name) / "child-ready"
+        child_code = (
+            "import pathlib,signal,sys,time\n"
+            "def handle(signum, frame):\n"
+            "    pathlib.Path({!r}).write_text('graceful')\n"
+            "    sys.exit(0)\n"
+            "signal.signal(signal.SIGTERM, handle)\n"
+            "pathlib.Path({!r}).write_text('ready')\n"
+            "time.sleep(30)\n"
+        ).format(str(marker), str(ready))
+        submitted = self.submit(argv=[sys.executable, "-c", child_code])
+        intent = Path(submitted["request_path"]).parent / "cancel.intent"
+        durable_run._write_json_once(
+            intent,
+            {"schema": 1, "key": submitted["key"], "unit": submitted["unit"], "requested_at": "test"},
+            mode=0o400,
+        )
+        real_popen = durable_run.subprocess.Popen
+
+        def popen_then_signal(*args, **kwargs):
+            child = real_popen(*args, **kwargs)
+            deadline = time.monotonic() + 2
+            while not ready.exists() and time.monotonic() < deadline:
+                time.sleep(0.005)
+            if not ready.exists():
+                raise AssertionError("child did not install SIGTERM handler before test signal")
+            signal.raise_signal(signal.SIGTERM)
+            return child
+
+        with patch.object(durable_run.subprocess, "Popen", side_effect=popen_then_signal):
+            worker_exit = durable_run.run_worker(submitted["request_path"])
+        receipt = json.loads(Path(submitted["receipt_path"]).read_text(encoding="utf-8"))
+
+        self.assertTrue(marker.exists())
+        self.assertEqual(worker_exit, 143)
+        self.assertEqual(receipt["termination"], "cancelled")
+
+    def test_cancel_persists_intent_before_calling_supervisor(self) -> None:
+        submitted = self.submit(key="cancel:intent")
+        intent = Path(submitted["request_path"]).parent / "cancel.intent"
+        self.fake.cancel_intent_at_stop = intent
+
+        result = self.manager.cancel("cancel:intent")
+
+        self.assertTrue(self.fake.intent_was_present_at_stop)
+        self.assertEqual(stat.S_IMODE(intent.stat().st_mode), 0o400)
+        self.assertTrue(result["confirmed"])
+
     def test_unknown_supervisor_state_does_not_resubmit_existing_key(self) -> None:
         self.fake.expose_started_units = False
         first = self.submit()
@@ -198,6 +368,136 @@ class DurableHostRunsTest(unittest.TestCase):
         self.assertEqual(repeated["state"], "unknown")
         self.assertEqual(status["state"], "unknown")
         self.assertEqual(len(self.fake.submissions), 1)
+        self.assertEqual(self.fake.preflight_calls, 1)
+
+    def test_supervisor_preflight_failure_does_not_register_or_burn_key(self) -> None:
+        key = "candidate:preflight:test"
+        self.fake.preflight_error = durable_run.SupervisorUnavailable("user bus unavailable")
+
+        with self.assertRaises(durable_run.SupervisorUnavailable):
+            self.submit(key=key)
+        self.assertEqual(self.manager.status(key)["state"], "not_found")
+        self.assertEqual(len(self.fake.submissions), 0)
+
+        self.fake.preflight_error = None
+        retry = self.submit(key=key)
+        self.assertTrue(retry["created"])
+        self.assertEqual(self.fake.preflight_calls, 2)
+        self.assertEqual(len(self.fake.submissions), 1)
+
+    def test_systemd_submission_keeps_terminal_evidence_loaded(self) -> None:
+        supervisor = durable_run.SystemdSupervisor(script_path=Path("/opt/durable_run.py"))
+        with patch.object(
+            supervisor,
+            "_run",
+            return_value=subprocess.CompletedProcess(["systemd-run"], 0, "", ""),
+        ) as run:
+            supervisor.submit("xp-stack-run-deadbeef.service", str(self.cwd), [sys.executable, "worker"])
+
+        command = run.call_args.args[0]
+        self.assertIn("--user", command)
+        self.assertIn("--no-block", command)
+        self.assertNotIn("--collect", command)
+        self.assertIn("--property=KillMode=mixed", command)
+
+    def test_systemd_preflight_checks_user_manager_without_registering_a_unit(self) -> None:
+        supervisor = durable_run.SystemdSupervisor()
+        with patch.object(shutil, "which", return_value="/usr/bin/systemctl"), patch.object(
+            supervisor,
+            "_run",
+            return_value=subprocess.CompletedProcess(["systemctl"], 0, "PATH=/usr/bin\n", ""),
+        ) as run:
+            supervisor.preflight()
+
+        self.assertEqual(run.call_args.args[0], ["systemctl", "--user", "show-environment"])
+
+    def test_systemd_preflight_rejects_missing_systemd_run_before_registering(self) -> None:
+        supervisor = durable_run.SystemdSupervisor()
+        with patch.object(
+            shutil,
+            "which",
+            side_effect=lambda executable: "/usr/bin/systemctl" if executable == "systemctl" else None,
+        ), patch.object(
+            supervisor,
+            "_run",
+            return_value=subprocess.CompletedProcess(["systemctl"], 0, "", ""),
+        ) as run:
+            with self.assertRaises(durable_run.SupervisorUnavailable):
+                supervisor.preflight()
+
+        run.assert_not_called()
+
+    def test_systemd_inspect_parses_terminal_code_and_not_found_load_state(self) -> None:
+        supervisor = durable_run.SystemdSupervisor()
+        output = "LoadState=not-found\nActiveState=inactive\nSubState=dead\nExecMainCode=0\nExecMainStatus=0\n"
+        with patch.object(
+            supervisor,
+            "_run",
+            return_value=subprocess.CompletedProcess(["systemctl"], 0, output, ""),
+        ):
+            snapshot = supervisor.inspect("xp-stack-run-deadbeef.service")
+
+        self.assertEqual(snapshot["load_state"], "not-found")
+        self.assertEqual(snapshot["active_state"], "inactive")
+        self.assertEqual(snapshot["exec_main_code"], "0")
+        self.assertNotIn("result", snapshot)
+
+        with patch.object(
+            supervisor,
+            "_run",
+            return_value=subprocess.CompletedProcess(
+                ["systemctl"], 1, "", "Unit xp-stack-run-deadbeef.service could not be found."
+            ),
+        ):
+            missing = supervisor.inspect("xp-stack-run-deadbeef.service")
+        self.assertEqual(missing["load_state"], "not-found")
+
+    def test_systemd_sigterm_exit_is_signal_without_cancel_intent(self) -> None:
+        snapshot = {"exec_main_code": "1", "exec_main_status": "143"}
+
+        external_signal = durable_run.RunManager._receipt_from_supervisor(snapshot, cancel_requested=False)
+        requested_cancel = durable_run.RunManager._receipt_from_supervisor(snapshot, cancel_requested=True)
+
+        self.assertEqual(external_signal["termination"], "signal")
+        self.assertEqual(external_signal["exit_code"], 143)
+        self.assertEqual(requested_cancel["termination"], "cancelled")
+
+    def test_worker_exception_persists_event_and_failure_receipt(self) -> None:
+        submitted = self.submit(key="worker:failure")
+        append_event = durable_run._append_event
+
+        def fail_on_start(job_dir: Path, event: str, **details: object) -> None:
+            if event == "started":
+                raise RuntimeError("worker setup failed")
+            append_event(job_dir, event, **details)
+
+        with patch.object(durable_run, "_append_event", side_effect=fail_on_start):
+            worker_exit = durable_run.main(["worker", "--request", submitted["request_path"]])
+
+        events = [json.loads(line) for line in Path(submitted["events_path"]).read_text().splitlines()]
+        receipt = json.loads(Path(submitted["receipt_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(worker_exit, 70)
+        self.assertIn("worker_failed", [event["event"] for event in events])
+        self.assertEqual(receipt["exit_code"], 70)
+        self.assertEqual(receipt["termination"], "worker_error")
+        self.fake.finish(submitted["unit"], 70)
+        self.assertEqual(self.manager.status("worker:failure")["state"], "failed")
+
+    def test_supervisor_failure_persists_receipt_and_terminal_event_after_worker_loss(self) -> None:
+        submitted = self.submit(key="worker:killed")
+        self.fake.finish(submitted["unit"], 9, main_code="2")
+
+        status = self.manager.status("worker:killed")
+        events = [json.loads(line) for line in Path(submitted["events_path"]).read_text().splitlines()]
+        receipt = json.loads(Path(submitted["receipt_path"]).read_text(encoding="utf-8"))
+        terminal_events = [event for event in events if event["event"] == "supervisor_receipt"]
+
+        self.assertEqual(status["state"], "failed")
+        self.assertEqual(status["exit_code"], 137)
+        self.assertEqual(receipt["exit_code"], 137)
+        self.assertEqual(receipt["termination"], "signal")
+        self.assertEqual(terminal_events[-1]["exit_code"], 137)
+        self.assertEqual(terminal_events[-1]["termination"], "signal")
 
     def test_cancel_stops_only_the_unit_for_the_requested_key(self) -> None:
         target = self.submit(key="cancel:target")
@@ -211,6 +511,28 @@ class DurableHostRunsTest(unittest.TestCase):
         self.assertEqual(self.fake.inspect(other["unit"])["active_state"], "active")
         self.assertEqual(self.manager.status("cancel:target")["state"], "cancelled")
 
+    def test_cancel_rereads_receipt_when_natural_finish_wins_stop_race(self) -> None:
+        class StopAfterNaturalEnd(FakeSystemctl):
+            request_path = ""
+
+            def stop(self, unit: str) -> bool:
+                durable_run.run_worker(self.request_path)
+                self.units.pop(unit, None)
+                self.stopped.append(unit)
+                return False
+
+        self.fake = StopAfterNaturalEnd()
+        self.manager = durable_run.RunManager(state_dir=self.root, systemctl=self.fake)
+        submitted = self.submit(key="cancel:natural-race", argv=[sys.executable, "-c", "raise SystemExit(0)"])
+        self.fake.request_path = submitted["request_path"]
+
+        result = self.manager.cancel("cancel:natural-race")
+
+        self.assertEqual(result["state"], "completed")
+        self.assertEqual(result["exit_code"], 0)
+        self.assertTrue(result["confirmed"])
+        self.assertTrue(result["already_finished"])
+
     def test_cancel_confirms_sync_supervisor_stop_when_unit_is_collected(self) -> None:
         self.fake.collect_after_stop = True
         submitted = self.submit(key="cancel:collected")
@@ -218,11 +540,44 @@ class DurableHostRunsTest(unittest.TestCase):
         cancelled = self.manager.cancel("cancel:collected")
 
         self.assertEqual(self.fake.stopped, [submitted["unit"]])
-        self.assertEqual(self.fake.inspect(submitted["unit"]), None)
+        self.assertEqual(self.fake.inspect(submitted["unit"])["load_state"], "not-found")
         self.assertEqual(cancelled["confirmed"], True)
-        self.assertEqual(cancelled["state"], "cancelled")
+        self.assertEqual(cancelled["state"], "unknown")
         self.assertEqual(cancelled["exit_code"], None)
-        self.assertTrue(Path(cancelled["receipt_path"]).exists())
+        self.assertEqual(cancelled["supervisor_terminal"], True)
+        self.assertFalse(Path(cancelled["receipt_path"]).exists())
+
+    def test_cancel_confirmed_event_uses_receipt_that_won_race(self) -> None:
+        class StopWritesReceipt(FakeSystemctl):
+            receipt_path = ""
+
+            def stop(self, unit: str) -> bool:
+                durable_run._write_json_once(
+                    Path(self.receipt_path),
+                    {
+                        "schema": 1,
+                        "exit_code": 143,
+                        "termination": "cancelled",
+                        "source": "worker",
+                        "finished_at": "test",
+                    },
+                )
+                self.units.pop(unit, None)
+                self.stopped.append(unit)
+                return True
+
+        self.fake = StopWritesReceipt()
+        self.manager = durable_run.RunManager(state_dir=self.root, systemctl=self.fake)
+        submitted = self.submit(key="cancel:receipt-race")
+        self.fake.receipt_path = submitted["receipt_path"]
+
+        result = self.manager.cancel("cancel:receipt-race")
+        events = [json.loads(line) for line in Path(submitted["events_path"]).read_text().splitlines()]
+        confirmed = [event for event in events if event["event"] == "cancel_confirmed"]
+
+        self.assertTrue(result["confirmed"])
+        self.assertEqual(result["exit_code"], 143)
+        self.assertEqual(confirmed[-1]["exit_code"], 143)
 
     def test_cancel_is_not_reported_as_success_while_unit_remains_active(self) -> None:
         self.fake.confirm_stop = False
@@ -237,13 +592,61 @@ class DurableHostRunsTest(unittest.TestCase):
     def test_follow_reads_persisted_lifecycle_events(self) -> None:
         submitted = self.submit(argv=[sys.executable, "-c", "print('done')"])
         self.assertEqual(durable_run.run_worker(submitted["request_path"]), 0)
+        self.fake.finish(submitted["unit"], 0)
 
         events = list(self.manager.follow("candidate:test:pytest", poll_interval=0))
         names = [event["event"] for event in events]
 
-        self.assertIn("submitted", names)
+        self.assertIn("registered", names)
+        self.assertIn("enqueue_confirmed", names)
         self.assertIn("started", names)
         self.assertIn("finished", names)
+        self.assertEqual(names[-1], "follow_finished")
+
+    def test_follow_drains_worker_events_written_during_terminal_status_check(self) -> None:
+        submitted = self.submit(argv=[sys.executable, "-c", "raise SystemExit(0)"])
+        real_status = self.manager.status
+
+        def finish_during_status(key: str) -> dict:
+            durable_run.run_worker(submitted["request_path"])
+            self.fake.finish(submitted["unit"], 0)
+            return real_status(key)
+
+        self.manager.status = finish_during_status
+        events = list(self.manager.follow("candidate:test:pytest", poll_interval=0))
+        names = [event["event"] for event in events]
+
+        self.assertIn("started", names)
+        self.assertIn("command_exited", names)
+        self.assertIn("finished", names)
+        self.assertEqual(names[-1], "follow_finished")
+        self.assertEqual(events[-1]["state"], "completed")
+
+    def test_follow_reports_unknown_once_without_busy_polling(self) -> None:
+        self.fake.expose_started_units = False
+        submitted = self.submit(key="follow:unknown")
+        before = self.fake.inspect_calls
+
+        with patch.object(durable_run.time, "sleep", side_effect=AssertionError("follow polled unknown state")):
+            events = list(self.manager.follow("follow:unknown", poll_interval=0.01))
+
+        self.assertEqual(self.fake.inspect_calls - before, 1)
+        self.assertEqual(events[-1]["event"], "follow_finished")
+        self.assertEqual(events[-1]["state"], "unknown")
+        self.assertEqual(events[-1]["unit"], submitted["unit"])
+
+    def test_follow_cli_returns_nonzero_and_prints_unknown_terminal_event(self) -> None:
+        self.fake.expose_started_units = False
+        self.submit(key="follow:cli-unknown")
+        output = io.StringIO()
+
+        with patch.object(durable_run, "RunManager", return_value=self.manager), patch("sys.stdout", output):
+            exit_code = durable_run.main(["follow", "--key", "follow:cli-unknown", "--poll-seconds", "0"])
+
+        lines = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(exit_code, 6)
+        self.assertEqual(lines[-1]["event"], "follow_finished")
+        self.assertEqual(lines[-1]["state"], "unknown")
 
     def test_state_records_logs_events_and_receipt_are_private_and_persist(self) -> None:
         submitted = self.submit(argv=[sys.executable, "-c", "raise SystemExit(0)"])
