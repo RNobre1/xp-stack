@@ -153,6 +153,14 @@ claude --plugin-dir ./plugins/xp-stack
 
 **Consequencias:** README, templates, agents e metadados textuais descrevem defaults portaveis e mecanismos opt-in. Distribuicao: npm 2.2.0 e plugin 0.6.0, com ciclos de versao separados. A release publica o conteudo e os metadados; scripts, CI, CLI, testes e installer nao participam desta decisao.
 
+### ADR-011 (2026-10-01) — durable-host-runs opt-in
+
+**Decisao:** adicionar a skill manual `durable-host-runs`, usando somente Python 3 stdlib e unidades transitórias `systemd-run --user`. O registro privado e imutavel identifica candidato, cwd canonico e argv para cada chave explicita; repeticoes identicas nunca iniciam outra unidade e divergencias para a mesma chave sao recusadas. Estado inconclusivo permanece `unknown`. A skill executa os scripts de fila existentes sem alterar seus limites, nao instala daemon e nao faz limpeza automatica.
+
+**Razao:** permitir que um comando continue sob o supervisor do usuario depois que o cliente/chat termina, preservando log, eventos e recibo de exit code sem criar um segundo controle de vagas.
+
+**Validacao e limite:** unit tests injetam `FakeSystemctl` (13/13), incluindo a confirmacao do stop sincronico quando `--collect` ja descarregou a unidade; validacao bash existente 54/54 com shims temporarios para compatibilidade BSD/macOS com extensoes GNU usadas nos scripts antigos. O host de desenvolvimento nao tem systemd; instalacao, execucao Linux real e teste de kill do cliente permanecem para aceitacao do Pilot na VPS. Nenhuma instalacao ou publicacao foi feita.
+
 ## Estado atual
 
 - [x] POC bootstrap empirico (feat/poc-bootstrap)
@@ -163,6 +171,7 @@ claude --plugin-dir ./plugins/xp-stack
 - [x] v0.2.0 minor (feat/plugin-update-2026-04-26) — 2026-04-26 — nova skill `optimizing-github-actions` (218-line SKILL.md + 7 references + 2 examples + audit script, auto-ativada via `paths` field) + `akita-xp-rules` Rule 6 ganha proibicao de Co-Authored-By trailers (ADR-007)
 - [x] v0.3.0 minor (feat/v0.3.0-portable-orchestration) — 2026-04-29 — 2 novas skills opt-in (`paperclip-orchestrator` com 8 templates + 9 licoes anonimizadas, `local-waves` com orchestrate-wave.sh) + `bootstrap` ganha symlinks AGENTS.md + .gitignore autoupdate + `akita-xp-rules` ganha appendix "Mandatory Skill Integration" (ADR-008). Suite 53/53.
 - [x] v1.0.0 (feat/v1.0.0-ship) — 2026-05-03 — Reversa-inspired hardening. npm CLI primario (`xp-stack`) + dual mirror always-on + state machine (state.json + index.json) + schemas estruturados (tasks/sources/claims/manifest/index) + RESUME.md auto-gen via hook Stop + manifest SHA-256 com diff + 3 agents opt-in + persona PT-BR em 4 skills + fallback headers + alias `/xp` + auto-check versao npm. Suite vitest 128/128. ADR-009.
+- [x] P1 `durable-host-runs` (feat/harness-durable-runs) — 2026-10-01 — skill manual para execucao duravel em unidade systemd de usuario, sem nova gestao de vagas; unit tests fake 13/13; integracao Linux real pendente. ADR-011.
 - [ ] ~~poc-mcp-userconfig~~ — **DISPENSADO** na v0.1.1 ao remover stubs MCP do plugin. MCPs passam a ser configurados pelo usuario fora do plugin via `claude mcp add`, entao a validacao de `userConfig sensitive` no keychain Linux deixa de ser pre-requisito pro plugin. Se o plugin voltar a declarar MCPs com userConfig no futuro, este POC volta como pendente.
 
 ## Licoes aprendidas
