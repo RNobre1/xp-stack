@@ -681,6 +681,64 @@ class DurableHostRunsTest(unittest.TestCase):
         self.assertFalse(result["supervisor_terminal"])
         self.assertEqual(result["state"], "unknown")
 
+    def test_prestart_cancel_without_worker_receipt_becomes_known_after_supervisor_confirmation(self) -> None:
+        class CancelBeforeWorkerStart(FakeSystemctl):
+            def stop(self, unit: str) -> bool:
+                self.stopped.append(unit)
+                self.units[unit] = {
+                    "load_state": "loaded",
+                    "active_state": "failed",
+                    "sub_state": "failed",
+                    "exec_main_code": "0",
+                    "exec_main_status": "0",
+                }
+                return True
+
+        supervisor = CancelBeforeWorkerStart()
+        self.manager = durable_run.RunManager(state_dir=self.root, systemctl=supervisor)
+        submitted = self.submit(key="cancel:prestart")
+        supervisor.units[submitted["unit"]] = {
+            "load_state": "loaded",
+            "active_state": "activating",
+            "sub_state": "start-pre",
+            "exec_main_code": "0",
+            "exec_main_status": "0",
+        }
+        before_cancel = self.manager.status("cancel:prestart")
+        self.assertEqual(before_cancel["state"], "starting")
+
+        cancelled = self.manager.cancel("cancel:prestart")
+        events = [json.loads(line) for line in Path(submitted["events_path"]).read_text().splitlines()]
+        followed = list(self.manager.follow("cancel:prestart", poll_interval=0))
+
+        self.assertTrue(cancelled["confirmed"])
+        self.assertTrue(cancelled["supervisor_terminal"])
+        self.assertEqual(cancelled["state"], "cancelled")
+        self.assertTrue(cancelled["cancelled"])
+        self.assertIsNone(cancelled["exit_code"])
+        self.assertFalse(Path(submitted["receipt_path"]).exists())
+        self.assertNotIn("started", [event["event"] for event in events])
+        self.assertEqual(followed[-1]["event"], "follow_finished")
+        self.assertEqual(followed[-1]["state"], "cancelled")
+        self.assertIsNone(followed[-1]["exit_code"])
+
+    def test_external_prestart_termination_without_cancel_intent_remains_unknown(self) -> None:
+        submitted = self.submit(key="cancel:prestart-external")
+        self.fake.units[submitted["unit"]] = {
+            "load_state": "loaded",
+            "active_state": "failed",
+            "sub_state": "failed",
+            "exec_main_code": "0",
+            "exec_main_status": "0",
+        }
+
+        status = self.manager.status("cancel:prestart-external")
+
+        self.assertEqual(status["state"], "unknown")
+        self.assertTrue(status["supervisor_terminal"])
+        self.assertFalse((Path(submitted["request_path"]).parent / "cancel.intent").exists())
+        self.assertFalse(Path(submitted["receipt_path"]).exists())
+
     def test_systemd_exec_failure_codes_are_supervisor_failures_not_signals(self) -> None:
         for status_code in (200, 203):
             with self.subTest(status_code=status_code):
@@ -787,7 +845,8 @@ class DurableHostRunsTest(unittest.TestCase):
         self.assertEqual(self.fake.stopped, [submitted["unit"]])
         self.assertEqual(self.fake.inspect(submitted["unit"])["load_state"], "not-found")
         self.assertEqual(cancelled["confirmed"], True)
-        self.assertEqual(cancelled["state"], "unknown")
+        self.assertEqual(cancelled["state"], "cancelled")
+        self.assertTrue(cancelled["cancelled"])
         self.assertEqual(cancelled["exit_code"], None)
         self.assertEqual(cancelled["supervisor_terminal"], True)
         self.assertFalse(Path(cancelled["receipt_path"]).exists())

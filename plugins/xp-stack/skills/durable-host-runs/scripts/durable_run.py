@@ -662,6 +662,8 @@ class RunManager:
 
         if receipt is not None and supervisor_terminal:
             state = self._state_for_receipt(receipt)
+        elif receipt is None and supervisor_terminal and _has_cancel_intent(paths["job_dir"], record):
+            state = "cancelled"
         elif receipt is not None and snapshot and snapshot.get("active_state") in ("active", "activating", "deactivating"):
             state = "stopping"
         elif snapshot and snapshot.get("active_state") == "active":
@@ -737,7 +739,7 @@ class RunManager:
             exit_code = actual_receipt["exit_code"] if actual_receipt is not None else None
             _append_event(paths["job_dir"], "cancel_confirmed", exit_code=exit_code)
             result["confirmed"] = True
-            result["cancelled"] = bool(actual_receipt and actual_receipt.get("termination") == "cancelled")
+            result["cancelled"] = result["state"] == "cancelled"
             result["already_finished"] = result["state"] in ("completed", "failed")
             return result
 
