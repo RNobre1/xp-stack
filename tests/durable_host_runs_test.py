@@ -216,14 +216,18 @@ class DurableHostRunsTest(unittest.TestCase):
         key = "handoff:immutable-owner"
         with patch.dict(
             os.environ,
-            {"TRAYCER_TASK_ID": "task-origin", "TRAYCER_AGENT_ID": "agent-origin"},
+            {
+                "TRAYCER_EPIC_ID": "epic-origin",
+                "TRAYCER_TASK_ID": "legacy-task-origin",
+                "TRAYCER_AGENT_ID": "agent-origin",
+            },
         ):
             submitted = self.submit(key=key, resources=["declared:cpu=2", "declared:ram=4g"])
         request = json.loads(Path(submitted["request_path"]).read_text(encoding="utf-8"))
         expected_owner = {
             "host": socket.gethostname(),
             "user": pwd.getpwuid(os.getuid()).pw_name,
-            "traycer_task_id": "task-origin",
+            "traycer_epic_id": "epic-origin",
             "traycer_agent_id": "agent-origin",
         }
         self.assertEqual(request["owner"], expected_owner)
@@ -239,17 +243,110 @@ class DurableHostRunsTest(unittest.TestCase):
         self.assertEqual(status["owner"], expected_owner)
         self.assertEqual(status["resources"], request["resources"])
 
-    def test_explicit_owner_and_declared_resources_are_immutable_payload(self) -> None:
+    def test_task_id_is_fallback_when_epic_id_is_unavailable(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"TRAYCER_EPIC_ID": "", "TRAYCER_TASK_ID": "task-fallback", "TRAYCER_AGENT_ID": ""},
+        ):
+            owner = durable_run._capture_owner(None)
+
+        self.assertEqual(owner["traycer_task_id"], "task-fallback")
+        self.assertNotIn("traycer_epic_id", owner)
+
+    def test_owner_and_resources_do_not_change_execution_identity_or_registration(self) -> None:
         first = self.submit(key="metadata:explicit", owner="pilot:rafael", resources=["cpu:2"])
         request = json.loads(Path(first["request_path"]).read_text(encoding="utf-8"))
 
         self.assertEqual(request["owner"], {"explicit": "pilot:rafael"})
         self.assertEqual(request["resources"], ["cpu:2"])
-        with self.assertRaises(durable_run.PayloadConflict):
-            self.submit(key="metadata:explicit", owner="agent:handoff", resources=["cpu:2"])
-        with self.assertRaises(durable_run.PayloadConflict):
-            self.submit(key="metadata:explicit", owner="pilot:rafael", resources=["cpu:4"])
+        request_before = Path(first["request_path"]).read_bytes()
+
+        repeated = self.submit(key="metadata:explicit", owner="agent:handoff", resources=["cpu:4"])
+
+        self.assertFalse(repeated["created"])
+        self.assertEqual(repeated["owner"], {"explicit": "pilot:rafael"})
+        self.assertEqual(repeated["resources"], ["cpu:2"])
+        self.assertEqual(Path(first["request_path"]).read_bytes(), request_before)
         self.assertEqual(len(self.fake.submissions), 1)
+
+    def test_semantic_execution_conflict_names_changed_fields_and_rejects_new_key_bypass(self) -> None:
+        self.submit(key="execution:conflict")
+        other_cwd = Path(self.temp_dir.name) / "different-cwd"
+        other_cwd.mkdir()
+
+        with self.assertRaises(durable_run.PayloadConflict) as raised:
+            self.submit(
+                key="execution:conflict",
+                candidate="git:cafebabe",
+                cwd=other_cwd,
+                argv=[sys.executable, "-c", "print('different')"],
+                owner="observer:other",
+                resources=["cpu:8"],
+            )
+
+        message = str(raised.exception)
+        for field in ("candidate", "cwd", "argv"):
+            self.assertIn(field, message)
+        self.assertIn("not permission to bypass deduplication with a new key", message)
+        self.assertEqual(len(self.fake.submissions), 1)
+
+    def test_schema1_registration_is_integrity_checked_and_reused_by_execution_identity(self) -> None:
+        key = "legacy:schema1"
+        candidate = "git:deadbeef"
+        cwd = str(self.cwd.resolve())
+        argv = [sys.executable, "-c", "print('legacy')"]
+        legacy_payload = durable_run._legacy_stable_payload(key, candidate, cwd, argv)
+        unit = durable_run._unit_for_key(key)
+        legacy_record = dict(legacy_payload)
+        legacy_record.update({
+            "schema": 1,
+            "unit": unit,
+            "payload_sha256": durable_run._payload_digest(legacy_payload),
+            "created_at": "legacy-record",
+        })
+        paths = self.manager._paths(key)
+        self.manager._ensure_layout()
+        durable_run._ensure_private_directory(paths["job_dir"])
+        self.assertTrue(durable_run._write_json_once(paths["request"], legacy_record, mode=0o400))
+        request_before = paths["request"].read_bytes()
+
+        repeated = self.manager.submit(
+            key=key,
+            candidate=candidate,
+            cwd=cwd,
+            argv=argv,
+            owner="observer:other",
+            resources=["cpu:4"],
+        )
+
+        self.assertFalse(repeated["created"])
+        self.assertIsNone(repeated["owner"])
+        self.assertIsNone(repeated["resources"])
+        self.assertEqual(paths["request"].read_bytes(), request_before)
+        self.assertEqual(len(self.fake.submissions), 0)
+
+        legacy_record = json.loads(paths["request"].read_text(encoding="utf-8"))
+        legacy_record["candidate"] = "git:tampered"
+        paths["request"].chmod(0o600)
+        paths["request"].write_text(json.dumps(legacy_record, sort_keys=True, separators=(",", ":")) + "\n")
+        paths["request"].chmod(0o400)
+        with self.assertRaises(durable_run.CorruptRecord):
+            self.manager.status(key)
+
+    def test_new_record_metadata_is_covered_by_integrity_checksum(self) -> None:
+        submitted = self.submit(key="metadata:integrity", owner="pilot:rafael", resources=["cpu:2"])
+        request_path = Path(submitted["request_path"])
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(request["schema"], 3)
+        self.assertIn("record_sha256", request)
+        request["resources"] = ["cpu:8"]
+        request_path.chmod(0o600)
+        request_path.write_text(json.dumps(request, sort_keys=True, separators=(",", ":")) + "\n")
+        request_path.chmod(0o400)
+
+        with self.assertRaises(durable_run.CorruptRecord):
+            self.manager.status("metadata:integrity")
 
     def test_submit_cli_persists_explicit_owner_and_repeated_resource_declarations(self) -> None:
         output = io.StringIO()

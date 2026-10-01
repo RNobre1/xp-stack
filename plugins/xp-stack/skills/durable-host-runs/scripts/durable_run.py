@@ -67,7 +67,12 @@ def _legacy_stable_payload(key: str, candidate: str, cwd: str, argv: Sequence[st
     return {"key": key, "candidate": candidate, "cwd": cwd, "argv": list(argv)}
 
 
-def _stable_payload(
+def _stable_payload(key: str, candidate: str, cwd: str, argv: Sequence[str]) -> dict:
+    """Identity that determines whether a stable key names the same execution."""
+    return _legacy_stable_payload(key, candidate, cwd, argv)
+
+
+def _legacy_metadata_payload(
     key: str,
     candidate: str,
     cwd: str,
@@ -85,6 +90,11 @@ def _stable_payload(
     }
 
 
+def _record_integrity_digest(record: dict) -> str:
+    unsigned_record = {name: value for name, value in record.items() if name != "record_sha256"}
+    return _payload_digest(unsigned_record)
+
+
 def _capture_owner(explicit_owner: Optional[str]) -> dict:
     if explicit_owner is not None:
         if not isinstance(explicit_owner, str) or not explicit_owner.strip() or "\x00" in explicit_owner:
@@ -93,14 +103,15 @@ def _capture_owner(explicit_owner: Optional[str]) -> dict:
 
     account = pwd.getpwuid(os.getuid())
     owner = {"host": socket.gethostname(), "user": account.pw_name}
-    traycer_ids = {
-        "TRAYCER_TASK_ID": "traycer_task_id",
-        "TRAYCER_AGENT_ID": "traycer_agent_id",
-    }
-    for environment_name, field_name in traycer_ids.items():
-        value = os.environ.get(environment_name)
-        if value:
-            owner[field_name] = value
+    epic_id = os.environ.get("TRAYCER_EPIC_ID")
+    legacy_task_id = os.environ.get("TRAYCER_TASK_ID")
+    agent_id = os.environ.get("TRAYCER_AGENT_ID")
+    if epic_id:
+        owner["traycer_epic_id"] = epic_id
+    elif legacy_task_id:
+        owner["traycer_task_id"] = legacy_task_id
+    if agent_id:
+        owner["traycer_agent_id"] = agent_id
     return owner
 
 
@@ -113,7 +124,7 @@ def _validate_owner(owner: object) -> dict:
             return owner
         raise CorruptRecord("registration has invalid explicit owner")
 
-    allowed = {"host", "user", "traycer_task_id", "traycer_agent_id"}
+    allowed = {"host", "user", "traycer_epic_id", "traycer_task_id", "traycer_agent_id"}
     if not {"host", "user"}.issubset(owner) or set(owner) - allowed:
         raise CorruptRecord("registration has invalid host/account owner")
     if any(not isinstance(value, str) or not value.strip() or "\x00" in value for value in owner.values()):
@@ -127,6 +138,21 @@ def _validate_resources(resources: object) -> List[str]:
     ):
         raise CorruptRecord("registration has invalid declared resources")
     return resources
+
+
+def _assert_same_execution(existing: dict, requested: dict) -> None:
+    changed_fields = [
+        field
+        for field in ("candidate", "cwd", "argv")
+        if existing.get(field) != requested.get(field)
+    ]
+    if changed_fields:
+        raise PayloadConflict(
+            "stable key already has a durable execution; changed execution fields: {}. "
+            "This conflict is not permission to bypass deduplication with a new key.".format(
+                ", ".join(changed_fields)
+            )
+        )
 
 
 def _payload_digest(payload: dict) -> str:
@@ -273,21 +299,31 @@ def _validate_request(record: dict, expected_key: Optional[str] = None) -> dict:
         raise CorruptRecord("registration has invalid identity fields")
     if not isinstance(argv, list) or not argv or any(not isinstance(arg, str) for arg in argv):
         raise CorruptRecord("registration has invalid argv")
+
+    identity = _stable_payload(key, candidate, cwd, argv)
     if record.get("schema") == 1:
-        payload = _legacy_stable_payload(key, candidate, cwd, argv)
+        if digest != _payload_digest(_legacy_stable_payload(key, candidate, cwd, argv)):
+            raise CorruptRecord("registration payload digest does not match")
     elif record.get("schema") == 2:
         owner = _validate_owner(record.get("owner"))
         resources = _validate_resources(record.get("resources"))
-        payload = _stable_payload(key, candidate, cwd, argv, owner, resources)
+        legacy_payload = _legacy_metadata_payload(key, candidate, cwd, argv, owner, resources)
+        if digest != _payload_digest(legacy_payload):
+            raise CorruptRecord("registration payload digest does not match")
+    elif record.get("schema") == 3:
+        _validate_owner(record.get("owner"))
+        _validate_resources(record.get("resources"))
+        if digest != _payload_digest(identity):
+            raise CorruptRecord("registration execution identity digest does not match")
+        if record.get("record_sha256") != _record_integrity_digest(record):
+            raise CorruptRecord("registration record integrity digest does not match")
     else:
         raise CorruptRecord("registration has an unsupported schema")
-    if digest != _payload_digest(payload):
-        raise CorruptRecord("registration payload digest does not match")
     if expected_key is not None and key != expected_key:
         raise CorruptRecord("registration key does not match its requested key")
     if unit != _unit_for_key(key):
         raise CorruptRecord("registration unit does not match its key")
-    return payload
+    return identity
 
 
 class SystemdSupervisor:
@@ -472,8 +508,8 @@ class RunManager:
         if any(not isinstance(value, str) or not value.strip() or "\x00" in value for value in resource_values):
             raise DurableRunError("resources must contain non-empty NUL-free strings")
         captured_owner = _capture_owner(owner)
-        payload = _stable_payload(key, candidate, str(canonical_cwd), args, captured_owner, resource_values)
-        digest = _payload_digest(payload)
+        identity = _stable_payload(key, candidate, str(canonical_cwd), args)
+        identity_digest = _payload_digest(identity)
         unit = _unit_for_key(key)
         paths = self._paths(key)
         created = False
@@ -483,9 +519,8 @@ class RunManager:
                 _ensure_private_directory(paths["job_dir"])
             if os.path.lexists(str(paths["request"])):
                 record = _read_private_json(paths["request"], 0o400)
-                existing_payload = _validate_request(record, expected_key=key)
-                if _payload_digest(existing_payload) != digest:
-                    raise PayloadConflict("key already belongs to a different candidate, cwd, argv, owner, or declared resources")
+                existing_identity = _validate_request(record, expected_key=key)
+                _assert_same_execution(existing_identity, identity)
             else:
                 try:
                     self.systemctl.preflight()
@@ -494,18 +529,20 @@ class RunManager:
                         raise
                     raise SupervisorUnavailable("systemd user manager preflight failed; no registration was written: {}".format(exc))
                 _ensure_private_directory(paths["job_dir"])
-                record = dict(payload)
+                record = dict(identity)
                 record.update({
-                    "schema": 2,
+                    "schema": 3,
                     "unit": unit,
-                    "payload_sha256": digest,
+                    "payload_sha256": identity_digest,
+                    "owner": captured_owner,
+                    "resources": resource_values,
                     "created_at": _now(),
                 })
+                record["record_sha256"] = _record_integrity_digest(record)
                 if not _write_json_once(paths["request"], record, mode=0o400):
                     record = _read_private_json(paths["request"], 0o400)
-                    existing_payload = _validate_request(record, expected_key=key)
-                    if _payload_digest(existing_payload) != digest:
-                        raise PayloadConflict("key already belongs to a different candidate, cwd, argv, owner, or declared resources")
+                    existing_identity = _validate_request(record, expected_key=key)
+                    _assert_same_execution(existing_identity, identity)
                 else:
                     _append_event(paths["job_dir"], "registered", unit=unit, candidate=candidate)
                     worker_argv = [
