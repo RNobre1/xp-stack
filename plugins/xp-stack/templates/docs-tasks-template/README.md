@@ -15,8 +15,8 @@ cp docs/tasks/_template/TEMPLATE-overview.md  "docs/tasks/$FEATURE/00-overview.m
 cp docs/tasks/_template/TEMPLATE-task.md      "docs/tasks/$FEATURE/T1-first-task.md"
 # Complete layout only: dated, derived snapshot (uncomment when selected)
 # cp docs/tasks/_template/TEMPLATE-progress.md "docs/tasks/$FEATURE/PROGRESS.md"
-# Optional, only if running in parallel terminals:
-cp docs/tasks/_template/TEMPLATE-terminal-prompts.md "docs/tasks/$FEATURE/TERMINAL-PROMPTS.md"
+# Optional: copy only when the selected dispatch mechanism needs a separate prompt.
+# cp docs/tasks/_template/TEMPLATE-orchestrator-prompt.md "docs/tasks/$FEATURE/ORCHESTRATOR-PROMPT.md"
 ```
 
 ## Files
@@ -27,7 +27,8 @@ cp docs/tasks/_template/TEMPLATE-terminal-prompts.md "docs/tasks/$FEATURE/TERMIN
 | `00-overview.md` | Yes | Derived view: diagnosis, outcomes, consumers, task references, and execution plan |
 | `T{N}-{slug}.md` | Yes (1+) | Task specification keyed by ID in the authority source; TDD, scope, acceptance, execution evidence |
 | `PROGRESS.md` | Optional, complete layout | Dated metrics/decisions snapshot derived from the authority source; never live status |
-| `TERMINAL-PROMPTS.md` | Optional | Only when the selected mechanism requires a separate prompt file |
+| `ORCHESTRATOR-PROMPT.md` | Optional | Copy of `TEMPLATE-orchestrator-prompt.md` only when the selected mechanism requires a separate dispatch prompt |
+| `TERMINAL-PROMPTS.md` | Optional, local-waves only | Shape defined by the local-waves skill; no template here. The general orchestrator prompt is not a substitute. |
 
 ## Conventions
 

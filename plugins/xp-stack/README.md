@@ -1,71 +1,43 @@
-# xp-stack
+# xp-stack para Claude Code
 
-Stack completo de metodologia XP/Akita para Claude Code, com contrato de
-evidências de entrega e roteamento de agentes conforme a sessão/Host.
+Plugin de metodologia XP/Akita: TDD, pesquisa com fontes, incrementos utilizáveis e revisão independente baseada em evidências. Modelo, provider, mecanismo de despacho e permissões vêm da sessão e do projeto.
 
-## O que inclui
+A versão deste canal está no [manifest do plugin](.claude-plugin/plugin.json). Ela é independente da versão do npm CLI. O [guia principal](../../README.md) reúne instalação, atualização, comandos e limites atuais; o [CHANGELOG](../../CHANGELOG.md) preserva o histórico.
 
-### Skills
+## Instalação pelo marketplace
 
-| Skill | Invocacao | Descricao |
-|-------|-----------|-----------|
-| akita-xp-rules | `/xp-stack:akita-xp-rules` | Regras metodologicas universais + contrato canônico de evidências, autorização, checkpoints e revisão |
-| tdd-conventions | `/xp-stack:tdd-conventions` | Convencoes de TDD absoluto |
-| task-decomposition | `/xp-stack:task-decomposition` | Guia do ciclo de tasks |
-| research-cycle | `/xp-stack:research-cycle` | Guia do ciclo de pesquisa formal |
-| optimizing-github-actions | auto via `paths: .github/workflows/**` | Pre-flight checklist + decision matrices pra otimizar workflows GitHub Actions (cache, sharding, security, observabilidade, anti-patterns supply-chain) |
-| claude-md-bootstrap | `/xp-stack:claude-md-bootstrap` | Preenche CLAUDE.md a partir de evidências da codebase |
-| bootstrap | `/xp-stack:bootstrap` | Scaffold de projeto novo |
+```text
+/plugin marketplace add RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
+```
 
-Os padrões `paperclip-orchestrator` e `local-waves` são skills opt-in deste
-plugin. Os lembretes `debugging-discipline` e `code-review-automation` vivem
-em `templates/opt-in-skills/` para instalação explícita no projeto receptor;
-eles não são defaults universais.
+Para scaffold de um projeto ainda não preparado, invoque `/xp-stack:bootstrap`. Ele é manual e não precisa ser reexecutado a cada atualização. Para instalação por projeto em diferentes engines, use o npm CLI descrito no guia principal.
 
-| Padrão opt-in | Uso |
-|---|---|
-| `paperclip-orchestrator` | Orquestração remota assíncrona com seus gates configurados |
-| `local-waves` | Orquestração local headless em worktrees |
-| `debugging-discipline` | Lembretes de evidência para investigação de `fix:` |
-| `code-review-automation` | Lembretes de revisão e comando `/review-pr` |
-| `jev-triage` | Teste manual do contrato da API Jev com entrada sintética restrita, custo limitado e saída externa |
-| `durable-host-runs` | Execução opt-in em unidades transitórias `systemd --user`, com deduplicação, autoria/recursos declarados e recibo privado |
+```text
+/plugin marketplace update xp-stack
+/plugin update xp-stack@xp-stack
+```
 
-`durable-host-runs` é distribuída pelo plugin e por cópia manual para um prefixo pessoal versionado; o instalador do npm CLI não instala nem registra essa skill.
+A atualização troca o conteúdo do plugin; arquivos já copiados por setups permanecem sob controle do projeto. Confira a descoberta no catálogo se também usa cópias via npm ou diretório global, evitando versões concorrentes da mesma skill.
 
-`jev-triage` é opt-in manual (`xp-stack add-skill jev-triage`). O primeiro piloto
-mede somente o contrato da API com exemplos sintéticos, sem alegar acurácia ou
-ganho sobre triagem determinística. Configuração de orçamento e credencial são
-separadas do pacote; a sugestão nunca decide gates.
+## Conteúdo e uso
 
-### Agents
+As [skills do plugin](skills/) incluem regras metodológicas, convenções de teste, decomposição, pesquisa e orientação para GitHub Actions. As [definições de agents](agents/) oferecem pesquisa, crítica, TDD e revisão no formato do Claude Code. Consulte a descrição de cada skill; disponibilidade não autoriza executar setups, publicar ou alterar infraestrutura.
 
-| Agent | Descricao |
-|-------|-----------|
-| researcher | Pesquisa formal com 7 etapas e triangulacao |
-| research-critic | Revisao adversarial independente |
-| tdd | Ciclo RED-GREEN-REFACTOR estrito |
-| reviewer | Code review com foco em qualidade e seguranca |
+Invocação neste canal usa `/xp-stack:<nome>`, por exemplo `/xp-stack:research-cycle`. O nome sem namespace é a referência portátil nos briefings. Quem não tem loader recebe o excerto literal do contrato, com referência e revisão.
 
-### Templates
+O [Delivery flow](skills/akita-xp-rules/references/delivery-flow.md) é a fonte do fluxo vigente: guardas proporcionais, evidência de reuso, revisão independente e estado único. A [auditoria de testes](skills/akita-xp-rules/references/test-cost-audit.md) e o [prompt reutilizável](skills/akita-xp-rules/references/test-cost-audit-prompt.md) ajudam a reduzir custo sem remover proteção por meta de contagem. O plugin não escolhe workers nem instala um runner de portão completo.
 
-- `CLAUDE.md.template` — skeleton para CLAUDE.md de projeto novo
-- `claude-settings-project.json` — permissoes razoaveis para .claude/settings.json
-- `docs-tasks-template/` — template de task decomposition
-- `docs-pesquisas-template/` — template de pesquisa formal
+## Capacidades opcionais
 
-### MCPs
+- [Jev](skills/jev-triage/SKILL.md): invocação manual para casos sintéticos restritos; requer configuração própria de orçamento/credencial para API. Não substitui testes, não decide gates e não tem benefício de triagem demonstrado por esta distribuição.
+- [Durable Host Runs](skills/durable-host-runs/SKILL.md): comando identificado sob `systemd --user` no Linux, com deduplicação e recibos. Não reserva recursos nem substitui a fila. Distribuído neste plugin ou por cópia pessoal versionada; não está no registry do `xp-stack add-skill`.
+- [Paperclip](skills/paperclip-orchestrator/SKILL.md) e [local-waves](skills/local-waves/SKILL.md): mecanismos de orquestração com setup explícito, conforme capacidade e política da sessão.
 
-O plugin **nao declara MCPs por padrao**. Se o seu projeto usa MCPs especificos (Supabase, Slack, GitHub, etc.), configure-os separadamente via `claude mcp add` no proprio projeto ou globalmente. Isso mantem o plugin agnostico de servicos externos e evita warnings de credenciais faltando em projetos que nao usam esses servicos.
+Outras opções do npm CLI, como lembretes de debug/revisão e análise de banco, vivem em fontes separadas. Consulte o [registry do CLI](../../src/lib/opt-in-registry.js) no repositório; não presuma que todo opt-in seja carregado por este plugin.
 
-## Status
+O plugin não declara MCPs por padrão. Serviços externos, credenciais e ferramentas pessoais são configurados separadamente. `motion-director` e `grill-me` não são distribuídas aqui.
 
-**V0.7.1** — manifest do plugin com skills core e opt-in de orquestração, contrato de evidências de entrega e revisão orientada por política. O modelo, perfil, mecanismo de despacho e estilo de comunicação vêm da sessão/Host; Agent View, Sonnet e caveman são escolhas opt-in. A skill `bootstrap` é one-shot manual e as skills Paperclip/local-waves/code-review-automation/debugging-discipline permanecem opt-in.
+## Licença
 
-Skills e agents carregam conteudo real curado — metodologia generica universal, sem acoplamento a stack especifico. Agents (researcher, research-critic, tdd, reviewer) leem o `CLAUDE.md` do projeto receptor em runtime para aplicar convencoes especificas do stack. Em T-files e briefings transferidos, use o nome portável `akita-xp-rules`, registre o caminho/URI resolvido e a revisão do contrato; workers sem skill loader recebem o trecho literal da fonte.
-
-A skill `bootstrap` e **one-shot manual**: nao aparece no listing automatico de skills carregadas (comportamento por design via `disable-model-invocation: true`), so executa quando invocada explicitamente via `/xp-stack:bootstrap`. Isso evita que o modelo invoque bootstrap por engano em um projeto ja scaffoldado.
-
-## Licenca
-
-MIT
+MIT — copyright Rafael Nobre de Souza. Veja a [LICENSE distribuída](LICENSE).
