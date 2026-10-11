@@ -11,6 +11,31 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..', '..');
 const BIN = join(REPO_ROOT, 'bin', 'xp-stack');
 
+function listSkillMarkdownFiles(root, relativeDir = '') {
+  const currentDir = relativeDir ? join(root, relativeDir) : root;
+  const files = [];
+  for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+    const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...listSkillMarkdownFiles(root, relativePath));
+    } else if (entry.isFile() && entry.name === 'SKILL.md') {
+      files.push(relativePath);
+    }
+  }
+  return files;
+}
+
+function coreSkillMarkdownPaths(manifest) {
+  return Object.entries(manifest.files)
+    .filter(([destRel, entry]) =>
+      destRel.split('\\').join('/').startsWith('.claude/skills/') &&
+      destRel.split('\\').join('/').endsWith('/SKILL.md') &&
+      entry.source?.startsWith('plugins/xp-stack/skills/'),
+    )
+    .map(([destRel]) => destRel.split('\\').join('/').slice('.claude/skills/'.length))
+    .sort();
+}
+
 describe('xp-stack add-engine', () => {
   let tmp;
   let outside;
@@ -35,6 +60,7 @@ describe('xp-stack add-engine', () => {
 
   it('instala skills core e referencias registradas pelo init na nova engine e rastreia hashes', () => {
     const initManifest = JSON.parse(readFileSync(join(tmp, '.xp-stack/manifest.json'), 'utf8'));
+    const expectedCoreSkills = coreSkillMarkdownPaths(initManifest);
     const initializedSkillFiles = Object.entries(initManifest.files).filter(
       ([destRel, entry]) =>
         destRel.split('\\').join('/').startsWith('.claude/skills/') &&
@@ -61,18 +87,25 @@ describe('xp-stack add-engine', () => {
         user_modified: false,
       });
     }
+    expect(listSkillMarkdownFiles(join(tmp, '.codex/skills')).sort()).toEqual(expectedCoreSkills);
   });
 
-  it('nao promove opt-ins de templates a skills ativos quando nao habilitados', () => {
+  it('nao copia opt-ins de templates antes de serem habilitados', () => {
     execFileSync('node', [BIN, 'add-engine', 'codex', '--cwd', tmp], { encoding: 'utf8' });
 
-    // Legacy template payloads stay nested under opt-in-skills; none becomes an active top-level skill.
+    // Template registry sources are copied only when add-skill has recorded them as enabled.
     for (const skillName of Object.keys(OPT_IN_SKILLS)) {
       expect(existsSync(join(tmp, `.codex/skills/${skillName}/SKILL.md`))).toBe(false);
     }
   });
 
   it('replica opt-in ja habilitada e deixa outras opt-ins desabilitadas', () => {
+    const initManifest = JSON.parse(readFileSync(join(tmp, '.xp-stack/manifest.json'), 'utf8'));
+    const expectedSkills = [
+      ...coreSkillMarkdownPaths(initManifest),
+      'db-archaeologist/SKILL.md',
+      'local-waves/SKILL.md',
+    ].sort();
     execFileSync('node', [BIN, 'add-skill', 'local-waves', '--cwd', tmp], { encoding: 'utf8' });
     execFileSync('node', [BIN, 'add-skill', 'db-archaeologist', '--cwd', tmp], { encoding: 'utf8' });
     execFileSync('node', [BIN, 'add-engine', 'codex', '--cwd', tmp], { encoding: 'utf8' });
@@ -95,6 +128,7 @@ describe('xp-stack add-engine', () => {
       source: 'templates/opt-in-skills/db-archaeologist/SKILL.md',
       user_modified: false,
     });
+    expect(listSkillMarkdownFiles(join(tmp, '.codex/skills')).sort()).toEqual(expectedSkills);
   });
 
   it('preserva arquivo customizado no destino da nova engine', () => {

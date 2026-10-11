@@ -103,7 +103,15 @@ async function runAddEngine(engineName, opts) {
   manifest.engines = [...installedEngines];
 
   const engineSkillsDir = toPosixPath(ENGINE_PATHS[engineName].skillsDir);
-  const templates = walkDir(TEMPLATES_ROOT);
+  const optInTemplateRoots = new Set(
+    Object.values(OPT_IN_SKILLS)
+      .map(({ sourceRoot }) => sourceRoot)
+      .filter((sourceRoot) => sourceRoot.startsWith('templates/'))
+      .map((sourceRoot) => sourceRoot.slice('templates/'.length)),
+  );
+  const templates = walkDir(TEMPLATES_ROOT).filter(
+    (path) => ![...optInTemplateRoots].some((root) => path === root || path.startsWith(`${root}/`)),
+  );
   const templatePlan = templates.map((tpl) => {
     const destRel = `${engineSkillsDir}/${tpl}`;
     return {
