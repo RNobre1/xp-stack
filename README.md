@@ -99,6 +99,9 @@ existentes automaticamente. Antes de declarar a migração concluída, inventari
 o catálogo real do harness. Cópias antigas indesejadas exigem backup e uma migração
 explicitamente autorizada; não apague toda a pasta de skills. `update` não certifica
 que essas cópias históricas deixaram de ser carregadas.
+A migração autorizada também deve fazer backup de `.xp-stack/manifest.json` e remover
+as entradas que apontam para essas cópias aninhadas; caso contrário, `--take-theirs`
+restaura qualquer exclusão ainda registrada e pode reativá-las.
 
 No marketplace, a atualização do plugin usa seu próprio cache versionado;
 ela não reexecuta os scaffolds que você já copiou para o projeto:
