@@ -1,0 +1,10 @@
+{"case":{"case_id":"synthetic-env-01","synthetic":true,"symptom_codes":["module_missing"]},"expected_category":"environment"}
+{"case":{"case_id":"synthetic-env-02","synthetic":true,"symptom_codes":["command_missing"]},"expected_category":"environment"}
+{"case":{"case_id":"synthetic-contract-01","synthetic":true,"symptom_codes":["schema_field_missing"]},"expected_category":"contract"}
+{"case":{"case_id":"synthetic-contract-02","synthetic":true,"symptom_codes":["schema_unknown_field"]},"expected_category":"contract"}
+{"case":{"case_id":"synthetic-behavior-01","synthetic":true,"symptom_codes":["assertion_mismatch"]},"expected_category":"behavior"}
+{"case":{"case_id":"synthetic-behavior-02","synthetic":true,"symptom_codes":["unexpected_value"]},"expected_category":"behavior"}
+{"case":{"case_id":"synthetic-timing-01","synthetic":true,"symptom_codes":["timeout"]},"expected_category":"timing"}
+{"case":{"case_id":"synthetic-timing-02","synthetic":true,"symptom_codes":["deadline"]},"expected_category":"timing"}
+{"case":{"case_id":"synthetic-ambiguous-01","synthetic":true,"symptom_codes":["module_missing","timeout"]},"expected_category":"inconclusive"}
+{"case":{"case_id":"synthetic-ambiguous-02","synthetic":true,"symptom_codes":["no_diagnostic"]},"expected_category":"inconclusive"}

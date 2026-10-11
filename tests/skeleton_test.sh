@@ -3,7 +3,7 @@
 # Suite de testes puro bash para validacao estrutural do skeleton
 # do plugin xp-stack (dirs, SKILL.md frontmatter, agents, templates, mcp).
 #
-# T2 RED: todos os 12 cenarios DEVEM falhar — skeleton ainda nao existe.
+# Validacao estrutural do plugin xp-stack (13 cenarios).
 #
 set -uo pipefail
 
@@ -45,7 +45,7 @@ extract_frontmatter() {
 # Skills tests
 # ---------------------------------------------------------------------------
 
-EXPECTED_SKILLS=("akita-xp-rules" "tdd-conventions" "task-decomposition" "research-cycle" "bootstrap")
+EXPECTED_SKILLS=("akita-xp-rules" "tdd-conventions" "task-decomposition" "research-cycle" "bootstrap" "durable-host-runs")
 
 # 1. cada skill declarada tem diretorio
 test_skills_dirs_exist() {
@@ -113,13 +113,29 @@ test_bootstrap_has_scaffold_sh() {
   pass_case "bootstrap_has_scaffold_sh"
 }
 
+# 5. durable-host-runs e opt-in e nao pode ser invocada automaticamente pelo modelo
+test_durable_host_runs_is_manual_only() {
+  local skillmd="$PLUGIN_DIR/skills/durable-host-runs/SKILL.md"
+  if [ ! -f "$skillmd" ]; then
+    fail_case "durable_host_runs_manual_only" "SKILL.md nao encontrado"
+    return
+  fi
+  local fm
+  fm=$(extract_frontmatter "$skillmd")
+  if ! printf '%s' "$fm" | grep -Eq '^disable-model-invocation:[[:space:]]*true$'; then
+    fail_case "durable_host_runs_manual_only" "disable-model-invocation: true ausente"
+    return
+  fi
+  pass_case "durable_host_runs_manual_only"
+}
+
 # ---------------------------------------------------------------------------
 # Agents tests
 # ---------------------------------------------------------------------------
 
 EXPECTED_AGENTS=("researcher.md" "research-critic.md" "tdd.md" "reviewer.md")
 
-# 5. agents/ existe
+# 6. agents/ existe
 test_agents_dir_exists() {
   if [ ! -d "$PLUGIN_DIR/agents" ]; then
     fail_case "agents_dir_exists" "diretorio agents/ nao encontrado"
@@ -128,7 +144,7 @@ test_agents_dir_exists() {
   pass_case "agents_dir_exists"
 }
 
-# 6. todos os agents existem
+# 7. todos os agents existem
 test_agents_files_exist() {
   local agent missing=()
   for agent in "${EXPECTED_AGENTS[@]}"; do
@@ -143,7 +159,7 @@ test_agents_files_exist() {
   pass_case "agents_files_exist"
 }
 
-# 7. cada agent .md tem frontmatter com name e description
+# 8. cada agent .md tem frontmatter com name e description
 test_agents_have_frontmatter() {
   local agent fm
   for agent in "${EXPECTED_AGENTS[@]}"; do
@@ -173,7 +189,7 @@ test_agents_have_frontmatter() {
 # Templates tests
 # ---------------------------------------------------------------------------
 
-# 8. templates/ existe
+# 9. templates/ existe
 test_templates_dir_exists() {
   if [ ! -d "$PLUGIN_DIR/templates" ]; then
     fail_case "templates_dir_exists" "diretorio templates/ nao encontrado"
@@ -182,7 +198,7 @@ test_templates_dir_exists() {
   pass_case "templates_dir_exists"
 }
 
-# 9. templates contem arquivos core
+# 10. templates contem arquivos core
 test_templates_core_files() {
   local missing=()
   [ ! -f "$PLUGIN_DIR/templates/CLAUDE.md.template" ] && missing+=("CLAUDE.md.template")
@@ -200,7 +216,7 @@ test_templates_core_files() {
 # MCP + meta-files tests
 # ---------------------------------------------------------------------------
 
-# 10. .mcp.json e JSON valido
+# 11. .mcp.json e JSON valido
 test_mcp_json_valid() {
   local mcpfile="$PLUGIN_DIR/.mcp.json"
   if [ ! -f "$mcpfile" ]; then
@@ -214,7 +230,7 @@ test_mcp_json_valid() {
   pass_case "mcp_json_valid"
 }
 
-# 11. README.md do plugin existe
+# 12. README.md do plugin existe
 test_readme_exists() {
   if [ ! -f "$PLUGIN_DIR/README.md" ]; then
     fail_case "readme_exists" "README.md nao encontrado em $PLUGIN_DIR"
@@ -223,7 +239,7 @@ test_readme_exists() {
   pass_case "readme_exists"
 }
 
-# 12. LICENSE do plugin existe
+# 13. LICENSE do plugin existe
 test_license_exists() {
   if [ ! -f "$PLUGIN_DIR/LICENSE" ]; then
     fail_case "license_exists" "LICENSE nao encontrado em $PLUGIN_DIR"
@@ -248,14 +264,15 @@ run_test "1.  skills_dirs_exist" test_skills_dirs_exist
 run_test "2.  skills_have_skillmd" test_skills_have_skillmd
 run_test "3.  skillmd_has_frontmatter" test_skillmd_has_frontmatter
 run_test "4.  bootstrap_has_scaffold_sh" test_bootstrap_has_scaffold_sh
-run_test "5.  agents_dir_exists" test_agents_dir_exists
-run_test "6.  agents_files_exist" test_agents_files_exist
-run_test "7.  agents_have_frontmatter" test_agents_have_frontmatter
-run_test "8.  templates_dir_exists" test_templates_dir_exists
-run_test "9.  templates_core_files" test_templates_core_files
-run_test "10. mcp_json_valid" test_mcp_json_valid
-run_test "11. readme_exists" test_readme_exists
-run_test "12. license_exists" test_license_exists
+run_test "5.  durable_host_runs_manual_only" test_durable_host_runs_is_manual_only
+run_test "6.  agents_dir_exists" test_agents_dir_exists
+run_test "7.  agents_files_exist" test_agents_files_exist
+run_test "8.  agents_have_frontmatter" test_agents_have_frontmatter
+run_test "9.  templates_dir_exists" test_templates_dir_exists
+run_test "10. templates_core_files" test_templates_core_files
+run_test "11. mcp_json_valid" test_mcp_json_valid
+run_test "12. readme_exists" test_readme_exists
+run_test "13. license_exists" test_license_exists
 
 printf '\n===========================================\n'
 printf 'Results: %d passed, %d failed\n' "$PASS" "$FAIL"

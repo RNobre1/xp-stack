@@ -8,10 +8,18 @@
   "plugins": [
     {
       "name": "xp-stack",
-      "description": "Stack completo de metodologia XP/Akita para Claude Code: 4 agents (researcher, research-critic, tdd, reviewer), 8 skills (bootstrap, akita-xp-rules, tdd-conventions, task-decomposition, research-cycle, optimizing-github-actions, paperclip-orchestrator, local-waves), templates de projeto com AGENTS.md symlink convention.",
+      "description": "Metodologia XP/Akita portável: TDD, incrementos funcionais, evidências, revisão independente por função, auditoria de valor dos testes e padrões opcionais de orquestração. Modelos e providers seguem a sessão.",
       "source": "./plugins/xp-stack",
       "category": "developer-tools",
-      "tags": ["methodology", "tdd", "xp", "pair-programming", "bootstrap", "orchestration", "multi-agent"]
+      "tags": [
+        "methodology",
+        "tdd",
+        "xp",
+        "pair-programming",
+        "bootstrap",
+        "orchestration",
+        "multi-agent"
+      ]
     }
   ]
 }

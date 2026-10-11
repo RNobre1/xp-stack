@@ -15,7 +15,7 @@ describe('index-tracker - EMPTY_INDEX', () => {
     expect(idx.schema_version).toBe('1.0');
     expect(idx.active_features).toEqual([]);
     expect(idx.archived_features).toEqual([]);
-    expect(idx.doc_level_default).toBe('completo');
+    expect(idx.doc_level_default).toBe('essencial');
     expect(idx.engines_installed).toEqual([]);
   });
 });

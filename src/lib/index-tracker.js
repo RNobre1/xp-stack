@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { validate } from './validators.js';
+import { DOC_LEVEL_DEFAULT } from './doc-level-resolver.js';
 
 const INDEX_REL = '.xp-stack/index.json';
 
@@ -13,7 +14,7 @@ export function EMPTY_INDEX() {
     schema_version: '1.0',
     active_features: [],
     archived_features: [],
-    doc_level_default: 'completo',
+    doc_level_default: DOC_LEVEL_DEFAULT,
     engines_installed: [],
   };
 }

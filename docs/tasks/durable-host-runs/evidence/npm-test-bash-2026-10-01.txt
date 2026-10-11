@@ -1,0 +1,255 @@
+
+> xp-stack@2.2.0 test:bash
+> bash tests/marketplace_test.sh && bash tests/skeleton_test.sh && bash tests/scaffold_test.sh && bash tests/bootstrap_test.sh && bash tests/paperclip_test.sh && bash tests/local_waves_test.sh && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'durable_host_runs_test.py' -v
+
+Running marketplace validation tests
+=====================================
+MARKETPLACE_JSON: /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/.claude-plugin/marketplace.json
+PLUGIN_JSON:      /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/xp-stack/.claude-plugin/plugin.json
+
+TEST 1. marketplace_json_syntax
+  PASS: marketplace_json_syntax
+
+TEST 2. marketplace_required_fields
+  PASS: marketplace_required_fields
+
+TEST 3. plugin_entry_valid
+  PASS: plugin_entry_valid
+
+TEST 4. source_dir_exists
+  PASS: source_dir_exists
+
+TEST 5. no_duplicate_names
+  PASS: no_duplicate_names
+
+TEST 6. plugin_json_syntax
+  PASS: plugin_json_syntax
+
+TEST 7. plugin_required_fields
+  PASS: plugin_required_fields
+
+TEST 8. plugin_name_matches
+  PASS: plugin_name_matches
+
+TEST 9. version_semver
+  PASS: version_semver
+
+=====================================
+Results: 9 passed, 0 failed
+Running xp-stack skeleton validation tests
+===========================================
+PLUGIN_DIR: /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/xp-stack
+
+TEST 1.  skills_dirs_exist
+  PASS: skills_dirs_exist
+
+TEST 2.  skills_have_skillmd
+  PASS: skills_have_skillmd
+
+TEST 3.  skillmd_has_frontmatter
+  PASS: skillmd_has_frontmatter
+
+TEST 4.  bootstrap_has_scaffold_sh
+  PASS: bootstrap_has_scaffold_sh
+
+TEST 5.  durable_host_runs_manual_only
+  PASS: durable_host_runs_manual_only
+
+TEST 6.  agents_dir_exists
+  PASS: agents_dir_exists
+
+TEST 7.  agents_files_exist
+  PASS: agents_files_exist
+
+TEST 8.  agents_have_frontmatter
+  PASS: agents_have_frontmatter
+
+TEST 9.  templates_dir_exists
+  PASS: templates_dir_exists
+
+TEST 10. templates_core_files
+  PASS: templates_core_files
+
+TEST 11. mcp_json_valid
+  PASS: mcp_json_valid
+
+TEST 12. readme_exists
+  PASS: readme_exists
+
+TEST 13. license_exists
+  PASS: license_exists
+
+===========================================
+Results: 13 passed, 0 failed
+Running scaffold.sh tests
+=========================
+SCAFFOLD_SH: /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/poc-bootstrap/skills/scaffold/scripts/scaffold.sh
+
+shellcheck not installed, skipping static analysis
+
+TEST 1. happy_path_copies_sentinel
+  PASS: happy_path_copies_sentinel
+
+TEST 2. idempotent_no_clobber
+  PASS: idempotent_no_clobber
+
+TEST 3. preserves_existing_file
+  PASS: preserves_existing_file
+
+TEST 4. missing_arg_fails
+  PASS: missing_arg_fails
+
+TEST 5. path_with_spaces
+  PASS: path_with_spaces
+
+=========================
+Results: 5 passed, 0 failed
+Running xp-stack bootstrap skill tests
+=======================================
+PLUGIN_DIR: /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/xp-stack
+SCAFFOLD_SH: /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/xp-stack/skills/bootstrap/scripts/scaffold.sh
+
+TEST 1.  templates_exist
+  PASS: templates_exist
+
+TEST 2.  scaffold_creates_claude_md_with_substitution
+  PASS: scaffold_creates_claude_md_with_substitution
+
+TEST 3.  scaffold_copies_tasks_template
+  PASS: scaffold_copies_tasks_template
+
+TEST 4.  scaffold_copies_pesquisas_template
+  PASS: scaffold_copies_pesquisas_template
+
+TEST 5.  scaffold_creates_claude_settings
+  PASS: scaffold_creates_claude_settings
+
+TEST 6.  scaffold_idempotent
+  PASS: scaffold_idempotent
+
+TEST 7.  scaffold_skip_preserves_claude_md
+  PASS: scaffold_skip_preserves_claude_md
+
+TEST 8.  scaffold_backup_renames_and_creates
+  PASS: scaffold_backup_renames_and_creates
+
+TEST 9.  scaffold_abort_does_nothing
+  PASS: scaffold_abort_does_nothing
+
+TEST 10. scaffold_missing_args_fails_cleanly
+  PASS: scaffold_missing_args_fails_cleanly
+
+TEST 11. bootstrap_description_fits_1536
+  PASS: bootstrap_description_fits_1536
+
+TEST 12. scaffold_creates_agents_md_symlink
+  PASS: scaffold_creates_agents_md_symlink
+
+TEST 13. scaffold_local_symlink_conditional
+  PASS: scaffold_local_symlink_conditional
+
+TEST 14. scaffold_gitignore_adds_entries
+  PASS: scaffold_gitignore_adds_entries
+
+TEST 15. scaffold_gitignore_preserves_and_idempotent
+  PASS: scaffold_gitignore_preserves_and_idempotent
+
+TEST 16. scaffold_no_agents_symlink_flag
+  PASS: scaffold_no_agents_symlink_flag
+
+=======================================
+Results: 16 passed, 0 failed
+Running xp-stack paperclip-orchestrator skill tests
+====================================================
+PLUGIN_DIR: /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/xp-stack
+SKILL_DIR:  /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/xp-stack/skills/paperclip-orchestrator
+
+TEST 1. skill_md_description_fits
+  PASS: skill_md_description_fits
+
+TEST 2. setup_script_exists_and_executable
+  PASS: setup_script_exists_and_executable
+
+TEST 3. templates_exist
+  PASS: templates_exist
+
+TEST 4. setup_creates_files_in_clean_dir
+  PASS: setup_creates_files_in_clean_dir
+
+TEST 5. setup_idempotent
+  PASS: setup_idempotent
+
+TEST 6. setup_adds_local_to_gitignore
+  PASS: setup_adds_local_to_gitignore
+
+====================================================
+Results: 6 passed, 0 failed
+Running xp-stack local-waves skill tests
+=========================================
+PLUGIN_DIR: /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/xp-stack
+SKILL_DIR:  /Users/rnobre/.traycer/worktrees/rnobre1__xp-stack/feat-harness-durable-runs/plugins/xp-stack/skills/local-waves
+
+TEST 1. skill_md_description_fits
+  PASS: skill_md_description_fits
+
+TEST 2. setup_script_exists
+  PASS: setup_script_exists
+
+TEST 3. templates_exist
+  PASS: templates_exist
+
+TEST 4. setup_creates_files
+  PASS: setup_creates_files
+
+TEST 5. setup_idempotent
+  PASS: setup_idempotent
+
+=========================================
+Results: 5 passed, 0 failed
+test_cancel_confirmed_event_uses_receipt_that_won_race (durable_host_runs_test.DurableHostRunsTest.test_cancel_confirmed_event_uses_receipt_that_won_race) ... ok
+test_cancel_confirms_sync_supervisor_stop_when_unit_is_collected (durable_host_runs_test.DurableHostRunsTest.test_cancel_confirms_sync_supervisor_stop_when_unit_is_collected) ... ok
+test_cancel_does_not_confirm_termination_when_supervisor_query_is_unavailable (durable_host_runs_test.DurableHostRunsTest.test_cancel_does_not_confirm_termination_when_supervisor_query_is_unavailable) ... ok
+test_cancel_is_not_reported_as_success_while_unit_remains_active (durable_host_runs_test.DurableHostRunsTest.test_cancel_is_not_reported_as_success_while_unit_remains_active) ... ok
+test_cancel_persists_intent_before_calling_supervisor (durable_host_runs_test.DurableHostRunsTest.test_cancel_persists_intent_before_calling_supervisor) ... ok
+test_cancel_rereads_receipt_when_natural_finish_wins_stop_race (durable_host_runs_test.DurableHostRunsTest.test_cancel_rereads_receipt_when_natural_finish_wins_stop_race) ... ok
+test_cancel_signal_racing_after_command_exit_preserves_real_exit_code (durable_host_runs_test.DurableHostRunsTest.test_cancel_signal_racing_after_command_exit_preserves_real_exit_code) ... ok
+test_cancel_stops_only_the_unit_for_the_requested_key (durable_host_runs_test.DurableHostRunsTest.test_cancel_stops_only_the_unit_for_the_requested_key) ... ok
+test_concurrent_identical_submits_start_only_one_unit (durable_host_runs_test.DurableHostRunsTest.test_concurrent_identical_submits_start_only_one_unit) ... ok
+test_default_registry_path_is_stable_across_shell_home_overrides (durable_host_runs_test.DurableHostRunsTest.test_default_registry_path_is_stable_across_shell_home_overrides) ... ok
+test_explicit_owner_and_declared_resources_are_immutable_payload (durable_host_runs_test.DurableHostRunsTest.test_explicit_owner_and_declared_resources_are_immutable_payload) ... ok
+test_follow_cli_returns_nonzero_and_prints_unknown_terminal_event (durable_host_runs_test.DurableHostRunsTest.test_follow_cli_returns_nonzero_and_prints_unknown_terminal_event) ... ok
+test_follow_drains_worker_events_written_during_terminal_status_check (durable_host_runs_test.DurableHostRunsTest.test_follow_drains_worker_events_written_during_terminal_status_check) ... ok
+test_follow_reads_persisted_lifecycle_events (durable_host_runs_test.DurableHostRunsTest.test_follow_reads_persisted_lifecycle_events) ... ok
+test_follow_reports_unknown_once_without_busy_polling (durable_host_runs_test.DurableHostRunsTest.test_follow_reports_unknown_once_without_busy_polling) ... ok
+test_follow_retries_one_transient_unknown_with_a_minimum_delay (durable_host_runs_test.DurableHostRunsTest.test_follow_retries_one_transient_unknown_with_a_minimum_delay) ... ok
+test_follow_unknown_budget_exhaustion_is_bounded_and_does_not_resubmit (durable_host_runs_test.DurableHostRunsTest.test_follow_unknown_budget_exhaustion_is_bounded_and_does_not_resubmit) ... ok
+test_loaded_inactive_start_pending_state_does_not_seal_null_receipt (durable_host_runs_test.DurableHostRunsTest.test_loaded_inactive_start_pending_state_does_not_seal_null_receipt) ... ok
+test_nonzero_command_exit_is_written_to_receipt_and_status (durable_host_runs_test.DurableHostRunsTest.test_nonzero_command_exit_is_written_to_receipt_and_status) ... ok
+test_not_found_default_snapshot_does_not_confirm_an_unstarted_unit (durable_host_runs_test.DurableHostRunsTest.test_not_found_default_snapshot_does_not_confirm_an_unstarted_unit) ... ok
+test_owner_and_resources_are_persisted_and_unchanged_for_handoff_status (durable_host_runs_test.DurableHostRunsTest.test_owner_and_resources_are_persisted_and_unchanged_for_handoff_status) ... ok
+test_receipt_does_not_confirm_tree_end_until_supervisor_is_terminal (durable_host_runs_test.DurableHostRunsTest.test_receipt_does_not_confirm_tree_end_until_supervisor_is_terminal) ... ok
+test_record_preserves_candidate_canonical_cwd_and_argv_boundaries (durable_host_runs_test.DurableHostRunsTest.test_record_preserves_candidate_canonical_cwd_and_argv_boundaries) ... ok
+test_same_key_with_different_argv_is_rejected (durable_host_runs_test.DurableHostRunsTest.test_same_key_with_different_argv_is_rejected) ... ok
+test_same_key_with_different_candidate_is_rejected (durable_host_runs_test.DurableHostRunsTest.test_same_key_with_different_candidate_is_rejected) ... ok
+test_same_key_with_different_cwd_is_rejected (durable_host_runs_test.DurableHostRunsTest.test_same_key_with_different_cwd_is_rejected) ... ok
+test_sigterm_during_spawn_is_forwarded_to_child_process_group (durable_host_runs_test.DurableHostRunsTest.test_sigterm_during_spawn_is_forwarded_to_child_process_group) ... ok
+test_sigterm_without_durable_cancel_intent_is_a_signal_failure (durable_host_runs_test.DurableHostRunsTest.test_sigterm_without_durable_cancel_intent_is_a_signal_failure) ... ok
+test_state_records_logs_events_and_receipt_are_private_and_persist (durable_host_runs_test.DurableHostRunsTest.test_state_records_logs_events_and_receipt_are_private_and_persist) ... ok
+test_submit_cli_persists_explicit_owner_and_repeated_resource_declarations (durable_host_runs_test.DurableHostRunsTest.test_submit_cli_persists_explicit_owner_and_repeated_resource_declarations) ... ok
+test_supervisor_failure_persists_receipt_and_terminal_event_after_worker_loss (durable_host_runs_test.DurableHostRunsTest.test_supervisor_failure_persists_receipt_and_terminal_event_after_worker_loss) ... ok
+test_supervisor_preflight_failure_does_not_register_or_burn_key (durable_host_runs_test.DurableHostRunsTest.test_supervisor_preflight_failure_does_not_register_or_burn_key) ... ok
+test_systemd_exec_failure_codes_are_supervisor_failures_not_signals (durable_host_runs_test.DurableHostRunsTest.test_systemd_exec_failure_codes_are_supervisor_failures_not_signals) ... ok
+test_systemd_inspect_parses_terminal_code_and_not_found_load_state (durable_host_runs_test.DurableHostRunsTest.test_systemd_inspect_parses_terminal_code_and_not_found_load_state) ... ok
+test_systemd_preflight_checks_user_manager_without_registering_a_unit (durable_host_runs_test.DurableHostRunsTest.test_systemd_preflight_checks_user_manager_without_registering_a_unit) ... ok
+test_systemd_preflight_rejects_missing_systemd_run_before_registering (durable_host_runs_test.DurableHostRunsTest.test_systemd_preflight_rejects_missing_systemd_run_before_registering) ... ok
+test_systemd_sigterm_exit_is_signal_without_cancel_intent (durable_host_runs_test.DurableHostRunsTest.test_systemd_sigterm_exit_is_signal_without_cancel_intent) ... ok
+test_systemd_submission_keeps_terminal_evidence_loaded (durable_host_runs_test.DurableHostRunsTest.test_systemd_submission_keeps_terminal_evidence_loaded) ... ok
+test_unknown_supervisor_state_does_not_resubmit_existing_key (durable_host_runs_test.DurableHostRunsTest.test_unknown_supervisor_state_does_not_resubmit_existing_key) ... ok
+test_worker_exception_persists_event_and_failure_receipt (durable_host_runs_test.DurableHostRunsTest.test_worker_exception_persists_event_and_failure_receipt) ... durable-run worker failed: worker setup failed
+ok
+test_worker_records_when_its_final_receipt_loses_an_existing_receipt_race (durable_host_runs_test.DurableHostRunsTest.test_worker_records_when_its_final_receipt_loses_an_existing_receipt_race) ... ok
+
+----------------------------------------------------------------------
+Ran 41 tests in 0.376s
+
+OK

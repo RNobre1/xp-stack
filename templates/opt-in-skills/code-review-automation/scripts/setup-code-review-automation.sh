@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup-code-review-automation.sh
-# Installs orchestrator self-review gates in a target project.
+# Installs opt-in PR review reminders in a target project.
 # Usage: bash setup-code-review-automation.sh <target-project-path>
 # Idempotent: detects existing artifacts and appends/skips cleanly.
 
@@ -35,22 +35,22 @@ else
   echo "OK    $REVIEW_CMD_DEST"
 fi
 
-# --- PR template: append self-review section ---
+# --- PR template: append review evidence section ---
 PR_TEMPLATE_DEST="$TARGET/.github/PULL_REQUEST_TEMPLATE.md"
 if [[ ! -f "$PR_TEMPLATE_DEST" ]]; then
-  # Create minimal PR template with self-review section only
+  # Create minimal PR template with review evidence section only
   mkdir -p "$TARGET/.github"
   cat "$TEMPLATES_DIR/PR_TEMPLATE_self-review-section.md.template" > "$PR_TEMPLATE_DEST"
-  echo "OK    $PR_TEMPLATE_DEST (created with self-review section)"
+  echo "OK    $PR_TEMPLATE_DEST (created with review evidence section)"
 else
-  # Check if self-review section already present
-  if grep -q "Orchestrator self-review findings" "$PR_TEMPLATE_DEST" 2>/dev/null; then
-    echo "SKIP  $PR_TEMPLATE_DEST — self-review section already present." >&2
+  # Preserve idempotence for both the legacy heading and the current one.
+  if grep -qE '^## (Orchestrator self-review findings|Review findings and evidence)$' "$PR_TEMPLATE_DEST" 2>/dev/null; then
+    echo "SKIP  $PR_TEMPLATE_DEST — review evidence section already present." >&2
     CONFLICTS=$((CONFLICTS + 1))
   else
     # Append section
     cat "$TEMPLATES_DIR/PR_TEMPLATE_self-review-section.md.template" >> "$PR_TEMPLATE_DEST"
-    echo "PATCH $PR_TEMPLATE_DEST (appended self-review section)"
+    echo "PATCH $PR_TEMPLATE_DEST (appended review evidence section)"
     PATCHED=$((PATCHED + 1))
   fi
 fi
@@ -123,7 +123,7 @@ if [[ $PATCHED -gt 0 ]]; then
 fi
 echo ""
 echo "Next steps:"
-echo "  1. Use /review-pr in Claude Code BEFORE running gh pr create"
-echo "  2. Paste findings in PR body under '## Orchestrator self-review findings'"
-echo "  3. Pilot reviews + merges on GitHub — orchestrator does NOT self-merge"
+echo "  1. Use /review-pr in the lane selected by policy when review evidence is required"
+echo "  2. Paste findings in PR body under '## Review findings and evidence'"
+echo "  3. Integrate and merge only under the current session/project authorization"
 echo "  4. Smoke test hook: run 'gh pr create' in Claude Code → should see [review-pr reminder] line"

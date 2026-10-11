@@ -1,64 +1,169 @@
-import { existsSync, copyFileSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { existsSync, copyFileSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import { resolve, join, dirname, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readManifest, writeManifest, detectDrift, hashFile } from '../../lib/manifest.js';
+import { readManifest, writeManifest, hashFile } from '../../lib/manifest.js';
+import { walkDir } from '../../lib/installer.js';
+import { ENGINE_PATHS } from '../../lib/engines.js';
+import { validate } from '../../lib/validators.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
+const PROJECT_OWNED = new Set(['CLAUDE.md', 'AGENTS.md', '.claude/settings.json']);
+const TEMPLATE_TREES = [
+  ['docs/tasks/_template/', 'plugins/xp-stack/templates/docs-tasks-template/'],
+  ['docs/pesquisas/_template/', 'plugins/xp-stack/templates/docs-pesquisas-template/'],
+];
+
+// Validate every candidate before writing. A manifest is not permission to write
+// outside the selected project, nor to follow a user-created symbolic link.
+function containedPath(root, rel) {
+  if (typeof rel !== 'string' || !rel || isAbsolute(rel) || rel.includes('\\') ||
+      rel.split('/').some((part) => part === '..' || part === '.' || !part)) {
+    throw new Error(`xp-stack update: caminho inválido: ${rel}`);
+  }
+  let current = realpathSync(root);
+  for (const part of rel.split('/')) {
+    current = join(current, part);
+    try {
+      if (lstatSync(current).isSymbolicLink()) {
+        throw new Error(`xp-stack update: symlink no caminho gerenciado: ${rel}. Nenhum arquivo foi atualizado; reconcilie o mirror/manifest antes de repetir.`);
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
+  return current;
+}
+
+function sourceFor(rel, source) {
+  // init <= 2.2.0 recorded placeholders for these two template trees.
+  for (const [dest, src] of TEMPLATE_TREES) {
+    if (source === `${src}...` && rel.startsWith(dest)) return `${src}${rel.slice(dest.length)}`;
+  }
+  return source;
+}
+
+function installedContentGroups(files, projectRoot, restoreRemoved) {
+  const groups = new Map();
+  for (const [dest, entry] of Object.entries(files)) {
+    if (!restoreRemoved && !existsSync(join(projectRoot, dest))) continue;
+    const source = sourceFor(dest, entry.source);
+    for (const [destPrefix, sourcePrefix] of TEMPLATE_TREES) {
+      if (dest.startsWith(destPrefix) && source === `${sourcePrefix}${dest.slice(destPrefix.length)}`) {
+        groups.set(destPrefix, sourcePrefix.slice(0, -1));
+      }
+    }
+    const match = /^(plugins\/xp-stack\/skills|templates\/opt-in-skills)\/([^/]+)\/(.+)$/.exec(entry.source);
+    if (!match) continue;
+    const [, root, skill, suffix] = match;
+    for (const cfg of Object.values(ENGINE_PATHS)) {
+      const prefix = `${cfg.skillsDir}/${skill}/`;
+      if (dest === `${prefix}${suffix}`) groups.set(prefix, `${root}/${skill}`);
+    }
+  }
+  return groups;
+}
 
 async function runUpdate(opts) {
   const projectRoot = resolve(opts.cwd ?? process.cwd());
+  containedPath(projectRoot, '.xp-stack/manifest.json');
   const manifest = readManifest(projectRoot);
   if (!manifest) {
     throw new Error('xp-stack update: manifest nao encontrado em .xp-stack/manifest.json. Rode "xp-stack init" primeiro.');
   }
+  const validation = validate('manifest', manifest);
+  if (!validation.valid) throw new Error(`Manifest invalido contra schema: ${JSON.stringify(validation.errors)}`);
 
-  // Auto-yes mode: --keep-mine, --take-theirs, ou default skip
+  if (opts.keepMine && opts.takeTheirs) throw new Error('Escolha somente --keep-mine ou --take-theirs.');
   const autoMode = opts.yes ? (opts.keepMine ? 'keep' : opts.takeTheirs ? 'take' : 'skip') : null;
-
+  const next = structuredClone(manifest);
+  const copies = [];
   let modifiedCount = 0;
-  let updatedCount = 0;
   let driftWithoutPolicy = false;
 
   for (const [relPath, entry] of Object.entries(manifest.files)) {
-    const drift = detectDrift(projectRoot, relPath, entry.hash);
-
-    if (drift === 'modified') {
+    const destPath = containedPath(projectRoot, relPath);
+    if (entry.hash === 'managed_lines') continue;
+    const source = sourceFor(relPath, entry.source);
+    const sourcePath = containedPath(PKG_ROOT, source);
+    if (!existsSync(sourcePath) || !lstatSync(sourcePath).isFile()) {
+      console.warn(`Source indisponível; preservado: ${relPath}`);
+      continue;
+    }
+    const sourceHash = hashFile(sourcePath);
+    const currentHash = existsSync(destPath) ? hashFile(destPath) : null;
+    if (PROJECT_OWNED.has(relPath)) {
+      if (currentHash !== sourceHash) {
+        console.log(`Arquivo do projeto preservado: ${relPath}; compare manualmente o template ${source}.`);
+      }
+      if (currentHash !== entry.hash) {
+        modifiedCount++;
+        next.files[relPath].user_modified = true;
+        next.files[relPath].user_modified_detected_at = new Date().toISOString();
+      }
+      continue;
+    }
+    if (currentHash === null && autoMode !== 'take') {
       modifiedCount++;
-      if (autoMode === 'keep' || autoMode === 'skip') {
-        // Marca como user_modified no manifest, nao toca no arquivo
-        entry.user_modified = true;
-        entry.user_modified_detected_at = new Date().toISOString();
-      } else if (autoMode === 'take') {
-        // Sobrescreve com source
-        const sourcePath = join(PKG_ROOT, entry.source);
-        if (existsSync(sourcePath)) {
-          copyFileSync(sourcePath, join(projectRoot, relPath));
-          entry.hash = hashFile(join(projectRoot, relPath));
-          entry.user_modified = false;
-          updatedCount++;
-        }
-      } else {
-        // No --yes: erro claro pedindo flag de policy, marca pra exit 1
+      next.files[relPath].user_modified = true;
+      next.files[relPath].user_modified_detected_at = new Date().toISOString();
+      console.log(`Arquivo removido localmente; exclusão preservada: ${relPath}. Use --yes --take-theirs somente se quiser restaurá-lo.`);
+      continue;
+    }
+    if (currentHash !== entry.hash && currentHash !== sourceHash) {
+      modifiedCount++;
+      if (!autoMode) {
         console.error(`Drift detectado em ${relPath}. Use --yes --keep-mine OR --yes --take-theirs em CI.`);
         driftWithoutPolicy = true;
       }
+      if (autoMode !== 'take') {
+        next.files[relPath].user_modified = true;
+        next.files[relPath].user_modified_detected_at = new Date().toISOString();
+        continue;
+      }
+    }
+    if (currentHash !== sourceHash) copies.push({ sourcePath, destPath, relPath });
+    next.files[relPath] = { ...entry, hash: sourceHash, source, user_modified: false };
+    delete next.files[relPath].user_modified_detected_at;
+  }
+
+  // Discover only new files in an already installed skill/mirror or template tree.
+  // Unmanaged collisions are always preserved, even with --take-theirs.
+  for (const [destPrefix, sourcePrefix] of installedContentGroups(manifest.files, projectRoot, autoMode === 'take')) {
+    const sourceDir = containedPath(PKG_ROOT, sourcePrefix);
+    if (!existsSync(sourceDir)) continue;
+    for (const relativeFile of walkDir(sourceDir)) {
+      const suffix = relativeFile.split(sep).join('/');
+      const destRel = `${destPrefix}${suffix}`;
+      if (Object.hasOwn(manifest.files, destRel)) continue;
+      const destPath = containedPath(projectRoot, destRel);
+      const source = `${sourcePrefix}/${suffix}`;
+      const sourcePath = containedPath(PKG_ROOT, source);
+      if (existsSync(destPath)) {
+        console.warn(`Arquivo local não gerenciado; preservado: ${destRel}`);
+        continue;
+      }
+      copies.push({ sourcePath, destPath, relPath: destRel });
+      next.files[destRel] = { hash: hashFile(sourcePath), source, user_modified: false };
     }
   }
 
   if (driftWithoutPolicy) {
     process.exitCode = 1;
-    // Nao reescrever manifest quando comando falhou
     return;
   }
-
-  if (modifiedCount === 0) {
+  for (const { sourcePath, destPath, relPath } of copies) {
+    mkdirSync(dirname(destPath), { recursive: true });
+    copyFileSync(sourcePath, destPath);
+    console.log(`Atualizado: ${relPath}`);
+  }
+  next.installed_version = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')).version;
+  writeManifest(projectRoot, next);
+  if (copies.length === 0 && modifiedCount === 0) {
     console.log('xp-stack update: nothing to update (sem drift detectado)');
   } else {
-    console.log(`xp-stack update: ${modifiedCount} arquivos com drift, ${updatedCount} sobrescritos`);
+    console.log(`xp-stack update: ${copies.length} arquivos atualizados/adicionados; ${modifiedCount} alterações locais avaliadas; versão do pacote ${next.installed_version}. Consulte o manifest para arquivos preservados.`);
   }
-
-  writeManifest(projectRoot, manifest);
 }
 
 export function registerUpdate(program) {
@@ -68,7 +173,7 @@ export function registerUpdate(program) {
     .option('--cwd <path>', 'project root (default: process.cwd())')
     .option('--yes', 'pula prompts interativos (requer --keep-mine ou --take-theirs)')
     .option('--keep-mine', 'mantem versao do user (marca user_modified=true)')
-    .option('--take-theirs', 'sobrescreve com versao nova')
+    .option('--take-theirs', 'restaura skills/templates gerenciados; CLAUDE.md, AGENTS.md e settings do projeto são sempre preservados')
     .action(async (opts) => {
       try {
         await runUpdate(opts);

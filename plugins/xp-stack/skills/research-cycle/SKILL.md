@@ -15,6 +15,8 @@ Três níveis de profundidade:
 - **`L2` standard** (<15min, com critic): researcher principal + research-critic adversarial, 3+ fontes trianguladas, `sources.json` + `claims.json` + `pesquisa.md`. **Default**.
 - **`L3` deep** (<30min, com 2-4 researchers paralelos): pra decisão arquitetural P0 ou trade-off complexo. Múltiplos researchers concorrentes + critic + sintetizador final.
 
+Regras de identidade de revisão, seleção de modelo e evidências seguem a fonte canônica [delivery-flow.md](../akita-xp-rules/references/delivery-flow.md). Esta skill mantém os critérios próprios de pesquisa e triangulação descritos abaixo.
+
 Aceita via slash command argument: `/xp-stack:research-cycle L1` ou `L2` ou `L3`. Default: `L2`.
 
 Salve qual tier foi usado no header de `pesquisa.md`.

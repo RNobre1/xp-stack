@@ -1,15 +1,20 @@
 # Task Decomposition Template
 
-Every non-trivial feature should be decomposed in `docs/tasks/{feature-slug}/`. This template exists so we never redesign the structure — copy and fill.
+Use `docs/tasks/{feature-slug}/` for new task tracking when there are multiple usable outcomes, dependencies, owners, or coordination risks and the project has no existing status tool. One outcome that touches several files can remain one task; a T-file is not created for every implementation phase or internal micro-step. If a project already has an active task-status tool, preserve it until a separate authorized migration.
+
+Use the portable `akita-xp-rules / references/delivery-flow.md` (revision `2026-10-11.1`) for increment, evidence-reuse, risk, and review rules. Follow its status-source rule: a ticket without Autonomia is the authority; with an active Autonomia controller, the controller is the authority and the ticket points to it. For a new outside-Traycer docs/tasks flow without an existing status tool, `tasks.json` is the authority and Markdown is derived.
 
 ## Usage
 
 ```bash
 FEATURE=my-feature
 mkdir -p "docs/tasks/$FEATURE"
+# New docs/tasks flow with no existing status tool; otherwise follow the active source of status.
+cp docs/tasks/_template/TEMPLATE-tasks.json "docs/tasks/$FEATURE/tasks.json"
 cp docs/tasks/_template/TEMPLATE-overview.md  "docs/tasks/$FEATURE/00-overview.md"
-cp docs/tasks/_template/TEMPLATE-progress.md  "docs/tasks/$FEATURE/PROGRESS.md"
 cp docs/tasks/_template/TEMPLATE-task.md      "docs/tasks/$FEATURE/T1-first-task.md"
+# Complete layout only: dated, derived snapshot (uncomment when selected)
+# cp docs/tasks/_template/TEMPLATE-progress.md "docs/tasks/$FEATURE/PROGRESS.md"
 # Optional, only if running in parallel terminals:
 cp docs/tasks/_template/TEMPLATE-terminal-prompts.md "docs/tasks/$FEATURE/TERMINAL-PROMPTS.md"
 ```
@@ -18,31 +23,33 @@ cp docs/tasks/_template/TEMPLATE-terminal-prompts.md "docs/tasks/$FEATURE/TERMIN
 
 | File | Required | Purpose |
 |---|---|---|
-| `00-overview.md` | Yes | General plan, diagnosis, task table, parallelism waves, how to execute |
-| `PROGRESS.md` | Yes | Live snapshot: status per task, metrics before/after, decisions, chronological history |
-| `T{N}-{slug}.md` | Yes (1+) | One task per file. TDD, evidence-contract slots, allowed/forbidden files, acceptance criteria, execution log |
-| `TERMINAL-PROMPTS.md` | Optional | Self-contained prompts to parallelize in worktrees/terminals |
+| `tasks.json` | New outside-Traycer flow with no existing status tool | Canonical task status and dependencies; omit when a ticket, Autonomia controller, or existing tool is the source |
+| `00-overview.md` | Yes | Derived view: diagnosis, outcomes, consumers, task references, and execution plan |
+| `T{N}-{slug}.md` | Yes (1+) | Task specification keyed by ID in the authority source; TDD, scope, acceptance, execution evidence |
+| `PROGRESS.md` | Optional, complete layout | Dated metrics/decisions snapshot derived from the authority source; never live status |
+| `TERMINAL-PROMPTS.md` | Optional | Only when the selected mechanism requires a separate prompt file |
 
 ## Conventions
 
 - **Feature slug** in kebab-case: `user-auth`, `payment-integration`, `search-feature`
 - **Task number** sequential from 1. Sub-tasks discovered in review become `T{N}.1`, `T{N}.2`, etc.
-- **Branch** per task: `feat/{feature-slug}-T{N}`
-- **Status checkboxes** at task header: `[ ] Planning` `[ ] In progress` `[ ] Evidence captured` `[ ] Ready for review`
+- **Isolation:** use the branch/worktree selected by the session and Host policy; do not create a new branch for each internal micro-step.
+- **Status authority:** follow the source-of-status rule in `delivery-flow.md`; update only that source and do not create a parallel tracker for an existing tool.
+- **Documentation level:** follow the essential/complete file-set rules in `delivery-flow.md`. Do not create a `state.json` just to save `doc_level`.
 - **Conventional commits** matching the change type (`test:`, `feat:`, `refactor:`, `fix:`, `docs:`, `chore:`)
 
 ## Lifecycle
 
-1. **Planning**: create `00-overview.md` with diagnosis and task table. Create each `T{N}-{slug}.md` with objective, scope (allowed/forbidden files), acceptance criteria, and test scenarios. No practical code in this phase.
-2. **Execution**: each task is a functional increment on its branch, follows TDD (red -> green -> refactor -> verification), and the executing session updates the **Execution log** with the evidence contract's commands, trees, exit codes, and logs.
-3. **Completion**: after the required independent review and project gates accept the candidate, integrate or open a PR according to the current session authorization. Update status in `00-overview.md` and `PROGRESS.md` to `[x] Completed YYYY-MM-DD (#PR -> hash)` only when the evidence supports it.
+1. **Planning**: identify one usable consumer outcome and its pressure scenarios. Select the authority defined in `delivery-flow.md`. Copy the `tasks.json` manifest only for a new outside-Traycer docs/tasks flow with no existing status tool; otherwise link task documents to the active ticket, Autonomia controller, or existing tool.
+2. **Execution**: each increment follows TDD and the selected risk gates in `delivery-flow.md`; record the source/revision, candidate, commands, inputs, environment, exits, and logs in the task evidence.
+3. **Completion**: after the required independent review and project gates accept the candidate, integrate or open a PR according to the current session authorization. Update the one status authority, then refresh Markdown views; never edit status in multiple places.
 4. **Archival** (when ALL tasks in the feature are completed): see section below.
 
 ## Archival policy — NEVER delete
 
 Completed tasks **are not deleted**. Two options, in preference order:
 
-- **Option A (default): in-place**. Leave the folder where it is, update `00-overview.md` header with `**Status:** COMPLETED on YYYY-MM-DD`. `grep` still finds it, git blame preserves history.
+- **Option A (default): in-place**. Leave the folder where it is and retain the completed task source and dated evidence snapshots. `grep` still finds it, git blame preserves history.
 - **Option B: move to `_archive/`**. Only when `docs/tasks/` root gets cluttered (5+ completed features competing with active ones). `git mv docs/tasks/{feature} docs/tasks/_archive/{feature}`.
 
 **Never `rm -rf`.** Reasons:

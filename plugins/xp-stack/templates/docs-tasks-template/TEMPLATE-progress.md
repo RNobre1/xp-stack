@@ -1,20 +1,22 @@
-# {{Feature}} — Overall Progress
+# {{Feature}} — Progress Snapshot
 
-**Start:** {{YYYY-MM-DD}}
-**Status:** {{In progress | Wave N completed | Checkpoint recorded | COMPLETED on YYYY-MM-DD}}
+**Snapshot date:** {{YYYY-MM-DD}}
+**Status authority:** {{Traycer ticket | Autonomia controller | existing project tool | docs/tasks/{{feature-slug}}/tasks.json for a new flow}}
+**Delivery-flow revision:** `2026-10-11.1`
+**Feature status at snapshot:** {{derived from the authority source}}
 
-> Track accepted increments and honest checkpoints. Evidence fields and review semantics come from the **Delivery evidence contract** in `akita-xp-rules`; this snapshot does not create a second session state.
+> This is a dated derived view, not a live status source. Read and update the authority above; refresh this snapshot from it. Follow `akita-xp-rules / references/delivery-flow.md` (revision `2026-10-11.1`) and the shared **Delivery evidence contract** for evidence and review.
 
 ---
 
 ## Progress per task
 
-| Task | Name | Status | Branch | Tests / Deliverables | Notes |
+| Task ID | Name | Status at snapshot | Branch/worktree | Tests / Deliverables | Notes |
 |------|------|--------|--------|---------------------|-------|
 | T1 | {{name}} | `[ ] Pending` | — | — | — |
 | T2 | {{name}} | `[ ] Pending` | — | — | — |
 
-> Update status after the relevant review/gates and authorized integration. Format: `[x] Completed YYYY-MM-DD (#{PR} -> {hash})`. A checkpoint records WIP and the exact next step instead of implying completion.
+> Refresh this snapshot after the authority source changes and the relevant review/gates accept the candidate. Use `[x] Completed YYYY-MM-DD (#{PR} -> {hash})` only as a rendered view of the source. A checkpoint records WIP and the exact next step instead of implying completion.
 
 ---
 

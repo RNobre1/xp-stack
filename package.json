@@ -1,6 +1,6 @@
 {
   "name": "xp-stack",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Portable XP/Akita methodology for AI coding agents (Claude Code, Codex, Cursor, Antigravity, Gemini CLI): absolute TDD, pair programming, formal research with triangulation, evidence-based task decomposition, policy-aware review, and optional native/headless/remote orchestration. Model, profile, and mechanism follow the current session/Host. Inspired by Reversa.",
   "type": "module",
   "bin": {
@@ -9,7 +9,9 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:bash": "bash tests/marketplace_test.sh && bash tests/skeleton_test.sh && bash tests/scaffold_test.sh && bash tests/bootstrap_test.sh && bash tests/paperclip_test.sh && bash tests/local_waves_test.sh"
+    "test:bash": "bash tests/marketplace_test.sh && bash tests/skeleton_test.sh && bash tests/scaffold_test.sh && bash tests/bootstrap_test.sh && bash tests/paperclip_test.sh && bash tests/local_waves_test.sh && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'durable_host_runs_test.py' -v && npm run test:contracts && npm run test:jev",
+    "test:contracts": "node --test tests/contracts/*.mjs",
+    "test:jev": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s plugins/xp-stack/skills/jev-triage/tests -v"
   },
   "files": [
     "bin/",

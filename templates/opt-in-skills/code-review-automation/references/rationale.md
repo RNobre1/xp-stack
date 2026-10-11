@@ -1,11 +1,13 @@
 # Rationale — code-review-automation skill
 
 > This rationale records the historical gap that motivated the opt-in skill.
-> Current routing follows the **Delivery evidence contract** in
-> `akita-xp-rules`: author self-inspection prepares the handoff,
-> optional triage reports facts, and independent final review follows the
-> session/Host policy. The hook and PR section are reminders, not semantic
-> enforcement.
+> Current routing and review identity/model rules follow `akita-xp-rules / Delivery flow`,
+> revision `2026-10-11.1`. The active environment/harness supplies the source
+> path or URI; do not infer a source-checkout path. The policy also uses the
+> **Delivery evidence contract** in `akita-xp-rules`, revision `2026-10-11.1`.
+> The historical examples
+> below describe earlier choices, not current routing requirements.
+> The hook and PR section are reminders, not semantic enforcement.
 
 ## Diagnóstico que originou esta skill
 
@@ -73,8 +75,7 @@ universal.
 Qualquer passe adicional consome tempo, contexto e cota conforme a conta
 configurada. Meça a troca no experimento; não trate o passe como custo zero.
 
-O revisor final deve ser outro agente e outro modelo em relação ao autor,
-conforme o contrato e a política vigente. Mantemos a persona adversarial como
-prática de baixo esforço para solicitar contraprovas; sua eficácia local ainda
-precisa ser medida. Ela e o checklist não transformam autoinspeção em aprovação
-final nem substituem evidência executável.
+Para a regra vigente sobre quando exigir revisão independente, identidade do
+revisor, escolha de modelo e evidência, siga a fonte canônica de delivery flow
+no topo deste documento. A persona adversarial e o checklist não transformam
+autoinspeção em aprovação final nem substituem evidência executável.

@@ -18,9 +18,9 @@ describe('resolveDocLevel', () => {
     );
   });
 
-  it('--yes em TTY usa default completo', async () => {
+  it('--yes em TTY usa default essencial', async () => {
     const r = await resolveDocLevel({ yes: true }, { isTTY: true });
-    expect(r).toEqual({ docLevel: 'completo', mode: 'auto' });
+    expect(r).toEqual({ docLevel: 'essencial', mode: 'auto' });
   });
 
   it('non-TTY (CI) sem --yes usa default', async () => {
@@ -54,9 +54,9 @@ describe('getDocLevelChoices', () => {
     const choices = getDocLevelChoices();
     expect(choices).toHaveLength(2);
     expect(choices[0].value).toBe('essencial');
-    expect(choices[0].name).toMatch(/MVP|pequeno/);
+    expect(choices[0].name).toMatch(/mínim|minim|estado/);
     expect(choices[1].value).toBe('completo');
-    expect(choices[1].name).toMatch(/serio|paralel/);
+    expect(choices[1].name).toMatch(/snapshot|coordena/);
   });
 });
 

@@ -19,7 +19,7 @@ import {
   injectGitignoreLine,
 } from '../../lib/scaffold.js';
 import { resolveEngines, getAllEngineChoices } from '../../lib/engine-resolver.js';
-import { resolveDocLevel } from '../../lib/doc-level-resolver.js';
+import { resolveDocLevel, DOC_LEVEL_DEFAULT } from '../../lib/doc-level-resolver.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
@@ -105,7 +105,7 @@ async function defaultDocLevelPrompt(choices) {
   return select({
     message: 'Nivel de detalhamento das tasks em docs/tasks/<feature>/?',
     choices,
-    default: 'completo',
+    default: DOC_LEVEL_DEFAULT,
   });
 }
 
@@ -232,7 +232,7 @@ async function runInit(opts) {
     const destRel = entry.destPath.slice(projectRoot.length + 1);
     manifest.files[destRel] = {
       hash: entry.hash,
-      source: 'plugins/xp-stack/templates/docs-tasks-template/...',
+      source: `plugins/xp-stack/templates/docs-tasks-template/${destRel.slice('docs/tasks/_template/'.length)}`,
       user_modified: false,
     };
   }
@@ -246,7 +246,7 @@ async function runInit(opts) {
     const destRel = entry.destPath.slice(projectRoot.length + 1);
     manifest.files[destRel] = {
       hash: entry.hash,
-      source: 'plugins/xp-stack/templates/docs-pesquisas-template/...',
+      source: `plugins/xp-stack/templates/docs-pesquisas-template/${destRel.slice('docs/pesquisas/_template/'.length)}`,
       user_modified: false,
     };
   }
@@ -317,7 +317,7 @@ export function registerInit(program) {
     .option('--no-dual-mirror', 'desabilita dual mirror automatico (so engines detectadas)')
     .option('--yes', 'pula prompts interativos: usa engines detectadas + dual mirror (CI/non-TTY behavior)')
     .option('--with-hooks', 'injeta hook Stop em .claude/settings.json (so se claude-code engine presente)')
-    .option('--doc-level <level>', 'nivel de detalhamento das tasks: essencial | completo (default: completo, ou prompt interativo)')
+    .option('--doc-level <level>', `nivel de detalhamento das tasks: essencial | completo (default: ${DOC_LEVEL_DEFAULT}, ou prompt interativo)`)
     .action(async (opts) => {
       try {
         await runInit(opts);

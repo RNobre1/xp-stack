@@ -19,13 +19,15 @@ allowed-tools:
 
 Instala lembretes visíveis para registrar revisão antes de um PR. A autoinspeção do autor prepara o handoff; a revisão final segue a política, o risco e as autorizações da sessão. O mecanismo pode usar o orquestrador, um revisor filho ou outro contexto independente; esta skill não escolhe modelo, perfil, UI ou estilo de comunicação. O hook lembra, mas não bloqueia.
 
-Use the **Delivery evidence contract** in `akita-xp-rules` for the candidate's observable behavior, base, evidence, applicable guards, limits, and review result. Resolve the source path supplied by the environment and record it in each task or briefing. Do not create a parallel review state.
+Use the **Delivery evidence contract**, revision `2026-10-11.1`, in `akita-xp-rules` for the candidate's observable behavior, base, evidence, applicable guards, limits, and review result. Resolve the source path supplied by the environment and record it in each task or briefing. Do not create a parallel review state.
+
+Use the canonical `akita-xp-rules / Delivery flow`, revision `2026-10-11.1`, for review identity, model routing, and evidence. Resolve the source path or URI supplied by the current environment/harness; do not assume a source-checkout path or invent a path in the consumer repository.
 
 ## Review lanes and independence
 
 ### Author self-inspection
 
-The author can run `/review-pr` as a preparatory pass, recording concrete findings and verified evidence before handoff. This pass does not become the final decision when the session policy or risk requires an independent reviewer.
+The author can run `/review-pr` as a preparatory pass, recording concrete findings and verified evidence before handoff. Self-inspection is never approval and cannot replace the final review when the session policy or risk requires one.
 
 ### Optional triage
 
@@ -33,12 +35,7 @@ If the current session explicitly selects a triage pass, provide the accepted sc
 
 ### Independent final review
 
-The final reviewer is selected by the current session/Host policy. The author
-and reviewer agent identities and models must both differ. A child reviewer is
-allowed when authorized and useful; a coordinator may review only when it did
-not author the implementation and the policy permits the distinct identity and
-model. A renamed context or new thread alone does not qualify. Unknown or
-inconclusive evidence is not approval.
+For an independent final review, follow the linked delivery flow for reviewer identity, model/provider routing, and evidence. Record both agent identities/models as provenance. This skill's command and reminders do not choose a reviewer or authorize a review. A renamed context or new thread alone does not create a distinct reviewer identity; unknown or inconclusive evidence is not approval.
 
 ### Anti-viés família
 
@@ -84,7 +81,7 @@ Não instalar se:
 | Artifact | Path in target repo | What it does |
 |---|---|---|
 | Slash command | `.claude/commands/review-pr.md` | `/review-pr` — registra uma autoinspeção ou revisão estruturada com persona adversarial |
-| PR template patch | `.github/PULL_REQUEST_TEMPLATE.md` | Append seção "## Orchestrator self-review findings" |
+| PR template patch | `.github/PULL_REQUEST_TEMPLATE.md` | Append seção "## Review findings and evidence" |
 | PreToolUse hook patch | `.claude/hooks/pre-tool-use.sh` | Matcher novo: lembra de `/review-pr` antes de `gh pr create`/`gh pr merge` |
 | Hook registration | `.claude/settings.json` | Garante hook PreToolUse registrado (idempotente se debugging-discipline já instalou) |
 
@@ -133,7 +130,7 @@ bash "${SKILL_DIR}/scripts/setup-code-review-automation.sh" "$(pwd)"
 ### Step 4: Report next steps
 
 Informar ao usuário:
-1. `/review-pr` instalado em `.claude/commands/review-pr.md` — usar antes de `gh pr create`
+1. `/review-pr` instalado em `.claude/commands/review-pr.md` — usar no lane selecionado, quando a política exigir evidência antes da integração
 2. PR template atualizado com seção self-review
 3. Hook reminder ativo para `gh pr create` e `gh pr merge`
 4. Smoke test: digitar `/review-pr` no Claude Code → deve ver structured review prompt
@@ -146,7 +143,7 @@ Quando uma implementação tem candidato e se prepara para abrir PR:
 2. Slash command guia o responsável pelo diff completo com adversarial persona
 3. Findings categorizados: Block / Must Fix / Suggestion / Nit
 4. Block present → não integre o candidato. Corrija ou encaminhe ao autor responsável
-5. Colar findings em `## Orchestrator self-review findings` no PR body
+5. Colar findings em `## Review findings and evidence` no PR body
 6. Quando a política exigir, encaminhar o candidato a uma revisão final independente
 7. Integração e merge seguem a autorização da sessão/projeto; este lembrete não fixa o ator
 

@@ -1,18 +1,19 @@
 # Task: {{SHORT TITLE}}
 
 > **Increment:** {{functional increment this task delivers}}
-> **Session:** {{session or run identifier, if applicable}}
-> **Branch:** `feat/{{feature-slug}}-T{{N}}`
+> **Task ID:** {{id from the task-status authority}}
+> **Branch/worktree:** {{isolation selected by the current session/Host policy; shared feature branch when appropriate}}
 > **Worktree:** {{path or workspace identifier}}
 > **Base:** `{{base branch/commit}}`
 > **Candidate:** `{{candidate branch/commit, or pending}}`
 > **Checkpoint:** {{none | WIP and exact next step below}}
+> **Task-status authority:** {{Traycer ticket | Autonomia controller | existing project tool | docs/tasks/{{feature-slug}}/tasks.json for a new flow}}
 > **Contract source:** {{resolved path/URI supplied by the environment to `akita-xp-rules/SKILL.md`}}
-> **Contract revision:** `<revision read from the resolved contract source>`
+> **Contract revision:** `2026-10-11.1`
 > **Loaderless handoff:** {{exact canonical excerpt attached in the dispatch briefing, or `skill loader resolves source`}}
-> **Status:** `[ ] Planning` `[ ] In progress` `[ ] Evidence captured` `[ ] Ready for review`
+> **Delivery-flow source/revision:** {{resolved delivery-flow.md URI | 2026-10-11.1}}
 
-> Field meanings are defined once in the **Delivery evidence contract** section of `akita-xp-rules`. This file provides slots for that contract; it is not a second contract. A checkpoint or WIP tree is valid progress and does not claim an accepted candidate.
+> Evidence fields are defined once in the **Delivery evidence contract** section of `akita-xp-rules`; process and stage reuse are defined in `delivery-flow.md`. This file provides task-specific details, not another status source. A checkpoint or WIP tree is valid progress and does not claim an accepted candidate.
 
 ---
 
@@ -70,60 +71,25 @@
 ## Evidence and applicable guards
 
 - **Affected consumers or boundaries:** {{paths, callers, routes, users, or services}}
-- **Applicable test layers:** {{unit/component/contract/integration/E2E/regression/performance/security, with a short reason for each}}
+- **Applicable test layers:** {{selected by impact/risk, with a short reason for each applicable or omitted layer}}
 - **Other guards:** {{lint, typecheck, schema, static analysis, or project-specific checks}}
 - [ ] **Coverage check (when applicable):** {{required, deferred, or omitted with reason}}
 - **Omitted or pending checks:** {{what was not run and why; do not imply that it passed}}
+- **Stage reuse:** {{prior evidence pointer + input manifest/environment/delta proof, or `rerun`/`not reusable`}}
 
 ---
 
-## Execution order (TDD mandatory per functional increment)
+## Execution and evidence
 
-### Phase 1 — Tests first (RED)
+Follow the resolved `akita-xp-rules / references/delivery-flow.md` source at revision `2026-10-11.1` and the `tdd-conventions` skill. Record selected pressure scenarios and applicable guards; do not expand this template into a checklist of every test layer.
 
-- [ ] Create or expand the test/observation for the expected behavior above before production code.
-- [ ] Run the focused command against the intended base/tree and record the command, tree or commit, exit code, and relevant log.
-- [ ] Confirm the failure is the missing behavior, not a syntax or configuration error.
-- [ ] If no historical RED exists, write `RED not recorded` and optionally run a later reproduction labeled **retrospective reproduction**. Never invent a past command, commit, or chronology.
-
-### Phase 2 — Implementation (GREEN)
-
-- [ ] {{concrete implementation step 1}}
-- [ ] {{concrete implementation step 2}}
-- [ ] Run the focused command against the candidate and record the tree/commit, exit code, and log.
-- [ ] Confirm the assertion exercises the behavior rather than only a mock, snapshot, or file-presence signal.
-
-### Phase 3 — Refactoring (REFACTOR)
-
-- [ ] Remove duplication or improve structure only when the change is supported by the evidence and scope.
-- [ ] Re-run the affected checks after each meaningful refactor.
-- [ ] Record a commit only when the project workflow calls for one and there is a real change; do not create an empty phase commit.
-
-### Phase 4 — Verification and handoff
-
-- [ ] Re-check base, candidate, worktree, pending changes, and diff against the allowed paths.
-- [ ] Run the focused tests and other guards selected by impact. Run broader validation at the integration boundary or when project policy requires it.
-- [ ] Capture output before marking evidence ready or claiming completion.
-- [ ] Perform author self-inspection to prepare the handoff; it is not a substitute for an independent final review when required by policy or risk.
+For behavior changes, write the selected assertion first, observe a causal RED, implement the smallest change to reach GREEN, then refactor when useful. Select test layers and guards by impact and risk; retain required project gates. When available, run type/static checks before an expensive stage that they can screen. Capture the commands, tested tree, exits, and output required by the evidence contract. Reuse prior stage results only with their manifest, environment, and delta proof.
 
 ---
 
 ## Optional triage pass
 
-Run this section only when the current session explicitly selects and authorizes the pass. Use the **Delivery evidence contract** in `akita-xp-rules` for the full boundary and finding semantics.
-
-- **Triage mechanism/profile:** {{selected by current session/Host policy, or not selected}}
-- **Input checked:** {{scope, criteria, base/candidate, diff, consumers, and available evidence}}
-- **Findings:** {{none, or one row per finding with location; concrete case; expected vs observed; evidence; severity; confirmation}}
-- **Triage status:** {{not run | confirmed findings returned to author | inconclusive | out-of-scope}}
-- **Author correction:** {{reference to the reproduction and correction, or not applicable}}
-- **Delta recheck:** {{command/log/property rechecked after correction, or not applicable}}
-- **Author identity/model:** {{concrete agent identity and model}}
-- **Final independent review:** {{Opus or another policy-selected reviewer/context and result, or pending}}
-- **Reviewer identity/model:** {{must differ from the author identity/model; record the concrete selection}}
-- **Checks now or fresh external evidence:** {{commands + timestamp + exit codes, or artifact/run + timestamp + candidate}}
-
-Triage reports facts and gaps; it does not edit the implementation or approve the candidate. Unknown is not approved, and triage does not justify running the entire suite by reflex.
+Use the **delivery flow** for the triage boundary and finding fields. When selected, record its status/findings, author correction and delta recheck; triage does not edit or approve the candidate. Record the independent reviewer identity, model choice when available, decision, and evidence under the shared contract. Unknown is not approval.
 
 ---
 
@@ -135,16 +101,13 @@ Triage reports facts and gaps; it does not edit the implementation or approve th
 
 ---
 
-## Mandatory test scenarios for applicable layers
+## Pressure scenarios and oracles
 
-```
-{{component or function under test}}
-  - {{scenario 1 — happy path and expected observation}}
-  - {{scenario 2 — error/refusal and expected observation}}
-  - {{scenario 3 — edge case, preserved behavior, or known fragile boundary}}
-```
+List the concrete cases that pressure this increment and the observable result or oracle for each. Include the normal path, relevant refusal/error path, and fragile or historical boundary when applicable; do not add cases just to fill slots.
 
-> Select test layers by impact, but once a scenario is selected it is part of the TDD contract. A skipped layer needs a reason in **Evidence and applicable guards**.
+| Case | Expected observation/oracle | Check or evidence |
+|---|---|---|
+| {{pressure case}} | {{observable result}} | {{focused test or other evidence}} |
 
 ---
 
