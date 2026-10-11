@@ -1,341 +1,198 @@
 # xp-stack
 
-[![npm version](https://img.shields.io/npm/v/xp-stack.svg)](https://npmjs.com/package/xp-stack)
+[![npm version](https://img.shields.io/npm/v/xp-stack.svg)](https://www.npmjs.com/package/xp-stack)
 
-Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, evidências de entrega, revisão orientada por política, conventional commits e mecanismos opcionais de orquestração.
+Metodologia **XP/Akita para desenvolvimento com agentes de IA**: incrementos utilizáveis, TDD, pesquisa com fontes, revisão independente e evidências de entrega. Funciona com diferentes stacks, modelos e ferramentas; a sessão e o projeto definem quem executa, revisa e pode publicar.
 
-> **Release v2.3.1** (2026-10-11): fluxo portátil de entrega, atualização segura das skills e auditoria do custo/valor dos testes. Veja [CHANGELOG.md](CHANGELOG.md). O pacote segue adotável em qualquer stack (TypeScript, Python, Go, bash, etc.).
+O npm CLI instala o conteúdo no projeto. O plugin oferece a integração com Claude Code. As versões desses dois canais são independentes: [npm](package.json), [plugin](plugins/xp-stack/.claude-plugin/plugin.json) e [histórico de releases](CHANGELOG.md).
 
----
+## O fluxo atual
 
-## O que mudou na v2.0.0 (histórico)
+O objetivo é entregar com qualidade sem transformar testes, documentação ou coordenação em trabalho repetido:
 
-> **Breaking release.** Parallelization pattern shifts from manual `TERMINAL-PROMPTS.md` (N terminals + copy-paste) to Claude Code **Agent View** native. Mais detalhes em [CHANGELOG.md](CHANGELOG.md).
+- **Um resultado utilizável por incremento.** Não criar uma task para cada arquivo ou etapa interna. Documentação essencial é o padrão; detalhes adicionais entram quando ajudam a coordenação.
+- **TDD e verificações proporcionais ao risco.** Testes focados e tipos vêm antes das etapas caras. Uma falha bloqueante interrompe as etapas caras seguintes; diagnóstico completo precisa de propósito explícito.
+- **Validação ampla no candidato integrado.** O coordenador reúne a evidência e admite a execução conforme a capacidade real do Host. Autores verificam seu recorte sem repetir a suíte completa a cada entrega.
+- **Paralelismo com equivalência e isolamento.** Grupos precisam preservar seleção, navegadores, cenas e oráculos, sem omissões nem duplicações. Dados mutáveis, portas, caches e saídas ficam isolados. O pacote não fixa quantos workers cada máquina suporta.
+- **Reuso somente com prova.** Resultado anterior exige manifesto das entradas e do ambiente e uma comparação do delta. Um diff pequeno ou a palavra “docs” não basta para reaproveitar um verde.
+- **Revisão por função.** Identidade independente e evidência conferida são requisitos; nenhum modelo é obrigatório. O autor nunca aprova a própria mudança. Diversidade e exceções seguem a política vigente.
+- **Uma fonte de estado.** Respeitar o ticket, controlador ou ferramenta já adotada. Pausa, compactação e handoff preservam contexto e execuções pendentes; não autorizam suíte, commit ou publicação por si.
 
-> As escolhas abaixo descrevem a release v2.0.0. Hoje, o modelo, perfil, mecanismo de despacho, UI e estilo de comunicação vêm da política da sessão/Host; Agent View, Sonnet e caveman permanecem opções explícitas.
+Este resumo aponta para o [Delivery flow](plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md), a fonte canônica das condições, exceções e revisão vigente. O [contrato de evidências](plugins/xp-stack/skills/akita-xp-rules/SKILL.md#delivery-evidence-contract-shared-source) define o que registrar por entrega. Essas orientações não instalam automaticamente um escalonador nem modificam o runner de testes de um projeto.
 
-- ✅ **Novo template canônico** `TEMPLATE-orchestrator-prompt.md` (substitui `TEMPLATE-terminal-prompts.md` removido)
-- ✅ **Exemplo Sonnet+caveman+worktree** pra workers dispatched pelo orchestrator
-- ✅ **Nova skill opt-in `debugging-discipline`** — instala PR template + PreToolUse hook + settings deep-merge pra lembrar disciplina em commits `fix:`
-- ✅ `akita-xp-rules`, `task-decomposition` atualizadas pra refletir despacho orientado pela política da sessão
-- ✅ `local-waves` marcada como `[LEGACY]` (segue funcional como fallback)
+## Começar pelo npm CLI
 
----
-
-## Instalação
-
-### Forma primária — npm CLI
-
-```bash
-npx xp-stack init
-```
-
-Detecta engines disponíveis (Claude Code, Antigravity, Cursor, Codex, etc.), instala dual mirror em `.claude/skills/` + `.agents/skills/`, cria manifest SHA-256, scaffolda `CLAUDE.md`, `AGENTS.md` (symlink), `docs/tasks/_template/`, `docs/pesquisas/_template/`, `.claude/settings.json` e `.gitignore` atualizado. Nunca sobrescreve nada que já exista.
-
-### Forma alternativa — plugin marketplace (backward compat)
-
-```
-/plugin marketplace add RNobre1/xp-stack
-/plugin install xp-stack@xp-stack
-/xp-stack:bootstrap
-```
-
-> **Recomendação:** prefira a forma npm. O plugin marketplace está sujeito ao [issue #35989 do claude-code](https://github.com/anthropics/claude-code/issues/35989) — skills somem do cache de plugins em algumas versões do CLI.
-
-### Quick start
+Requer Node.js compatível com o campo `engines` do [package.json](package.json).
 
 ```bash
 cd meu-projeto
-npx xp-stack init                              # scaffold + dual mirror
-npx xp-stack status                            # estado atual (engines, features ativas, drift)
-npx xp-stack add-skill db-archaeologist        # agent opt-in pra análise de DB
-npx xp-stack add-skill debugging-discipline    # lembretes de fix-workflow (PR template + hook)
+npx xp-stack@latest init
+npx xp-stack@latest status
 ```
 
-### Subcomandos disponíveis (10 + version flag)
-
-| Comando | O que faz |
-|---------|-----------|
-| `xp-stack init` | Scaffold inicial: manifest, dual mirror, templates, AGENTS.md symlink |
-| `xp-stack update` | Detecta modificações locais via manifest; aplica a política explícita `--keep-mine` ou `--take-theirs` aos arquivos com drift |
-| `xp-stack status` | Estado atual: engines, features, drift |
-| `xp-stack add-engine <name>` | Instala dual mirror em path adicional |
-| `xp-stack add-skill <name>` | Habilita skill opt-in (debugging-discipline, paperclip, local-waves, db-archaeologist, etc.) |
-| `xp-stack config get [key]` | Lê config (doc_level, etc.) |
-| `xp-stack config doc-level <essencial\|completo>` | Define nível de documentação por feature |
-| `xp-stack uninstall` | Remove arquivos do manifest, preserva user-modified, prompt antes de cada delete |
-| `xp-stack resume [feature]` | Lê index + state.json, resume sessão de uma feature |
-| `xp-stack hook-stop` | Executado pelo hook `Stop` — atualiza index.json + regenera RESUME.md |
-| `xp-stack regenerate-resume [feature]` | Regenera RESUME.md manualmente |
-| `xp-stack reconcile [feature]` | Reconcilia JSON↔markdown quando divergem (JSON wins, dry-run default) |
-| `xp-stack --version` | Mostra versão instalada |
-
-## Atualizando
-
-Para atualizar o executável e, depois, as fontes gerenciadas do projeto:
+Em terminal interativo, `init` pergunta quais engines instalar e o nível de documentação. Para escolher explicitamente:
 
 ```bash
-npm install -g xp-stack@2.3.1
-xp-stack update --cwd /caminho/do/projeto
+npx xp-stack@latest init --engine claude-code,codex --doc-level essencial --yes
 ```
 
-O update compara a fonte nova com o manifest e com os arquivos locais. Skills
-intactas recebem a nova versão e suas referências novas. Personalizações e
-exclusões locais são preservadas com aviso; colisões com arquivos não gerenciados
-não são sobrescritas. `CLAUDE.md`, `AGENTS.md` e `.claude/settings.json` pertencem
-ao projeto depois do init e permanecem preservados, inclusive com `--take-theirs`.
-Confira os caminhos relatados; uma versão nova do template pode exigir comparação
-manual com as convenções e permissões do projeto.
+A seleção explícita de `--engine` prevalece. Sem ela, o modo não interativo detecta as engines; quando detecta Claude Code, acrescenta o espelho `.agents/skills` por padrão, salvo `--no-dual-mirror`. Consulte os [destinos de cada engine](src/lib/engines.js). O instalador de conteúdo não instala os próprios harnesses e não garante que todos ofereçam os mesmos recursos nativos.
 
-`add-engine` leva as skills core e os opt-ins já habilitados à engine nova, sem
-sobrescrever destinos existentes. Backups ou uma branch continuam recomendados.
-Não use `uninstall` para atualizar: `.xp-stack/` também contém estado do projeto.
+### O que o init cria
 
-**Instalações antigas de `add-engine`:** versões anteriores copiaram opt-ins
-inativas para `<skillsDir>/opt-in-skills/`. Alguns harnesses descobrem essas skills
-recursivamente. A release nova deixa de criar essas cópias, mas não remove arquivos
-existentes automaticamente. Antes de declarar a migração concluída, inventarie os
-`SKILL.md` também nas subpastas, compare o manifest e as personalizações e confira
-o catálogo real do harness. Cópias antigas indesejadas exigem backup e uma migração
-explicitamente autorizada; não apague toda a pasta de skills. `update` não certifica
-que essas cópias históricas deixaram de ser carregadas.
-A migração autorizada também deve fazer backup de `.xp-stack/manifest.json` e remover
-as entradas que apontam para essas cópias aninhadas; caso contrário, `--take-theirs`
-restaura qualquer exclusão ainda registrada e pode reativá-las.
+- Skills core e suas referências nos diretórios das engines selecionadas, rastreadas por manifest SHA-256 em `.xp-stack/`.
+- `CLAUDE.md` de projeto e symlink relativo `AGENTS.md → CLAUDE.md`, quando os destinos ainda não existem.
+- Templates em `docs/tasks/_template/` e `docs/pesquisas/_template/`.
+- Para Claude Code, definições de agents e `.claude/settings.json` de projeto, preservando arquivos existentes.
+- Entrada `.xp-stack/state/` no `.gitignore`.
 
-No marketplace, a atualização do plugin usa seu próprio cache versionado;
-ela não reexecuta os scaffolds que você já copiou para o projeto:
+O hook Stop é **opcional**, habilitado por `init --with-hooks`; ele altera `.claude/settings.json` de forma aditiva. Inspecione o diff antes de adotar permissões ou hooks. As instruções globais do usuário, a fila do Host e suas credenciais não são instaladas pelo `init`.
+
+### Usar as skills
+
+Com o npm, use o nome que o catálogo do harness expõe — por exemplo, `task-decomposition` ou `research-cycle`. No Codex, pode invocar `$task-decomposition`. O prefixo `/xp-stack:` pertence à instalação pelo **plugin**, não é um comando universal de toda engine.
+
+Para habilitar uma capacidade opcional e depois levá-la a outra engine:
+
+```bash
+npx xp-stack@latest add-skill debugging-discipline
+npx xp-stack@latest add-engine codex
+```
+
+`add-skill` copia a skill; setups adicionais são executados ao invocá-la conforme suas instruções. `add-engine` replica o conteúdo já habilitado, sem ativar todas as opções do catálogo nem sobrescrever destinos existentes.
+
+## Conteúdo e fontes
+
+| Necessidade | Fonte |
+| --- | --- |
+| Regras, evidências e revisão | [akita-xp-rules](plugins/xp-stack/skills/akita-xp-rules/SKILL.md) e [Delivery flow](plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md) |
+| Selecionar camadas de teste e aplicar TDD | [tdd-conventions](plugins/xp-stack/skills/tdd-conventions/SKILL.md) |
+| Decompor trabalho e preparar handoffs | [task-decomposition](plugins/xp-stack/skills/task-decomposition/SKILL.md) |
+| Pesquisa com fontes e revisão crítica | [research-cycle](plugins/xp-stack/skills/research-cycle/SKILL.md) |
+| Cache, segurança e paralelismo em GitHub Actions | [optimizing-github-actions](plugins/xp-stack/skills/optimizing-github-actions/SKILL.md) |
+| Avaliar custo e valor dos testes | [Protocolo de auditoria](plugins/xp-stack/skills/akita-xp-rules/references/test-cost-audit.md) e [prompt reutilizável](plugins/xp-stack/skills/akita-xp-rules/references/test-cost-audit-prompt.md) |
+
+A lista de opt-ins e aliases aceitos pelo CLI está no [registry](src/lib/opt-in-registry.js). Inclui, por exemplo, análise de banco, extração de especificação visual, lembretes de debug/revisão e mecanismos opcionais de orquestração. Os [agents](plugins/xp-stack/agents/) são definições para Claude Code; as demais engines recebem as skills compatíveis, não uma implementação equivalente de agents.
+
+### Auditar uma suíte que ficou cara
+
+Use o prompt de auditoria com inventário de duração, comportamento coberto, histórico de defeitos e custo de manutenção. O resultado é uma proposta de manter, fundir, mover de camada ou remover testes **com prova de substituição**. Não há meta de quantidade nem autorização para apagar regressões só para reduzir o tempo. O protocolo preserva especialmente segurança, transações, rollback e concorrência.
+
+### Execução durável no Linux
+
+[durable-host-runs](plugins/xp-stack/skills/durable-host-runs/SKILL.md) executa um comando identificado sob `systemd --user`, com deduplicação, logs e recibo de término que sobrevivem à saída do cliente, desde que o gerenciador de usuário continue disponível.
+
+É uma capacidade manual distribuída pelo plugin ou por cópia pessoal versionada. **Não está no registry de `add-skill`**, não funciona como supervisor no macOS e não aloca workers ou substitui a fila existente. Requisitos e operação estão na própria skill.
+
+### Jev: experimental, manual e opcional
+
+```bash
+npx xp-stack@latest add-skill jev-triage
+```
+
+O [Jev opt-in](plugins/xp-stack/skills/jev-triage/SKILL.md) aceita casos sintéticos restritos e grava uma sugestão externa. Credencial e orçamento são configurados separadamente. O piloto limita-se ao contrato da API: **não demonstra acurácia ou ganho de produtividade**, não lê logs reais e não aprova testes, alterações ou publicação. Não é uma dependência do fluxo normal.
+
+### Limites do pacote
+
+O xp-stack fornece instruções e ferramentas específicas; não instala uma política global pessoal, não ativa Autonomia nem publica aplicações por consequência. Um runner de portão completo, seus adapters e o número de grupos de E2E pertencem a cada projeto/Host. Experimentos locais de paralelismo não são funcionalidades gerais nem garantias de tempo do npm.
+
+Skills pessoais ou de terceiros, como `motion-director`, `grill-me`, `animate` e `wiggle`, **não fazem parte desta distribuição**. Superpowers e Traycer também são integrações separadas; não presuma que existam apenas porque o xp-stack foi instalado.
+
+## Atualizar preservando o projeto
+
+```bash
+npx xp-stack@latest update --cwd /caminho/do/projeto
+```
+
+Se prefere o executável global, primeiro atualize-o com `npm install -g xp-stack@latest`, depois use `xp-stack update`.
+
+O update compara fonte, manifest e arquivos locais. Conteúdo gerenciado intacto recebe a nova versão e novas referências. Alterações locais precisam de escolha explícita; exclusões locais são preservadas. Colisões com conteúdo não gerenciado não são sobrescritas. `CLAUDE.md`, `AGENTS.md` e `.claude/settings.json` são do projeto após o init e permanecem preservados, inclusive com `--take-theirs`.
+
+```bash
+# Preservar personalizações, atualizando o restante gerenciado:
+npx xp-stack@latest update --yes --keep-mine
+
+# Restaurar fontes gerenciadas, inclusive exclusões locais: usar só se essa for a intenção.
+npx xp-stack@latest update --yes --take-theirs
+```
+
+Confira os caminhos relatados e compare manualmente novos templates de instruções/permissões. Faça backup ou trabalhe em branch. Não use `uninstall` para atualizar: `.xp-stack/` também contém estado.
+
+**Instalações antigas de add-engine:** versões anteriores criavam cópias em `<skillsDir>/opt-in-skills/`, que alguns harnesses descobrem recursivamente. A versão atual deixa de criá-las, mas não apaga cópias antigas. Inventarie arquivos, personalizações e catálogo efetivo. Uma limpeza autorizada deve preservar backup dos arquivos e de `.xp-stack/manifest.json` e remover também as entradas correspondentes; senão `--take-theirs` pode restaurar as cópias. Não apague toda a pasta de skills. Symlinks em caminhos gerenciados podem ser recusados; siga o diagnóstico sem substituir conteúdo de terceiros.
+
+## Plugin Claude Code
+
+```text
+/plugin marketplace add RNobre1/xp-stack
+/plugin install xp-stack@xp-stack
+```
+
+O [README do plugin](plugins/xp-stack/README.md) descreve esse canal. Para scaffold manual de um projeto ainda não preparado, invoque `/xp-stack:bootstrap`. Não rode outro bootstrap apenas porque atualizou o plugin.
 
 ```text
 /plugin marketplace update xp-stack
 /plugin update xp-stack@xp-stack
 ```
 
----
+Atualizar o cache do plugin não reexecuta os scaffolds já copiados ao projeto. Evite carregar simultaneamente cópias diferentes da mesma skill via npm, plugin e diretório global; confira o catálogo efetivo do harness.
 
-## O que está incluído
+## Estado das tarefas e continuidade
 
-### Skills regulares (auto-disponíveis após install)
+O [guia canônico](plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md#source-of-task-state) distingue ticket Traycer, controlador Autonomia, ferramenta existente e novo fluxo em `docs/tasks`. No novo fluxo sem ferramenta prévia, `tasks.json` é a autoridade; o Markdown registra especificações e visões derivadas. O layout essencial é o padrão e `PROGRESS.md` é opcional.
 
-| Skill | Invocação | Para que serve |
-|-------|-----------|----------------|
-| `akita-xp-rules` | `/xp-stack:akita-xp-rules` | 6 regras metodológicas universais + contrato canônico de evidências de entrega, autorização/checkpoint e revisão por política; o namespace `/xp-stack:` vale quando este plugin é o loader |
-| `tdd-conventions` | `/xp-stack:tdd-conventions` | Pirâmide de testes (unit, integration, E2E, contract, regression, performance, security) + workflow RED → GREEN → REFACTOR |
-| `task-decomposition` | `/xp-stack:task-decomposition` | Decomposição de features em `docs/tasks/{feature}/` com `00-overview.md` + `PROGRESS.md` + `T{N}-{slug}.md` por task e despacho conforme política da sessão. Inclui política de arquivamento (NUNCA apagar — `_archive/`) |
-| `research-cycle` | `/xp-stack:research-cycle` | Ciclo de pesquisa formal com triangulação, fontes citadas, revisão adversarial. Saída em `docs/pesquisas/{slug}.md` |
-| `optimizing-github-actions` | auto via `paths: .github/workflows/**` | 10-item pre-flight checklist (SHA pinning, OIDC, pull_request_target, concurrency, trigger eficiente, artifact v4, sharding+coverage, bash hardening, gate calibrado, persist-credentials) + audit script |
+**Compatibilidade:** os comandos `resume`, `hook-stop`, `regenerate-resume` e `reconcile` ainda operam o estado legado em `state.json`/`index.json`. Eles não passaram a consumir `tasks.json`. Preserve contratos existentes e não crie escrita dupla; migrar estado é trabalho separado. O hook Stop não substitui a fonte de estado da sessão.
 
-### Skills opt-in (invocadas via `xp-stack add-skill`)
+Para workers sem loader de skills, o briefing leva o excerto literal do contrato canônico, com referência e revisão. Um nome ou link inacessível não basta.
 
-| Skill | Aliases | Para que serve |
-|-------|---------|----------------|
-| `debugging-discipline` ⭐ NEW v2.0 | `debugging`, `debug-discipline`, `fix-gates` | Instala lembretes para workflow de `fix:` — PR template (Hypotheses ranked / Root cause / Regression test), PreToolUse reminder de `superpowers:systematic-debugging`, hook registration via deep-merge. Use quando projeto tem alta taxa de `fix:` commits (>30%) sem evidência de processo estruturado |
-| `bootstrap` | — | Scaffolding de projeto novo (rodado uma vez via `init`) |
-| `claude-md-bootstrap` | `claude-md`, `claudemd` | Lê codebase + docs e preenche CLAUDE.md a partir do template |
-| `paperclip-orchestrator` | `paperclip` | Setup do pattern multi-agent **remoto async** (droplet + Postgres + cron + GitHub auto-merge gate). 8 templates anonimizados + 9 lições reais como referência |
-| `jev-triage` | `jev` | Piloto manual e sintético do contrato da API, com orçamento e saída externa; nunca aprova ou substitui testes |
-| `local-waves` ⚠️ LEGACY | `waves`, `wave` | Setup do orquestrador **local sync** — N workers headless em git worktrees, com modelo selecionado pelo mecanismo/política opt-in. Sem infra; útil em cenários headless/CI |
-| `code-review-automation` | `review-auto`, `pr-review-gate`, `self-review`, `review` | Lembrete `/review-pr`, seção de evidências no PR e reminder PreToolUse; autoinspeção, triagem e revisão final seguem a política da sessão |
-| `db-archaeologist` | `db` | Análise de schema PostgreSQL/Supabase, RLS policies, histórico de migrations |
-| `screenshot-spec-writer` | `screenshot`, `spec-writer` | Transforma screenshot de UI em spec markdown |
-| `flowchart-extractor` | `flowchart` | Gera Mermaid flowchart fiel ao fluxo de uma função |
+## Referência do CLI
 
-### Agents
+Use `npx xp-stack@latest --help` e `<comando> --help` para opções completas.
 
-| Agent | Para que serve |
-|-------|----------------|
-| `researcher` | Pesquisa formal em 7 fases com triangulação |
-| `research-critic` | Revisão adversarial independente do output do researcher |
-| `tdd` | Ciclo RED-GREEN-REFACTOR estrito |
-| `reviewer` | Code review com foco em correctness, security, conventions, test coverage |
+| Comando | Uso |
+| --- | --- |
+| `init` | Instalar conteúdo e scaffold no projeto |
+| `update` | Atualizar fontes gerenciadas, conciliando modificações locais |
+| `status` | Inspecionar versão, engines, arquivos e drift |
+| `add-engine <engine>` | Replicar conteúdo habilitado para outra engine |
+| `add-skill <skill>` | Habilitar uma opção do registry |
+| `config get [key]` | Ler configurações do projeto |
+| `config doc-level <essencial\|completo>` | Definir o padrão de documentação para novas decomposições |
+| `resume [slug]` | Consultar features/estado legado |
+| `hook-stop` | Atualizar índice e resumo pelo hook opcional do Claude Code |
+| `regenerate-resume <slug>` | Gerar resumo a partir do estado legado |
+| `reconcile <slug>` | Comparar/sincronizar estado legado e overview; dry-run por padrão |
+| `uninstall` | Remover a instalação conforme opções e confirmação; consulte a ajuda antes |
+| `--version` | Consultar a versão do CLI |
 
-### Templates
+A lista é uma referência de uso; os comandos e opções são definidos em [src/cli/index.js](src/cli/index.js) e seus módulos.
 
-- `CLAUDE.md.template` — skeleton para CLAUDE.md de projeto novo, com nota sobre symlink AGENTS.md + seções pré-prontas pra integração de skills, despacho conforme política, contrato de evidências e política de arquivamento.
-- `claude-settings-project.json` — permissões razoáveis pra `.claude/settings.json`.
-- `docs-tasks-template/` (5 arquivos): `README`, `TEMPLATE-overview`, `TEMPLATE-progress`, `TEMPLATE-task`, **`TEMPLATE-orchestrator-prompt`** (novo em v2.0 — substitui `TEMPLATE-terminal-prompts`).
-- `docs-pesquisas-template/TEMPLATE-pesquisa.md`.
-
-### Contrato de evidências
-
-`akita-xp-rules` é o nome portátil do contrato canônico de entrega. O ambiente
-de execução fornece o caminho/URI real de `akita-xp-rules/SKILL.md`; cada T-file
-e briefing registra essa fonte e a revisão declarada nela. Se o worker não tiver
-skill loader, o remetente transfere o trecho canônico literal com sua referência
-e revisão, em vez de enviar apenas um ponteiro.
-
-Autoinspeção prepara o handoff. A revisão independente, seus requisitos de
-identidade, contexto, evidência e diversidade seguem o [fluxo canônico de entrega](plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md#review-and-risk).
-O autor nunca aprova a própria mudança. Triagem reporta achados, mas não aprova.
-
----
-
-## Workflows típicos
-
-### 1. Projeto novo, sem orquestração paralela
-
-Cobre 80% dos casos. É o que o `init` entrega de cara.
+## Desenvolvimento e verificação
 
 ```bash
-cd meu-projeto-novo
-npx xp-stack init
-
-# Você ganha CLAUDE.md, AGENTS.md (symlink), .claude/settings.json,
-# docs/tasks/_template/, docs/pesquisas/_template/, .gitignore atualizado.
-# Edite CLAUDE.md preenchendo a stack do seu projeto.
-
-# Daí em diante:
-# - features não-triviais → /xp-stack:task-decomposition (instrui como)
-# - decisões arquiteturais → /xp-stack:research-cycle
-# - bug → invoque superpowers:systematic-debugging antes de propor fix
-# - PR pronto → invoque superpowers:verification-before-completion
-# - workflow CI → optimizing-github-actions auto-roda
+npm ci
+npm test
+npm run test:bash
 ```
 
-### 2. Paralelização conforme a sessão
-
-Pra waves com 2+ T-files independentes, o orquestrador consulta a política da
-sessão e a capacidade do Host e escolhe um mecanismo nativo compatível. Agent
-View, `local-waves` e Paperclip são opções; o modelo, perfil, isolamento, UI e
-estilo de comunicação não são defaults do pacote.
-
-O prompt deve registrar a fonte e revisão do **Delivery evidence contract** e,
-para workers sem skill loader, anexar o trecho canônico literal. O padrão
-completo e as regras de coordenação estão em
-`docs/tasks/_template/TEMPLATE-orchestrator-prompt.md` (instalado pelo `init`).
-
-### 3. Instalar lembretes de fix-workflow
-
-Pra projetos com alta taxa de `fix:` commits sem evidência de systematic-debugging:
+`test:bash` agrega os cenários de shell, o runner durável em Python, os contratos portáteis e o Jev sintético. Para selecionar esses últimos diretamente:
 
 ```bash
-npx xp-stack add-skill debugging-discipline
-# Depois invoque a skill no Claude Code pra rodar o setup:
-# /xp-stack:debugging-discipline
+npm run test:contracts
+npm run test:jev
 ```
 
-Instala:
-- `.github/PULL_REQUEST_TEMPLATE.md` (seção para evidências aplicáveis em `fix:` PRs)
-- `.claude/hooks/pre-tool-use.sh` (lembra skill systematic-debugging em todo Edit/Write)
-- Hook registrado em `.claude/settings.json` via deep-merge
+Os testes de Jev usam simulações locais, sem credencial nem chamada paga. O [workflow de CI](.github/workflows/validate-plugins.yml) executa os checks obrigatórios em PRs e na main. Consulte o resultado do commit exercitado; contagem de testes e tempo não são metas fixas do projeto.
 
-### 4. Você + co-pilot async, ou multi-projeto, ou quer review queue 24/7
-
-Use Paperclip orchestrator (remoto, droplet, async).
+Para testar o plugin do checkout, sem publicar:
 
 ```bash
-npx xp-stack add-skill paperclip-orchestrator
-# /xp-stack:paperclip-setup
+claude --plugin-dir ./plugins/xp-stack
 ```
 
-### 5. Headless / CI com mecanismo opt-in
+Aplique as convenções de contribuição do [CLAUDE.md](CLAUDE.md), os gates pertinentes ao incremento e a revisão exigida. Não é necessário executar uma bateria pesada em toda edição de prosa; mudanças de comportamento ou contrato precisam de suas provas.
 
-Use `local-waves` (worktrees + `claude -p` headless).
+## Histórico e licença
 
-```bash
-npx xp-stack add-skill local-waves
-# /xp-stack:local-waves-setup
-```
+O projeto nasceu da extração de práticas reutilizáveis do ecossistema Meteora Digital. As escolhas históricas de modelos, mecanismos e documentação estão no [CHANGELOG](CHANGELOG.md) e nas ADRs do [CLAUDE.md](CLAUDE.md); não são defaults obrigatórios da versão atual.
 
-> **Note:** `local-waves` é um mecanismo opt-in para execução headless/CI ou fallback. Em sessões interativas, escolha o mecanismo nativo que a política e o Host suportarem.
-
----
-
-## Decisão de paralelização
-
-| Critério | Native Agent/Agent View | local-waves | Paperclip |
-|---|---|---|---|
-| Modelo | Native Claude Code, parallel sessions | Local sync, headless | Remote async, droplet |
-| Latência | Segundos (parallel dispatch) | Minutos | Horas-dias |
-| Persistência | Conforme sessão | Nenhuma | Sim (Postgres) |
-| Multi-developer | Conforme mecanismo | Não | Sim |
-| Infra adicional | Nenhuma | Nenhuma | VPS (~$10/mês) |
-| Quando escolher | Quando a sessão/Host suportarem | Headless/CI, fallback | Async dev/review, multi-projeto |
-
----
-
-## Convenção AGENTS.md ↔ CLAUDE.md
-
-Antigravity, Codex e Cursor leem `AGENTS.md` por convenção. Claude Code lê `CLAUDE.md`. O `init` cria um **symlink relativo** `AGENTS.md → CLAUDE.md` (e `AGENTS.local.md → CLAUDE.local.md` se você tiver o `.local`). Como são o mesmo arquivo no disco, **drift entre os dois é impossível** — toda edição em `CLAUDE.md` propaga instantaneamente.
-
-Não edite `AGENTS.md` diretamente. Não quebre o symlink. Pra desabilitar (caso seu projeto tenha um `AGENTS.md` próprio que conflita), passe `"no-symlink"` como 6º argumento ao `scaffold.sh`.
-
----
-
-## .gitignore reservado
-
-O `init` adiciona entries no `.gitignore` do seu projeto (idempotente, sem sobrescrever):
-
-```
-# xp-stack
-.xp-stack/state/
-local/
-.claude/wave-runs/
-scripts/orchestrate/
-```
-
-Mesmo se você não usar Paperclip ou local-waves agora, essas pastas ficam reservadas — caso um agente futuro escreva lá por engano (ou você ative depois), nada vaza pra git.
-
----
-
-## Testes
-
-```bash
-npm test                          # vitest — 185 tests (28 files)
-npm run test:bash                 # bash suite — 55+ tests across 6 scripts
-```
-
-CI verifica CLI, contratos portáteis, Jev sintético, runner durável e metadados em PRs e na main (`.github/workflows/validate-plugins.yml`). Resultados pertencem ao commit exercitado; consulte a execução atual.
-
-## Testar localmente em outro projeto
-
-```bash
-# Via npm (recomendado — sempre versão publicada):
-cd /caminho/para/outro-projeto
-npx xp-stack@2.0.0 init
-
-# Via plugin marketplace (backward compat):
-claude --plugin-dir /caminho/para/xp-stack/plugins/xp-stack
-```
-
----
-
-## Histórico de versões
-
-| Versão | Data | Mudanças principais |
-|--------|------|--------------------|
-| **v2.0.0** | 2026-05-13 | **BREAKING** — `TEMPLATE-terminal-prompts.md` removido, substituído por **`TEMPLATE-orchestrator-prompt.md`** (Agent View pattern: Sonnet+caveman+worktree). Nova skill opt-in `debugging-discipline` (PR template + PreToolUse hook + deep-merge settings). `akita-xp-rules`/`task-decomposition` atualizadas. `local-waves` marcada `[LEGACY]`. Plugin marketplace bumped 0.3.0 → 0.4.0. Migration guide em CHANGELOG.md |
-| v1.4.0 | 2026-05-04 | `init` pergunta `doc_level` (essencial vs completo) + novo comando `config get/doc-level` |
-| v1.3.0 | 2026-05-04 | `add-skill` unified registry de opt-in skills + nova skill `claude-md-bootstrap` |
-| v1.2.0 | 2026-05-03 | Prompt interativo de engines (substitui auto-detect cego) |
-| v1.1.0 | 2026-05-03 | `init` ship 5 skills core + 4 agents + CLAUDE.md + AGENTS.md symlink + docs templates + `.claude/settings.json` + `.gitignore` |
-| v1.0.0 | 2026-05-03 | npm CLI primário + dual mirror always-on + state machine + schemas + RESUME.md auto-gen + manifest SHA-256 |
-| v0.3.0 | 2026-04-29 | 2 skills opt-in (`paperclip-orchestrator`, `local-waves`) + AGENTS.md symlinks + `.gitignore` autoupdate + akita-xp-rules appendix |
-| v0.2.0 | 2026-04-26 | Skill `optimizing-github-actions` auto-ativada via `paths` + proibição `Co-Authored-By` |
-| v0.1.x | 2026-04-16 | Release inicial — bootstrap + 4 skills + 4 agents + templates |
-
-Detalhes completos em [CHANGELOG.md](CHANGELOG.md). ADRs em [`CLAUDE.md`](CLAUDE.md) (raiz do repo).
-
----
-
-## Princípios
-
-O pacote transporta **metodologia universal** — TDD, pair programming, pesquisa formal, decomposição de tasks, conventional commits, multi-agent dispatch. **Não transporta** convenções de stack (frameworks específicos, paths de teste, entidades de domínio). Os agents lêem o `CLAUDE.md` do projeto receptor pra entender a stack.
-
-Origem: extraído iterativamente do ecossistema **Meteora Digital** conforme padrões se mostram universais. Cada release passa por:
-
-1. Validação empírica em projeto real upstream (TDD red → green → empirical → release).
-2. Anonimização de templates (remoção de refs hardcoded a stack-específico, nomes, IPs, IDs).
-3. Self-test em projeto receptor antes de release.
-
-Veja `CLAUDE.md` (raiz) seção "ADRs" pra trilha completa de decisões.
-
----
-
-## Contribuindo
-
-PRs bem-vindos. O fluxo do próprio repo segue o método Akita/XP — veja `docs/tasks/` (decomposição das releases) e `CLAUDE.md` (raiz) pra entender o ciclo. Cada release segue 6 fases (T0 setup → T1 RED → T2-N GREEN → T(N+1) empirical → T(N+2) release).
-
-## Licença
-
-MIT — ver [LICENSE](LICENSE).
+MIT — copyright **Rafael Nobre de Souza**. A [LICENSE](LICENSE) da raiz é a fonte; o plugin distribui uma cópia conferida pelo CI.
