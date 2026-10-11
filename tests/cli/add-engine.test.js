@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hashFile } from '../../src/lib/manifest.js';
+import { OPT_IN_SKILLS } from '../../src/lib/opt-in-registry.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -12,6 +13,7 @@ const BIN = join(REPO_ROOT, 'bin', 'xp-stack');
 
 describe('xp-stack add-engine', () => {
   let tmp;
+  let outside;
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'xp-stack-add-engine-test-'));
@@ -21,6 +23,8 @@ describe('xp-stack add-engine', () => {
 
   afterEach(() => {
     rmSync(tmp, { recursive: true, force: true });
+    if (outside) rmSync(outside, { recursive: true, force: true });
+    outside = undefined;
   });
 
   it('adiciona engine no index e instala templates pra ela', () => {
@@ -33,7 +37,7 @@ describe('xp-stack add-engine', () => {
     const initManifest = JSON.parse(readFileSync(join(tmp, '.xp-stack/manifest.json'), 'utf8'));
     const initializedSkillFiles = Object.entries(initManifest.files).filter(
       ([destRel, entry]) =>
-        destRel.startsWith('.claude/skills/') &&
+        destRel.split('\\').join('/').startsWith('.claude/skills/') &&
         entry.source?.startsWith('plugins/xp-stack/skills/'),
     );
     expect(initializedSkillFiles.some(
@@ -46,7 +50,7 @@ describe('xp-stack add-engine', () => {
     const index = JSON.parse(readFileSync(join(tmp, '.xp-stack/index.json'), 'utf8'));
     expect(manifest.engines).toEqual(index.engines_installed);
     for (const [initDestRel, initEntry] of initializedSkillFiles) {
-      const skillRel = initDestRel.slice('.claude/skills/'.length);
+      const skillRel = initDestRel.split('\\').join('/').slice('.claude/skills/'.length);
       const source = join(REPO_ROOT, ...initEntry.source.split('/'));
       const destRel = join('.codex/skills', skillRel);
       const dest = join(tmp, destRel);
@@ -59,25 +63,36 @@ describe('xp-stack add-engine', () => {
     }
   });
 
-  it('nao instala opt-ins que nao estavam habilitadas', () => {
+  it('nao promove opt-ins de templates a skills ativos quando nao habilitados', () => {
     execFileSync('node', [BIN, 'add-engine', 'codex', '--cwd', tmp], { encoding: 'utf8' });
 
-    expect(existsSync(join(tmp, '.codex/skills/local-waves/SKILL.md'))).toBe(false);
-    expect(existsSync(join(tmp, '.codex/skills/paperclip-orchestrator/SKILL.md'))).toBe(false);
+    // Legacy template payloads stay nested under opt-in-skills; none becomes an active top-level skill.
+    for (const skillName of Object.keys(OPT_IN_SKILLS)) {
+      expect(existsSync(join(tmp, `.codex/skills/${skillName}/SKILL.md`))).toBe(false);
+    }
   });
 
   it('replica opt-in ja habilitada e deixa outras opt-ins desabilitadas', () => {
     execFileSync('node', [BIN, 'add-skill', 'local-waves', '--cwd', tmp], { encoding: 'utf8' });
+    execFileSync('node', [BIN, 'add-skill', 'db-archaeologist', '--cwd', tmp], { encoding: 'utf8' });
     execFileSync('node', [BIN, 'add-engine', 'codex', '--cwd', tmp], { encoding: 'utf8' });
 
     const source = join(REPO_ROOT, 'plugins/xp-stack/skills/local-waves/SKILL.md');
     const dest = join(tmp, '.codex/skills/local-waves/SKILL.md');
     expect(readFileSync(dest, 'utf8')).toBe(readFileSync(source, 'utf8'));
+    const registrySource = join(REPO_ROOT, 'templates/opt-in-skills/db-archaeologist/SKILL.md');
+    const registryDest = join(tmp, '.codex/skills/db-archaeologist/SKILL.md');
+    expect(readFileSync(registryDest, 'utf8')).toBe(readFileSync(registrySource, 'utf8'));
     expect(existsSync(join(tmp, '.codex/skills/paperclip-orchestrator/SKILL.md'))).toBe(false);
     const manifest = JSON.parse(readFileSync(join(tmp, '.xp-stack/manifest.json'), 'utf8'));
     expect(manifest.files['.codex/skills/local-waves/SKILL.md']).toEqual({
       hash: hashFile(dest),
       source: 'plugins/xp-stack/skills/local-waves/SKILL.md',
+      user_modified: false,
+    });
+    expect(manifest.files['.codex/skills/db-archaeologist/SKILL.md']).toEqual({
+      hash: hashFile(registryDest),
+      source: 'templates/opt-in-skills/db-archaeologist/SKILL.md',
       user_modified: false,
     });
   });
@@ -92,6 +107,23 @@ describe('xp-stack add-engine', () => {
     expect(readFileSync(dest, 'utf8')).toBe('# Custom rules\n');
     const manifest = JSON.parse(readFileSync(join(tmp, '.xp-stack/manifest.json'), 'utf8'));
     expect(manifest.files['.codex/skills/akita-xp-rules/SKILL.md']).toBeUndefined();
+  });
+
+  it('rejeita skillsDir symlink antes de qualquer escrita fora do projeto', () => {
+    outside = mkdtempSync(join(tmpdir(), 'xp-stack-add-engine-outside-'));
+    symlinkSync(outside, join(tmp, '.codex'), process.platform === 'win32' ? 'junction' : 'dir');
+    const manifestPath = join(tmp, '.xp-stack/manifest.json');
+    const indexPath = join(tmp, '.xp-stack/index.json');
+    const manifestBefore = readFileSync(manifestPath, 'utf8');
+    const indexBefore = readFileSync(indexPath, 'utf8');
+
+    const result = spawnSync('node', [BIN, 'add-engine', 'codex', '--cwd', tmp], { encoding: 'utf8' });
+
+    expect(result.status).not.toBe(0);
+    expect(`${result.stderr}\n${result.stdout}`).toMatch(/symlink no caminho gerenciado/i);
+    expect(readdirSync(outside)).toEqual([]);
+    expect(readFileSync(manifestPath, 'utf8')).toBe(manifestBefore);
+    expect(readFileSync(indexPath, 'utf8')).toBe(indexBefore);
   });
 
   it('falha com engine name desconhecido', () => {
