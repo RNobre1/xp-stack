@@ -7,7 +7,7 @@ import {
 } from '../../src/lib/opt-in-registry.js';
 
 describe('opt-in-registry', () => {
-  it('contem 9 skills opt-in canonicas (incluindo debugging-discipline v2.0.0 e code-review-automation v2.1.0)', () => {
+  it('mantém as skills opt-in canônicas existentes', () => {
     expect(Object.keys(OPT_IN_SKILLS)).toEqual(
       expect.arrayContaining([
         'paperclip-orchestrator',
@@ -21,6 +21,12 @@ describe('opt-in-registry', () => {
         'code-review-automation',
       ])
     );
+  });
+
+  it('resolve Jev como opt-in manual na fonte de plugin', () => {
+    expect(resolveSkillName('jev')).toBe('jev-triage');
+    expect(OPT_IN_SKILLS['jev-triage'].sourceRoot).toBe('plugins/xp-stack/skills');
+    expect(formatUnknownSkillError('missing')).toContain('jev-triage');
   });
 
   it('debugging-discipline vive em templates/opt-in-skills (v2.0.0)', () => {
@@ -66,9 +72,9 @@ describe('opt-in-registry', () => {
   });
 
   describe('listAvailableSkills', () => {
-    it('retorna 9 entradas com name, aliases, summary', () => {
+    it('retorna entradas únicas com name, aliases e summary', () => {
       const all = listAvailableSkills();
-      expect(all).toHaveLength(9);
+      expect(new Set(all.map((s) => s.name)).size).toBe(all.length);
       const paperclip = all.find((s) => s.name === 'paperclip-orchestrator');
       expect(paperclip.aliases).toContain('paperclip');
       expect(paperclip.summary).toMatch(/Paperclip/);
@@ -80,7 +86,7 @@ describe('opt-in-registry', () => {
   });
 
   describe('formatUnknownSkillError', () => {
-    it('lista todas as 9 skills e seus aliases na mensagem', () => {
+    it('lista as skills do registry e seus aliases na mensagem', () => {
       const msg = formatUnknownSkillError('xyz');
       expect(msg).toMatch(/skill desconhecida "xyz"/);
       expect(msg).toMatch(/paperclip-orchestrator/);

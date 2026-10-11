@@ -10,6 +10,11 @@
  * bootstrap/claude-md-bootstrap inacessiveis. Esse registry unifica.
  */
 export const OPT_IN_SKILLS = {
+  'jev-triage': {
+    sourceRoot: 'plugins/xp-stack/skills',
+    summary: 'Piloto manual sintético da API Jev, sem autoridade sobre testes ou publicação',
+    aliases: ['jev'],
+  },
   'paperclip-orchestrator': {
     sourceRoot: 'plugins/xp-stack/skills',
     summary: 'Setup multi-agent remoto (droplet via Paperclip API)',

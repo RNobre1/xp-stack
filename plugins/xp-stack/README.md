@@ -28,9 +28,15 @@ eles não são defaults universais.
 | `local-waves` | Orquestração local headless em worktrees |
 | `debugging-discipline` | Lembretes de evidência para investigação de `fix:` |
 | `code-review-automation` | Lembretes de revisão e comando `/review-pr` |
+| `jev-triage` | Teste manual do contrato da API Jev com entrada sintética restrita, custo limitado e saída externa |
 | `durable-host-runs` | Execução opt-in em unidades transitórias `systemd --user`, com deduplicação, autoria/recursos declarados e recibo privado |
 
 `durable-host-runs` é distribuída pelo plugin e por cópia manual para um prefixo pessoal versionado; o instalador do npm CLI não instala nem registra essa skill.
+
+`jev-triage` é opt-in manual (`xp-stack add-skill jev-triage`). O primeiro piloto
+mede somente o contrato da API com exemplos sintéticos, sem alegar acurácia ou
+ganho sobre triagem determinística. Configuração de orçamento e credencial são
+separadas do pacote; a sugestão nunca decide gates.
 
 ### Agents
 
@@ -54,7 +60,7 @@ O plugin **nao declara MCPs por padrao**. Se o seu projeto usa MCPs especificos 
 
 ## Status
 
-**V0.6.0** — manifest do plugin com skills core e opt-in de orquestração, contrato de evidências de entrega e revisão orientada por política. O modelo, perfil, mecanismo de despacho e estilo de comunicação vêm da sessão/Host; Agent View, Sonnet e caveman são escolhas opt-in. A skill `bootstrap` é one-shot manual e as skills Paperclip/local-waves/code-review-automation/debugging-discipline permanecem opt-in.
+**V0.7.0** — manifest do plugin com skills core e opt-in de orquestração, contrato de evidências de entrega e revisão orientada por política. O modelo, perfil, mecanismo de despacho e estilo de comunicação vêm da sessão/Host; Agent View, Sonnet e caveman são escolhas opt-in. A skill `bootstrap` é one-shot manual e as skills Paperclip/local-waves/code-review-automation/debugging-discipline permanecem opt-in.
 
 Skills e agents carregam conteudo real curado — metodologia generica universal, sem acoplamento a stack especifico. Agents (researcher, research-critic, tdd, reviewer) leem o `CLAUDE.md` do projeto receptor em runtime para aplicar convencoes especificas do stack. Em T-files e briefings transferidos, use o nome portável `akita-xp-rules`, registre o caminho/URI resolvido e a revisão do contrato; workers sem skill loader recebem o trecho literal da fonte.
 

@@ -48,4 +48,15 @@ describe('xp-stack add-skill', () => {
       });
     }).toThrow(/skill nao encontrada|skill not found/i);
   });
+
+  it('instala Jev somente por pedido explícito, com script, referências e testes', () => {
+    const installed = join(tmp, '.claude/skills/jev-triage');
+    expect(existsSync(installed)).toBe(false);
+    execFileSync('node', [BIN, 'add-skill', 'jev', '--cwd', tmp], {
+      encoding: 'utf8', env: { ...process.env, XP_STACK_OPT_IN_ROOT: '' },
+    });
+    for (const file of ['SKILL.md', 'jev_triage.py', 'README.md', 'evaluation/cases.jsonl']) {
+      expect(existsSync(join(installed, file))).toBe(true);
+    }
+  });
 });

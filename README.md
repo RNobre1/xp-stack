@@ -4,7 +4,7 @@
 
 Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, evidências de entrega, revisão orientada por política, conventional commits e mecanismos opcionais de orquestração.
 
-> **Release v2.2.0** (2026-09-15): contrato de evidências, revisão independente e roteamento conforme a sessão. Veja [CHANGELOG.md](CHANGELOG.md). O pacote segue adotável em qualquer stack (TypeScript, Python, Go, bash, etc.).
+> **Release v2.3.0** (2026-10-11): fluxo portátil de entrega, atualização segura das skills e auditoria do custo/valor dos testes. Veja [CHANGELOG.md](CHANGELOG.md). O pacote segue adotável em qualquer stack (TypeScript, Python, Go, bash, etc.).
 
 ---
 
@@ -72,37 +72,24 @@ npx xp-stack add-skill debugging-discipline    # lembretes de fix-workflow (PR t
 
 ## Atualizando
 
-Para atualizar o executável global:
+Para atualizar o executável e, depois, as fontes gerenciadas do projeto:
 
 ```bash
-npm install -g xp-stack@2.2.0
+npm install -g xp-stack@2.3.0
+xp-stack update --cwd /caminho/do/projeto
 ```
 
-A versão do executável e o conteúdo já copiado para um projeto são coisas diferentes.
-**Limitação conhecida nesta release:** `xp-stack update` só trata arquivos que
-diferem do hash guardado no manifest. Um arquivo intacto da versão anterior não
-recebe o conteúdo novo, e repetir `init` também preserva arquivos existentes.
-Esta release publica as skills e templates novos; não altera esse comportamento
-do atualizador.
+O update compara a fonte nova com o manifest e com os arquivos locais. Skills
+intactas recebem a nova versão e suas referências novas. Personalizações e
+exclusões locais são preservadas com aviso; colisões com arquivos não gerenciados
+não são sobrescritas. `CLAUDE.md`, `AGENTS.md` e `.claude/settings.json` pertencem
+ao projeto depois do init e permanecem preservados, inclusive com `--take-theirs`.
+Confira os caminhos relatados; uma versão nova do template pode exigir comparação
+manual com as convenções e permissões do projeto.
 
-Para adotar o conteúdo em um projeto existente, gere uma instalação de referência
-em uma pasta temporária e compare os arquivos antes de incorporar as mudanças:
-
-```bash
-xp_reference=$(mktemp -d)
-npx --yes xp-stack@2.2.0 init --cwd "$xp_reference" \
-  --engine claude-code,codex --no-dual-mirror --yes --doc-level essencial
-# Execute a partir da raiz do seu projeto. diff retorna 1 se houver diferenças.
-diff -ru .claude/skills "$xp_reference/.claude/skills"
-diff -ru .codex/skills "$xp_reference/.codex/skills"
-```
-
-Escolha apenas as engines que usa. Compare também `.claude/agents/` e os
-`docs/tasks/_template/` aplicáveis. Faça backup ou use uma branch; incorpore o
-conteúdo aprovado preservando convenções, hooks, estado e personalizações do
-projeto. Não use `uninstall` como atalho de migração: ele remove `.xp-stack/`,
-onde também fica o estado de trabalho. O manifest antigo não certifica arquivos
-substituídos manualmente; registre a origem e os hashes do que foi migrado.
+`add-engine` leva as skills core e os opt-ins já habilitados à engine nova, sem
+sobrescrever destinos existentes. Backups ou uma branch continuam recomendados.
+Não use `uninstall` para atualizar: `.xp-stack/` também contém estado do projeto.
 
 No marketplace, a atualização do plugin usa seu próprio cache versionado;
 ela não reexecuta os scaffolds que você já copiou para o projeto:
@@ -134,6 +121,7 @@ ela não reexecuta os scaffolds que você já copiou para o projeto:
 | `bootstrap` | — | Scaffolding de projeto novo (rodado uma vez via `init`) |
 | `claude-md-bootstrap` | `claude-md`, `claudemd` | Lê codebase + docs e preenche CLAUDE.md a partir do template |
 | `paperclip-orchestrator` | `paperclip` | Setup do pattern multi-agent **remoto async** (droplet + Postgres + cron + GitHub auto-merge gate). 8 templates anonimizados + 9 lições reais como referência |
+| `jev-triage` | `jev` | Piloto manual e sintético do contrato da API, com orçamento e saída externa; nunca aprova ou substitui testes |
 | `local-waves` ⚠️ LEGACY | `waves`, `wave` | Setup do orquestrador **local sync** — N workers headless em git worktrees, com modelo selecionado pelo mecanismo/política opt-in. Sem infra; útil em cenários headless/CI |
 | `code-review-automation` | `review-auto`, `pr-review-gate`, `self-review`, `review` | Lembrete `/review-pr`, seção de evidências no PR e reminder PreToolUse; autoinspeção, triagem e revisão final seguem a política da sessão |
 | `db-archaeologist` | `db` | Análise de schema PostgreSQL/Supabase, RLS policies, histórico de migrations |
@@ -164,9 +152,9 @@ e briefing registra essa fonte e a revisão declarada nela. Se o worker não tiv
 skill loader, o remetente transfere o trecho canônico literal com sua referência
 e revisão, em vez de enviar apenas um ponteiro.
 
-Autoinspeção prepara o handoff; a revisão final exige agente e modelo distintos
-do autor e declara checks executados agora ou evidência externa fresca. Uma
-triagem estática reporta achados, mas não aprova.
+Autoinspeção prepara o handoff. A revisão independente, seus requisitos de
+identidade, contexto, evidência e diversidade seguem o [fluxo canônico de entrega](plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md#review-and-risk).
+O autor nunca aprova a própria mudança. Triagem reporta achados, mas não aprova.
 
 ---
 
@@ -285,7 +273,7 @@ npm test                          # vitest — 185 tests (28 files)
 npm run test:bash                 # bash suite — 55+ tests across 6 scripts
 ```
 
-CI roda em PRs (`.github/workflows/validate-plugins.yml`). 100% verde em `main` desde v1.0.0.
+CI verifica CLI, contratos portáteis, Jev sintético, runner durável e metadados em PRs e na main (`.github/workflows/validate-plugins.yml`). Resultados pertencem ao commit exercitado; consulte a execução atual.
 
 ## Testar localmente em outro projeto
 

@@ -29,7 +29,7 @@ RNobre1/xp-stack/
 ├── plugins/
 │   ├── xp-stack/                       # plugin principal
 │   │   ├── .claude-plugin/plugin.json  # manifest (versao no JSON)
-│   │   ├── skills/                     # 9 skills (invocaveis via /xp-stack:*)
+│   │   ├── skills/                     # skills core e opt-in (fontes no diretório)
 │   │   ├── agents/                     # 4 agents (researcher, tdd, reviewer, research-critic)
 │   │   ├── templates/                  # templates copiados por bootstrap
 │   │   └── .mcp.json                   # stubs MCP opcionais
@@ -145,6 +145,8 @@ claude --plugin-dir ./plugins/xp-stack
 
 ### ADR-010 (v2.2.0, 2026-09-15) — contrato de evidências e roteamento conforme sessão
 
+Histórico: a regra de diversidade obrigatória desta revisão foi substituída pela ADR-012.
+
 **Decisao:** manter o **Delivery evidence contract** em `akita-xp-rules` como fonte única, com revisao declarada no proprio contrato. Consumidores portaveis usam o nome nu `akita-xp-rules`; cada T-file e briefing registra o caminho/URI resolvido, e o remetente anexa o trecho literal com referencia e revisao quando o worker nao tem skill loader. O namespace `/xp-stack:` fica restrito ao uso do plugin.
 
 **Revisao:** autoinspecao prepara o handoff; triagem e opcional e nunca aprova; a revisao final exige agente e modelo distintos do autor, alem de declarar checks executados no momento ou evidencia externa fresca. Coordenador so revisa quando nao foi autor e a politica permite. Modelo, perfil, mecanismo, isolamento, estilo e autoridade de merge seguem a politica da sessao/Host.
@@ -161,7 +163,17 @@ claude --plugin-dir ./plugins/xp-stack
 
 **Validacao e limite:** revisão independente do candidato `894f741` solicitou correções A1/A2/B1/B2/B3/B4 e C1-C4; follow-up `f40e528` fechou N1/N3/N5; F1/F2 separam identidade de execução de metadata e capturam `TRAYCER_EPIC_ID`; N2 deriva cancelamento conhecido apenas com intenção e término supervisor confirmado. O gate agregado passou no commit F1/F2 `ee7fc670e2be5c2877c4af897239ce007b39f308` / tree SHA-1 `f7ecaa004f402745e5efd38af33859043e8b0488`; ele não cobre o delta N2. N2 passou 12/12 no filtro Python focal autorizado; não repetimos o gate agregado porque config/estrutura não mudou. O host de desenvolvimento nao tem systemd; revisão focal do delta, instalacao e aceitacao Linux permanecem com o coordenador. Nenhuma instalacao ou publicacao foi feita.
 
-## Estado atual
+### ADR-012 (v2.3.0, 2026-10-11) — fluxo portátil e atualizações preservando o projeto
+
+**Decisão:** `akita-xp-rules/references/delivery-flow.md` é a fonte do fluxo operacional portátil; o contrato de evidências permanece em `akita-xp-rules/SKILL.md`, ambos revisão `2026-10-11.1`. Modelos/providers são escolhas da sessão. Requisitos de independência, contraprova, guardas e reuso ficam nessa fonte, sem duplicação aqui. A auditoria de testes exige prova de valor e preservação, nunca uma meta de reduzir contagem.
+
+**Atualização:** o CLI atualiza fontes gerenciadas e suas referências novas; preserva instruções/configurações do projeto, arquivos modificados ou removidos e colisões não gerenciadas. `add-engine` deriva o conteúdo habilitado do manifest/registry. Doc level default essencial não reescreve escolhas existentes. Os testes de contrato e o Jev sintético passam a integrar CI.
+
+**Jev:** opt-in manual, sem chave no pacote, sem influência no runner/gates; o piloto inicial só confere o contrato da API. Não há demonstração de acurácia ou benefício para promover uso automático.
+
+## Estado histórico até 2026-10-01
+
+Este retrato registra a entrega anterior; aprovações e instalações posteriores têm recibos da missão correspondente, não são inferidas destas caixas.
 
 - [x] POC bootstrap empirico (feat/poc-bootstrap)
 - [x] Marketplace structure (feat/marketplace-structure) — manifests, CI, skeleton
@@ -183,5 +195,5 @@ claude --plugin-dir ./plugins/xp-stack
 - **Loop manual cp + test -e em vez de cp -rn (2026-04-16):** BSD coreutils nao suporta `cp -rn` com a mesma semantica de GNU. Para garantir idempotencia portavel em scaffold.sh, usar loop `for f in "$SRC"/*; do [ ! -e "$DST/$(basename $f)" ] && cp "$f" "$DST/"; done`. Mais verboso, mais portavel, e explicito sobre intencao.
 - **Despersonalizacao de templates upstream eh trabalho real (2026-04-29):** ao trazer `local/paperclip/playbook.md` (~500 linhas, ~30 strings hardcoded) e `AGENTS-dev-primary.md` (~300 linhas) pro plugin na v0.3.0, mais de 50% do tempo de T3 foi grep+substitute de refs ao stack upstream (Vitest, Supabase, WhatsApp, Cohere, Resend, AssemblyAI, Hotmart) e nomes (Felipe, Rafael, IPs, Tailscale hostnames, gestao-ti, IDs Paperclip, PR numbers). Padrao de revisao adotado: `grep -rinE "(meteora|o-agente|209\.97|gestao-ti|RNobre|theagent_droplet|hotmart|Felipe|Vitest|Cohere|AssemblyAI|Resend|WhatsApp|Supabase)" templates/` deve retornar 0 matches OU so em comentarios prefixados com "if you use", "e.g.", "or equivalent", "Add your own". Pra v0.4.0+, considerar lint script `tests/no-upstream-refs.sh` que falha CI se algum match nao-prefixado. Validado empiricamente em T5 cenario B (anti-grep PASS).
 - **Idempotencia de .gitignore exige read-modify-write atomico (2026-04-29):** scaffold ganhou autoupdate de 3 entries (`local/`, `.claude/wave-runs/`, `scripts/orchestrate/`). Implementacao naive (`echo entry >> file`) duplica em re-execucao. Solucao adotada: `grep -qxF` antes de cada append + flag `HEADER_NEEDED` pra so emitir o header de comentario se houver pelo menos 1 entry nova + check de newline final do arquivo (`tail -c1 | od -An -c`) pra evitar concatenacao em mesma linha. Validado em cenario A.3 (count=1 apos 2a execucao).
-- **Contrato transportado precisa de fonte resolvida (2026-09-15):** um nome de skill ou namespace não basta quando T-files/prompts atravessam runtimes. A fonte única registra revisão e caminho/URI resolvido; workers sem loader recebem o trecho literal dessa fonte. Revisão final exige autor e revisor distintos em identidade e modelo, com checks atuais ou evidência externa fresca declarada.
+- **Contrato transportado precisa de fonte resolvida (2026-09-15):** um nome de skill ou namespace não basta quando T-files/prompts atravessam runtimes. A fonte única registra revisão e caminho/URI resolvido; workers sem loader recebem o trecho literal dessa fonte. Revisão final segue a fonte canônica vigente, com identidade independente, checks atuais ou evidência externa fresca declarada.
 - **Comprovante de execução antes de repetir (2026-09-15):** ausência de saída ou de PID no ambiente atual não prova que uma checagem terminou. Preserve o handle e aguarde resultado ou cancelamento confirmado antes de iniciar outra. O contrato canônico passou a explicitar essa regra e o consumo do excerto já entregue a workers sem loader.

@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-10-11
+
+npm `2.3.0`; plugin `0.7.0`, com versões de distribuição independentes.
+
+### Changed
+
+- Fluxo canônico de entrega e contrato de evidências na revisão `2026-10-11.1`: incrementos funcionais, guardas por risco, parada antecipada e reuso por manifesto de entradas/ambiente. Revisão independente por função, com diversidade recomendada e escolhas explícitas da sessão preservadas.
+- Pausa/compact/handoff não concedem testes ou publicação por si. Estado único da missão, snapshots datados e documentação essencial por default; ferramentas de estado existentes permanecem.
+- `update` atualiza fontes intactas antigas, inclui novas referências e preserva instruções/permissões do projeto, personalizações e exclusões locais. Destinos simbólicos ou não gerenciados não são sobrescritos silenciosamente.
+- `add-engine` deriva skills core/opt-ins do manifest e do registry e preserva destinos existentes.
+- CI passa a executar os contratos da metodologia e os testes sintéticos do Jev, além do CLI e runner durável.
+
+### Added
+
+- Protocolo e prompt de auditoria de custo/valor dos testes, sem meta de contagem e com prova de preservação dos requisitos antes de remover cobertura.
+- `durable-host-runs` opt-in para execuções Linux supervisionadas, com logs/recibos e deduplicação. Não aloca recursos nem substitui a fila do Host.
+- `jev-triage` opt-in manual para piloto sintético do contrato da API. A saída é externa, não autoriza decisões nem substitui testes; avaliação de acurácia ou benefício fica fora desta release.
+
 ## [2.2.0] — 2026-09-15
 
 Release de conteúdo metodológico. O pacote npm é `xp-stack@2.2.0`; o manifest do plugin segue seu ciclo próprio em `0.6.0`.
