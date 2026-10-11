@@ -43,9 +43,10 @@ function sourceFor(rel, source) {
   return source;
 }
 
-function installedContentGroups(files) {
+function installedContentGroups(files, projectRoot, restoreRemoved) {
   const groups = new Map();
   for (const [dest, entry] of Object.entries(files)) {
+    if (!restoreRemoved && !existsSync(join(projectRoot, dest))) continue;
     const source = sourceFor(dest, entry.source);
     for (const [destPrefix, sourcePrefix] of TEMPLATE_TREES) {
       if (dest.startsWith(destPrefix) && source === `${sourcePrefix}${dest.slice(destPrefix.length)}`) {
@@ -128,7 +129,7 @@ async function runUpdate(opts) {
 
   // Discover only new files in an already installed skill/mirror or template tree.
   // Unmanaged collisions are always preserved, even with --take-theirs.
-  for (const [destPrefix, sourcePrefix] of installedContentGroups(manifest.files)) {
+  for (const [destPrefix, sourcePrefix] of installedContentGroups(manifest.files, projectRoot, autoMode === 'take')) {
     const sourceDir = containedPath(PKG_ROOT, sourcePrefix);
     if (!existsSync(sourceDir)) continue;
     for (const relativeFile of walkDir(sourceDir)) {

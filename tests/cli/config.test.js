@@ -15,7 +15,7 @@ describe('xp-stack config', () => {
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'xp-stack-config-test-'));
     mkdirSync(join(tmp, '.claude'), { recursive: true });
-    execFileSync('node', [BIN, 'init', '--cwd', tmp, '--engine', 'claude-code', '--yes'], {
+    execFileSync('node', [BIN, 'init', '--cwd', tmp, '--engine', 'claude-code', '--yes', '--doc-level', 'completo'], {
       encoding: 'utf8',
     });
   });
@@ -131,21 +131,21 @@ describe('xp-stack init --doc-level', () => {
     }).toThrow(/doc-level invalido/i);
   });
 
-  it('--yes sem --doc-level: usa default completo', () => {
+  it('--yes sem --doc-level: usa default essencial', () => {
     execFileSync('node', [BIN, 'init', '--cwd', tmp, '--engine', 'claude-code', '--yes'], {
       encoding: 'utf8',
     });
     const idx = JSON.parse(readFileSync(join(tmp, '.xp-stack/index.json'), 'utf8'));
-    expect(idx.doc_level_default).toBe('completo');
+    expect(idx.doc_level_default).toBe('essencial');
   });
 
   it('re-init NAO re-pergunta doc_level se ja existe (preserva)', () => {
-    // primeiro init com essencial
-    execFileSync('node', [BIN, 'init', '--cwd', tmp, '--engine', 'claude-code', '--yes', '--doc-level', 'essencial'], { encoding: 'utf8' });
-    expect(JSON.parse(readFileSync(join(tmp, '.xp-stack/index.json'), 'utf8')).doc_level_default).toBe('essencial');
-    // re-init sem flag — deve preservar 'essencial' (nao voltar pra default 'completo')
+    // primeiro init com completo
+    execFileSync('node', [BIN, 'init', '--cwd', tmp, '--engine', 'claude-code', '--yes', '--doc-level', 'completo'], { encoding: 'utf8' });
+    expect(JSON.parse(readFileSync(join(tmp, '.xp-stack/index.json'), 'utf8')).doc_level_default).toBe('completo');
+    // re-init sem flag — deve preservar 'completo' (nao trocar para o novo default 'essencial')
     execFileSync('node', [BIN, 'init', '--cwd', tmp, '--engine', 'claude-code', '--yes'], { encoding: 'utf8' });
-    expect(JSON.parse(readFileSync(join(tmp, '.xp-stack/index.json'), 'utf8')).doc_level_default).toBe('essencial');
+    expect(JSON.parse(readFileSync(join(tmp, '.xp-stack/index.json'), 'utf8')).doc_level_default).toBe('completo');
   });
 
   it('re-init com --doc-level explicito sobrescreve', () => {

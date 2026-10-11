@@ -230,4 +230,15 @@ describe('xp-stack update', () => {
     expect(readFileSync(join(tmp, rel), 'utf8')).toBe(readFileSync(join(REPO_ROOT, 'plugins/xp-stack/templates/docs-tasks-template/TEMPLATE-task.md'), 'utf8'));
     expect(manifest().files[rel].source).toBe('plugins/xp-stack/templates/docs-tasks-template/TEMPLATE-task.md');
   });
+
+  it('não recria referência órfã se o usuário removeu a skill inteira daquele mirror', () => {
+    const group = '.agents/skills/optimizing-github-actions';
+    const m = manifest();
+    delete m.files[`${group}/references/caching.md`];
+    saveManifest(m);
+    rmSync(join(tmp, group), { recursive: true });
+    execFileSync('node', [BIN, 'update', '--cwd', tmp, '--yes'], { stdio: 'pipe' });
+    expect(existsSync(join(tmp, group))).toBe(false);
+    expect(existsSync(join(tmp, '.claude/skills/optimizing-github-actions/SKILL.md'))).toBe(true);
+  });
 });

@@ -1,11 +1,11 @@
 export const DOC_LEVELS = ['essencial', 'completo'];
-export const DOC_LEVEL_DEFAULT = 'completo';
+export const DOC_LEVEL_DEFAULT = 'essencial';
 
 const DOC_LEVEL_DESCRIPTIONS = {
   essencial:
-    'overview curto, sem ondas paralelas, T-files minimalistas (recomendado pra projeto pequeno/MVP)',
+    'estado único e documentação mínima do incremento; paralelismo conforme a sessão',
   completo:
-    'overview + PROGRESS + T-files cheios com red->green->refactor + TERMINAL-PROMPTS pra paralelismo (recomendado pra projeto serio)',
+    'acrescenta snapshots derivados quando a coordenação precisa; não cria outra fonte de estado',
 };
 
 export function getDocLevelChoices() {
@@ -20,7 +20,7 @@ export function getDocLevelChoices() {
  *
  * Precedencia:
  * 1. `opts.docLevel` (--doc-level flag) — sempre vence
- * 2. `opts.yes === true` ou non-TTY — usa default 'completo'
+ * 2. `opts.yes === true` ou non-TTY — usa DOC_LEVEL_DEFAULT
  * 3. interactive — chama prompt
  *
  * @param {object} opts

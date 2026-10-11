@@ -46,6 +46,17 @@ describe('xp-stack init — scaffolding completo (v1.1.0 contract)', () => {
     });
   }
 
+  it('manifest de templates aponta para arquivos reais que um update pode resolver', () => {
+    runInit();
+    const m = JSON.parse(readFileSync(join(tmp, '.xp-stack/manifest.json'), 'utf8'));
+    const entries = Object.entries(m.files).filter(([rel]) => rel.startsWith('docs/'));
+    expect(entries.length).toBeGreaterThan(0);
+    for (const [rel, entry] of entries) {
+      expect(existsSync(join(REPO_ROOT, entry.source)), `${rel}: ${entry.source}`).toBe(true);
+      expect(readFileSync(join(tmp, rel), 'utf8')).toBe(readFileSync(join(REPO_ROOT, entry.source), 'utf8'));
+    }
+  });
+
   it('cria as 5 skills core em .claude/skills/ (com SKILL.md)', () => {
     runInit();
     for (const skill of CORE_SKILLS) {
