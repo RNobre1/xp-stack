@@ -1,10 +1,12 @@
 # Rationale — code-review-automation skill
 
 > This rationale records the historical gap that motivated the opt-in skill.
-> Current routing and review identity/model rules follow the canonical
-> [delivery flow](../../../../plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md)
-> and the **Delivery evidence contract** in `akita-xp-rules`. The historical
-> examples below describe earlier choices, not current routing requirements.
+> Current routing and review identity/model rules follow `akita-xp-rules / Delivery flow`,
+> revision `2026-10-11.1`. The active environment/harness supplies the source
+> path or URI; do not infer a source-checkout path. The policy also uses the
+> **Delivery evidence contract** in `akita-xp-rules`, revision `2026-10-11.1`.
+> The historical examples
+> below describe earlier choices, not current routing requirements.
 > The hook and PR section are reminders, not semantic enforcement.
 
 ## Diagnóstico que originou esta skill

@@ -6,20 +6,23 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const FLOW = resolve(ROOT, 'plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md');
-const consumers = [
+const repoConsumers = [
   'plugins/xp-stack/agents/reviewer.md',
   'plugins/xp-stack/agents/research-critic.md',
   'plugins/xp-stack/skills/research-cycle/SKILL.md',
+];
+const installedConsumers = [
   'templates/opt-in-skills/code-review-automation/SKILL.md',
   'templates/opt-in-skills/code-review-automation/templates/review-pr.md.template',
   'templates/opt-in-skills/code-review-automation/templates/PR_TEMPLATE_self-review-section.md.template',
   'templates/opt-in-skills/code-review-automation/references/rationale.md',
 ];
+const consumers = [...repoConsumers, ...installedConsumers];
 
 const read = (relativePath) => readFileSync(resolve(ROOT, relativePath), 'utf8');
 
-test('review consumers link to the canonical delivery flow', () => {
-  for (const relativePath of consumers) {
+test('repo-local review consumers link to the canonical delivery flow', () => {
+  for (const relativePath of repoConsumers) {
     const absolutePath = resolve(ROOT, relativePath);
     const source = read(relativePath);
     const link = [...source.matchAll(/\[([^\]]*(?:delivery|flow)[^\]]*)\]\(([^)]+)\)/gi)]
@@ -28,6 +31,39 @@ test('review consumers link to the canonical delivery flow', () => {
     assert.ok(link, `${relativePath} should link to delivery-flow.md`);
     assert.equal(resolve(dirname(absolutePath), link[2]), FLOW, `${relativePath} link target`);
   }
+});
+
+test('installed review artifacts use the canonical source name and revision, not checkout links', () => {
+  for (const relativePath of installedConsumers) {
+    const source = read(relativePath).replace(/\s+/g, ' ');
+    assert.ok(/akita-xp-rules/i.test(source), `${relativePath} should name akita-xp-rules`);
+    assert.ok(/Delivery flow/i.test(source), `${relativePath} should name the delivery flow`);
+    assert.ok(/2026-10-11\.1/.test(source), `${relativePath} should record the canonical revision`);
+    assert.ok(/(?:path|URI).{0,60}(?:environment|harness)|(?:environment|harness).{0,60}(?:path|URI)/i.test(source), `${relativePath} should direct source resolution through the environment/harness`);
+    assert.ok(
+      !/\.\.\/(?:\.\.\/)*plugins\/xp-stack\/skills\/akita-xp-rules\/references\/delivery-flow\.md/.test(source),
+      `${relativePath} must not include an unusable source-checkout link`,
+    );
+  }
+
+  for (const relativePath of [installedConsumers[0], installedConsumers[1]]) {
+    assert.ok(/resolve the source path or URI supplied by the current environment\/harness/i.test(read(relativePath)), `${relativePath} should use the harness-supplied source path`);
+  }
+});
+
+test('review command gives workers without a loader the literal canonical excerpt', () => {
+  const source = read('templates/opt-in-skills/code-review-automation/templates/review-pr.md.template')
+    .replace(/\*\*/g, '')
+    .replace(/\s+/g, ' ');
+
+  assert.ok(
+    /A worker without a skill loader receives the exact canonical excerpt from the resolved Delivery evidence contract source, including its reference and revision/i.test(source),
+    'loaderless workers must receive the canonical excerpt with provenance',
+  );
+  assert.ok(
+    !/A worker without a skill loader receives pointers to those canonical sources, not a copied policy/i.test(source),
+    'a bare pointer is not a loaderless handoff',
+  );
 });
 
 test('operational review consumers defer identity and model rules to the canonical flow', () => {

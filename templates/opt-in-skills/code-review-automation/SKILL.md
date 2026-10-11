@@ -19,9 +19,9 @@ allowed-tools:
 
 Instala lembretes visíveis para registrar revisão antes de um PR. A autoinspeção do autor prepara o handoff; a revisão final segue a política, o risco e as autorizações da sessão. O mecanismo pode usar o orquestrador, um revisor filho ou outro contexto independente; esta skill não escolhe modelo, perfil, UI ou estilo de comunicação. O hook lembra, mas não bloqueia.
 
-Use the **Delivery evidence contract** in `akita-xp-rules` for the candidate's observable behavior, base, evidence, applicable guards, limits, and review result. Resolve the source path supplied by the environment and record it in each task or briefing. Do not create a parallel review state.
+Use the **Delivery evidence contract**, revision `2026-10-11.1`, in `akita-xp-rules` for the candidate's observable behavior, base, evidence, applicable guards, limits, and review result. Resolve the source path supplied by the environment and record it in each task or briefing. Do not create a parallel review state.
 
-Use the canonical [delivery flow](../../../plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md) for review identity, model routing, and evidence. When this skill is installed, resolve `akita-xp-rules/references/delivery-flow.md` from the host-provided plugin path; the source-checkout link above is not a path in the consumer repository.
+Use the canonical `akita-xp-rules / Delivery flow`, revision `2026-10-11.1`, for review identity, model routing, and evidence. Resolve the source path or URI supplied by the current environment/harness; do not assume a source-checkout path or invent a path in the consumer repository.
 
 ## Review lanes and independence
 
