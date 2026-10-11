@@ -10,17 +10,13 @@ policy chooses the model, profile, isolation, and dispatch mechanism. The
 author's self-inspection prepares the handoff; it does not replace an
 independent final review when policy or risk requires one.
 
-For an independent final review, record the author and reviewer agent
-identities and models before deciding. Both must differ. A renamed context, new
-thread, or second prompt with the same identity/model does not qualify. A
-coordinator may review only when it did not author the implementation and the
-current policy permits the distinct reviewer.
+For an independent final review, follow the canonical [delivery flow](../../../../plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md) for identity, model/provider routing, and evidence. Resolve `akita-xp-rules/references/delivery-flow.md` from the host-provided plugin path when this command is installed; do not assume the source-checkout link exists in the consumer repository. Record author and reviewer identities/models as provenance. This command does not make author self-inspection an approval.
 
-Resolve the **Delivery evidence contract** from `akita-xp-rules/SKILL.md` using
-the path supplied by the environment; use the plugin namespace only when the
-plugin is the loader. Record source path/URI and revision `<revision read from the resolved contract source>` in the
-task or briefing. A worker without a skill loader receives the exact canonical
-excerpt from that source, including the reference and revision.
+Resolve the **Delivery evidence contract** and **delivery flow** from the
+`akita-xp-rules` path supplied by the environment; use the plugin namespace
+only when the plugin is the loader. Record each source path/URI and revision in
+the task or briefing. A worker without a skill loader receives pointers to
+those canonical sources, not a copied policy or parallel review-state record.
 
 ## Step 1: Identify scope
 
@@ -98,7 +94,7 @@ task impact and project policy, and record commands, exit codes, and logs.
 Output the following markdown block:
 
 ```md
-## Self-review findings
+## Review findings and evidence
 
 ### Block (do not integrate until resolved)
 - `path/to/file.ts:42` — [description of issue] — [suggested fix]
@@ -123,7 +119,7 @@ Output the following markdown block:
 - Review lane: [self-inspection | triage | independent final review]
 - Triage status: [not applicable | confirmed | inconclusive | out-of-scope]
 - Author identity/model: [references]
-- Reviewer identity/model: [references; must differ from author]
+- Reviewer identity/model: [references when applicable; identity and routing follow delivery-flow.md]
 - Checks executed now: [commands + timestamp + exit codes, or `none`]
 - Fresh external evidence: [artifact/run + timestamp + candidate, or `none`]
 ```
@@ -145,14 +141,14 @@ The author reproduces and corrects confirmed findings. Re-run `/review-pr` or
 the selected review lane after the correction, and check the changed delta.
 
 ### Only Must Fix / Suggestion / Nit
-Include findings in PR body under `## Orchestrator self-review findings`.
+Include findings in PR body under `## Review findings and evidence`.
 
 ```bash
 gh pr create --title "..." --body "$(cat <<'EOF'
 ## Summary
 ...
 
-## Orchestrator self-review findings
+## Review findings and evidence
 [paste findings markdown here]
 
 ## Test plan
@@ -162,7 +158,7 @@ EOF
 ```
 
 ### All Verified (no Block/Must Fix)
-Note in PR body: `Review pass: no blocking findings. See verified items above.`
+Note in PR body: `Review pass: no blocking findings. See verified items above.` This describes only the current pass and does not approve the candidate by itself.
 
 ### Optional triage pass
 If this command is being used for triage, it reports findings and does not

@@ -1,5 +1,5 @@
 
-# code-review-automation: lembra de rodar /review-pr antes de gh pr create/merge
+# code-review-automation: lembra de registrar o lane de revisão selecionado
 if echo "$TOOL_INPUT" | grep -qiE '\bgh pr (create|merge)\b'; then
-  echo "[review-pr reminder] Rodou /review-pr antes? Orchestrator self-review estruturado com adversarial persona. Cole findings no PR body sob '## Orchestrator self-review findings'. Pilot decide merge no GitHub."
+  echo "[review-pr reminder] Registre o lane exigido pela política com /review-pr quando aplicável. Autoinspeção prepara o handoff; não concede aprovação. Revisão final e integração seguem delivery-flow e autorização vigente. Cole as evidências em '## Review findings and evidence'."
 fi

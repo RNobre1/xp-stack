@@ -1,9 +1,9 @@
 
-## Orchestrator self-review findings
+## Review findings and evidence
 
-> Record the review pass selected by the current session: author self-inspection, optional triage, or independent final review. Mention the model/mechanism only when the session selected it. Paste `/review-pr` output or link to the recorded evidence.
+> Record the review pass selected by the current session: author self-inspection, optional triage, or independent final review. This section records evidence; its presence is not approval. Mention the model/mechanism only when selected by session policy. Paste `/review-pr` output or link to the recorded evidence.
 
-> This section is a visible reminder, not automatic semantic enforcement. Use the **Delivery evidence contract** in `akita-xp-rules` for behavior, base/candidate, commands/logs, applicable guards, limits, and review. Unknown or inconclusive evidence is not approval.
+> This section is a visible reminder, not automatic semantic enforcement. Use the **Delivery evidence contract** and [delivery flow](../../../../plugins/xp-stack/skills/akita-xp-rules/references/delivery-flow.md) from the host-provided `akita-xp-rules` path for behavior, review identity/routing, base/candidate, evidence, guards, and limits. Unknown or inconclusive evidence is not approval.
 
 ### Block
 <!-- "None" or list: `path/file.ts:line` — issue — suggested fix -->
@@ -20,7 +20,7 @@
 ### Review lane and authorization
 <!-- self-inspection | triage | independent final review; record the authorized integration/merge decision -->
 - Author agent/model: ...
-- Reviewer agent/model: ... (must both differ from author for an independent final review)
+- Reviewer agent/model: ... (when applicable; follow delivery-flow.md)
 - Checks executed now: ... (commands, timestamp, exit codes)
 - Fresh external evidence: ... (artifact/run, timestamp, candidate)
 - If triage only: state that it did not approve; unknown/inconclusive is not approval.
