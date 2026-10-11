@@ -91,6 +91,15 @@ manual com as convenções e permissões do projeto.
 sobrescrever destinos existentes. Backups ou uma branch continuam recomendados.
 Não use `uninstall` para atualizar: `.xp-stack/` também contém estado do projeto.
 
+**Instalações antigas de `add-engine`:** versões anteriores copiaram opt-ins
+inativas para `<skillsDir>/opt-in-skills/`. Alguns harnesses descobrem essas skills
+recursivamente. A release nova deixa de criar essas cópias, mas não remove arquivos
+existentes automaticamente. Antes de declarar a migração concluída, inventarie os
+`SKILL.md` também nas subpastas, compare o manifest e as personalizações e confira
+o catálogo real do harness. Cópias antigas indesejadas exigem backup e uma migração
+explicitamente autorizada; não apague toda a pasta de skills. `update` não certifica
+que essas cópias históricas deixaram de ser carregadas.
+
 No marketplace, a atualização do plugin usa seu próprio cache versionado;
 ela não reexecuta os scaffolds que você já copiou para o projeto:
 

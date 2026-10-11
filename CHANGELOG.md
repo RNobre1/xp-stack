@@ -18,7 +18,7 @@ npm `2.3.0`; plugin `0.7.0`, com versões de distribuição independentes.
 - Fluxo canônico de entrega e contrato de evidências na revisão `2026-10-11.1`: incrementos funcionais, guardas por risco, parada antecipada e reuso por manifesto de entradas/ambiente. Revisão independente por função, com diversidade recomendada e escolhas explícitas da sessão preservadas.
 - Pausa/compact/handoff não concedem testes ou publicação por si. Estado único da missão, snapshots datados e documentação essencial por default; ferramentas de estado existentes permanecem.
 - `update` atualiza fontes intactas antigas, inclui novas referências e preserva instruções/permissões do projeto, personalizações e exclusões locais. Destinos simbólicos ou não gerenciados não são sobrescritos silenciosamente.
-- `add-engine` deriva skills core/opt-ins do manifest e do registry e preserva destinos existentes.
+- `add-engine` deriva skills core/opt-ins habilitadas do manifest e do registry, preserva destinos existentes e deixa de copiar templates opt-in inativos para subpastas descobríveis. Cópias históricas não são apagadas automaticamente; a migração exige inventário do catálogo e autorização própria.
 - CI passa a executar os contratos da metodologia e os testes sintéticos do Jev, além do CLI e runner durável.
 
 ### Added
