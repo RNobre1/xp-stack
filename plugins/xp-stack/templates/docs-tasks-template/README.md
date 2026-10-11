@@ -28,6 +28,7 @@ cp docs/tasks/_template/TEMPLATE-task.md      "docs/tasks/$FEATURE/T1-first-task
 | `T{N}-{slug}.md` | Yes (1+) | Task specification keyed by ID in the authority source; TDD, scope, acceptance, execution evidence |
 | `PROGRESS.md` | Optional, complete layout | Dated metrics/decisions snapshot derived from the authority source; never live status |
 | `ORCHESTRATOR-PROMPT.md` | Optional | Copy of `TEMPLATE-orchestrator-prompt.md` only when the selected mechanism requires a separate dispatch prompt |
+| `TERMINAL-PROMPTS.md` | Optional, local-waves only | Shape defined by the local-waves skill; no template here. The general orchestrator prompt is not a substitute. |
 
 ## Conventions
 
