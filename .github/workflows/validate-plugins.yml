@@ -37,6 +37,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check plugin license derives from repository license
+        run: cmp LICENSE plugins/xp-stack/LICENSE
+
       - name: Check marketplace.json syntax
         run: jq empty .claude-plugin/marketplace.json
 

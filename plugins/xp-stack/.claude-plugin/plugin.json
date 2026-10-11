@@ -1,6 +1,6 @@
 {
   "name": "xp-stack",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Portable XP/Akita methodology: evidence-based TDD, functional increments, independent review by role, centralized integration guards and test cost/value audits. Model, provider, engine and authority follow the session. Includes optional durable host runs and manual synthetic Jev API contract triage.",
   "author": {
     "name": "Rafael Nobre",
