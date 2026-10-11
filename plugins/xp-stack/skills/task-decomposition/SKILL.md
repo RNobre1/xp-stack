@@ -3,83 +3,47 @@ name: task-decomposition
 description: Use when decomposing non-trivial features into tracked tasks in docs/tasks/{feature}/ with incremental scope, evidence, parallel work, review, and session resumption. Use the bootstrap skill to install templates first.
 ---
 
-> **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
+> **For engines without skill loading:** follow this file and its linked portable references. A plugin loader may prefix the skill name; resolve the path from the current skill location.
 
-Voce eh o Decompositor. Sua missao eh quebrar features nao-triviais em T-files rastreaveis com fonte de verdade JSON (tasks.json) + render markdown derivado (00-overview.md). Cada task tem id, slug, title, status, deps, phase, confidence — nunca crie task sem esses campos. Para o contrato de comportamento e evidencia, use a secao **Delivery evidence contract** da skill `akita-xp-rules`; nao replique essa lista em cada T-file. Cada T-file e briefing registra `Contract source` com o caminho/URI resolvido e a revisao; para workers sem loader, o remetente anexa o trecho literal da fonte.
+Voce eh o Decompositor. Quebre o trabalho em incrementos rastreáveis que resultem em um outcome utilizável pelo consumidor. Quando um fluxo novo usar `docs/tasks/tasks.json`, cada task deve ter `id`, `slug`, `title`, `status`, `deps`, `phase` e `confidence` conforme `schemas/tasks.schema.json`. Siga o [delivery flow](../akita-xp-rules/references/delivery-flow.md), revisão `2026-10-11.1`, e o **Delivery evidence contract** compartilhado. Não replique seus significados nos T-files. Cada task e briefing registra as fontes/revisões; para workers sem loader, o remetente anexa os trechos literais relevantes.
 
-## Doc level (escolha antes de começar)
+## Layout and status source
 
-Pergunte ao Piloto qual nível de documentação:
-
-- **`essencial`** (default pra features <1 dia ou bugfix): apenas `00-overview.md` + 1-3 T-files. Sem `PROGRESS.md`, sem `TERMINAL-PROMPTS.md`, sem `state.json`. Reduz overhead pra trabalho rápido.
-- **`completo`** (default pra features >1 dia ou multi-onda): full pacote — `00-overview.md` + `PROGRESS.md` + `state.json` + `tasks.json` + 1 T-file por task + opcional `TERMINAL-PROMPTS.md` legado se for usar paperclip/local-waves. O mecanismo de despacho é escolhido pela política da sessão/Host; prompts devem ser derivados dos T-files.
-
-Aceita via slash command argument: `/xp-stack:task-decomposition essencial` ou `/xp-stack:task-decomposition completo`. Default: `completo` se não especificado e feature parece grande; senão pergunte.
-
-Salve a escolha em `state.json` campo `doc_level` (W2 schema já suporta).
+Choose `essencial` or `completo` using the single source-of-status and file-set rules in [`delivery-flow.md`](../akita-xp-rules/references/delivery-flow.md). Decide the layout at decomposition time; do not create a second state file for `doc_level` or migrate an existing runtime state contract as part of documentation work.
 
 # Task Decomposition
 
-Non-trivial features (more than one day of work, multiple files, risk of parallel conflicts) must be decomposed into individual tasks before execution.
+Use this skill when a feature has multiple usable outcomes, dependencies, owners, or risk that benefits from explicit tracking. A feature does not need extra tasks just because it touches multiple files or takes more than one day. Each task represents a usable outcome or a necessary dependency, not a phase or internal micro-step.
 
-## Required Structure
+## Task folder and T-files
 
-Create `docs/tasks/{feature-slug}/` with:
-
-| File | Purpose |
-|---|---|
-| `00-overview.md` | General plan, diagnosis (before/after), task table, sub-tasks, parallelism waves, how to execute |
-| `PROGRESS.md` | Live snapshot: status per task, metrics, decisions, chronological history |
-| `T{N}-{slug}.md` | One task per file. TDD mandatory (red -> green -> refactor -> verification), allowed/forbidden files, acceptance criteria, execution log |
+For a new `docs/tasks` flow, use `docs/tasks/_template/README.md` and `schemas/tasks.schema.json`. Preserve any existing status tool as described in the delivery flow. Create task files only for usable outcomes or necessary dependencies, not for file groups, workflow phases, or implementation microsteps. Start each T-file from `TEMPLATE-task.md`; fill only the applicable scope, pressure scenarios, acceptance, evidence, and handoff slots.
 
 ## Conventions
 
 - Slug in kebab-case (`testing-improvement`, `mtr-pricing`)
-- Branch per task: `feat/{feature-slug}-T{N}`
-- Status: `[ ] Pending` -> `[ ] Ready to dispatch` -> `[x] Completed YYYY-MM-DD (#PR -> hash)`
+- `phase` classifies a task for the existing schema; it does not define a task boundary. Do not create one task for each workflow phase.
+- Isolation: use the worktree/branch selected by the session and Host policy. Separate branches only when outcomes can be reviewed/integrated independently or isolation is required; do not branch per micro-step.
 - Sub-tasks discovered in review become `T{N}.1`, `T{N}.2`, registered in `00-overview.md`
 - Integration and merge follow the project's policy and the authorization already granted in the current session; do not impose a universal human-only gate
-
-## Task File Template (T{N}-{slug}.md)
-
-Each task file must contain:
-- **Header**: name, session N of N, branch, status checkboxes
-- **Objective**: 1 sentence
-- **Context**: larger feature, other sessions, decisions, CLAUDE.md refs
-- **Files ALLOWED to touch** (exhaustive list)
-- **Files FORBIDDEN** (exhaustive list)
-- **Observable behavior and limits, base/candidate, and expectation origin** (following `akita-xp-rules`)
-- **Execution order with TDD** (Phase 1: RED, Phase 2: GREEN, Phase 3: REFACTOR, Phase 4: VERIFICATION), with commands, trees, exit codes, and logs recorded
-- **Applicable guards** selected by impact, with omitted or pending checks explained
-- **Acceptance criteria**
-- **Mandatory test scenarios**
-- **Blockers** (when to stop)
-- **Execution log**, **State on pause**, **Notes for review**
 
 ## Archival Policy — NEVER Delete Completed Tasks
 
 Two options, in order of preference:
-1. **In-place**: leave the folder where it is, mark `**Status:** COMPLETED on YYYY-MM-DD` in `00-overview.md`. Default.
+1. **In-place**: leave the folder where it is and retain the task authority plus dated evidence views. Default.
 2. **Move to `docs/tasks/_archive/{feature}/`**: only when `docs/tasks/` gets cluttered (5+ completed features). Use `git mv`, not `rm`.
 
 **Reason:** Completed tasks contain non-reconstructable context (decisions, incidents, trade-offs, follow-ups not yet turned into features). Git preserves content theoretically, but `grep` in `docs/tasks/` is much faster than `git log`.
 
-## Parallel dispatch workflow (when authorized)
+## Parallel dispatch (when authorized)
 
-When a wave has 2+ independent T-files and parallel work is authorized, the orchestrator selects a native mechanism supported by the current session and Host:
-
-1. Orchestrator reads each T{N}-*.md.
-2. For each independent task in the wave, dispatch with the isolation, model, profile, prompt style, and UI selected by that session/Host policy. Use isolated worktrees when the selected mechanism supports them.
-3. Agent View, `local-waves`, and `paperclip-orchestrator` are available patterns; none is a universal default, and `Sonnet`/`caveman:caveman` are optional choices.
-4. When workers return, collect their evidence, run focused guards, and route any selected triage findings back to the author. Arrange the independent final review and integrate or merge according to authorization.
+Follow the delivery flow's batch and review rules. The coordinator uses a mechanism and isolation supported by the current session/Host policy, gives each worker the relevant T-file and exact source revisions, then checks returned evidence and routes review findings. No mechanism or model is a portable default.
 
 The legacy `TERMINAL-PROMPTS.md` + N-terminals pattern remains available only when the selected local mechanism needs it.
 
 ## Workflow
 
-1. Copy from templates when starting a new feature — **don't redesign the structure**
-2. Fill `00-overview.md` with diagnostic and task breakdown
-3. Each task gets its own branch
-4. Execute TDD phases in order within each functional increment, choosing test layers and guards by impact
-5. Update `PROGRESS.md` as each task completes or reaches a checkpoint
-6. Record the decision and continue according to the current session authorization; preserve an honest checkpoint when work pauses
+1. Start from the task templates and schema; do not redesign their structure.
+2. Describe the current behavior, consumer outcome, dependencies, and pressure scenarios in `00-overview.md` and needed T-files.
+3. Follow the canonical delivery flow for TDD, selected guards, evidence, review, and checkpoints.
+4. Update the single status source; refresh derived Markdown views only when used.

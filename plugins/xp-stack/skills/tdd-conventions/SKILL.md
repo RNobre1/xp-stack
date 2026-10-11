@@ -3,7 +3,9 @@ name: tdd-conventions
 description: Use when selecting applicable test layers or following TDD for a functional increment. Covers unit, integration, E2E, contract, regression, performance, and security checks; read the project's CLAUDE.md for stack-specific configuration.
 ---
 
-> **Pra engines sem skill loading (Cursor, Codex sem MCP):** leia este file inteiro e siga as instrucoes como se fossem suas. Voce nao precisa "invocar" — apenas obedeca. Cursor e Codex que tem `xp-stack` instalado via npm leem este SKILL.md em `.cursor/rules/` ou `.codex/skills/`.
+> **For environments without skill loading:** read and follow this file as the operating reference. A loader may prefix the skill name; resolve links relative to this file.
+
+**Delivery flow:** [`../akita-xp-rules/references/delivery-flow.md`](../akita-xp-rules/references/delivery-flow.md), revision `2026-10-11.1`. Use it for increment boundaries, stage ordering, and evidence reuse; this skill selects test layers.
 
 # TDD Conventions
 
@@ -11,7 +13,7 @@ description: Use when selecting applicable test layers or following TDD for a fu
 
 Choose the layers that exercise the increment's behavior and risk. Unit coverage remains the default for pure business logic; the other layers below are applicable when their trigger is present. Record why a layer was omitted or deferred instead of treating the whole pyramid as a per-edit checklist.
 
-1. **Unit Tests** — Test functions, methods, and classes in isolation. Must be fast, deterministic, and free of external dependencies (use mocks/stubs). Keep coverage high for business logic.
+1. **Unit Tests** — Test functions, methods, and classes in isolation. Must be fast, deterministic, and free of external dependencies (use mocks/stubs). Cover business rules according to their risk; do not optimize toward a test-count target.
 
 2. **Integration Tests** (when modules, services, databases, queues, or internal APIs interact) — Validate those boundaries against real or containerized dependencies, not only mocks.
 
@@ -32,6 +34,8 @@ Choose the layers that exercise the increment's behavior and risk. Unit coverage
 3. **REFACTOR** — With tests passing, clean up. Tests must still pass after refactoring.
 
 4. **VERIFY** — Run the focused tests and other guards applicable to the increment. Run the full suite at the integration/release boundary or when the project policy requires it; capture output before claiming completion.
+
+Run supported type/static-contract checks before an expensive integration or browser stage when they can catch the same failure sooner. Mutation checks are focused contraproofs for risky assertions or proposed test reductions, not a fixed quota or per-edit campaign. Before removing or merging tests, follow [`../akita-xp-rules/references/test-cost-audit.md`](../akita-xp-rules/references/test-cost-audit.md).
 
 ## CI/CD Integration
 
