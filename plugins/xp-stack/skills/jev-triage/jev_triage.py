@@ -206,14 +206,15 @@ def _checkout_root(start: Path | None = None) -> Path | None:
 
 def _ensure_outside_checkout(path: Path, *, error_type: type[TriageError], label: str) -> Path:
     resolved = path.resolve(strict=False)
-    root = _checkout_root()
-    if root is None:
-        return resolved
-    try:
-        resolved.relative_to(root)
-    except ValueError:
-        return resolved
-    raise error_type(f"{label} must be outside the checkout")
+    for root in (_checkout_root(), _checkout_root(resolved.parent)):
+        if root is None:
+            continue
+        try:
+            resolved.relative_to(root)
+        except ValueError:
+            continue
+        raise error_type(f"{label} must be outside the checkout")
+    return resolved
 
 
 def validate_suggestion_path(path: Path) -> Path:
@@ -315,6 +316,8 @@ def load_budget_config(path: Path) -> BudgetConfig:
 
 
 def classify_deterministic(case: SyntheticCase) -> RuleMatch | None:
+    if case.symptom_codes == ("no_diagnostic",):
+        return RuleMatch(category="inconclusive", rule_id="no_diagnostic")
     mapped = [SYMPTOM_CODES[code]["category"] for code in case.symptom_codes]
     if not mapped or None in mapped or len(set(mapped)) != 1:
         return None

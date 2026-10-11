@@ -176,6 +176,24 @@ class JevTriageTests(unittest.TestCase):
         self.assertNotIn("passed", encoded)
         self.assertIn("schema", encoded["version"])
 
+    def test_no_diagnostic_alone_is_inconclusive_without_remote_call_or_ledger(self) -> None:
+        client = StubClient()
+
+        result = jev_triage.triage_case(
+            make_case(["no_diagnostic"]),
+            config=make_config(self.ledger_path),
+            api_key="local-test-key",
+            client=client,
+            now=NOW,
+        )
+
+        self.assertEqual(result.category, "inconclusive")
+        self.assertEqual(result.origin, "rule")
+        self.assertTrue(result.inconclusive)
+        self.assertEqual(result.reason_code, "no_diagnostic")
+        self.assertEqual(client.calls, [])
+        self.assertFalse(self.ledger_path.exists())
+
     def test_conflicting_signals_use_only_explicit_local_jev_request(self) -> None:
         case = make_case(["module_missing", "timeout"])
         config = make_config(self.ledger_path)
@@ -218,7 +236,7 @@ class JevTriageTests(unittest.TestCase):
             jev_triage.JevClient(endpoint="http://example.invalid/v1/systemone")
 
     def test_missing_key_falls_back_before_creating_ledger_or_lock(self) -> None:
-        case = make_case(["no_diagnostic"])
+        case = make_case(["module_missing", "timeout"])
         client = StubClient()
 
         result = jev_triage.triage_case(
@@ -244,7 +262,7 @@ class JevTriageTests(unittest.TestCase):
                 {
                     "case_id": "synthetic-cli-auth",
                     "synthetic": True,
-                    "symptom_codes": ["no_diagnostic"],
+                    "symptom_codes": ["module_missing", "timeout"],
                 }
             ),
             encoding="utf-8",
@@ -282,7 +300,7 @@ class JevTriageTests(unittest.TestCase):
                 {
                     "case_id": "synthetic-sidecar",
                     "synthetic": True,
-                    "symptom_codes": ["no_diagnostic"],
+                    "symptom_codes": ["module_missing", "timeout"],
                 }
             ),
             encoding="utf-8",
@@ -363,6 +381,42 @@ class JevTriageTests(unittest.TestCase):
         self.assertNotEqual(exit_code, 0)
         self.assertFalse(in_checkout.exists())
 
+    def test_cli_rejects_suggestion_in_destination_checkout_when_invoked_outside(self) -> None:
+        case_path = self.root / "selected-synthetic-case.json"
+        case_path.write_text(
+            json.dumps(
+                {
+                    "case_id": "synthetic-other-checkout",
+                    "synthetic": True,
+                    "symptom_codes": ["no_diagnostic"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        invocation_dir = self.root / "outside-checkout"
+        invocation_dir.mkdir()
+        destination_checkout = self.root / "destination-checkout"
+        (destination_checkout / ".git").mkdir(parents=True)
+        output_dir = destination_checkout / "diagnostics"
+        output_dir.mkdir()
+        suggestion_path = output_dir / "must-not-be-created.json"
+
+        with (
+            patch.object(jev_triage.Path, "cwd", return_value=invocation_dir),
+            patch.dict(jev_triage.os.environ, {}, clear=True),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(io.StringIO()),
+        ):
+            try:
+                exit_code = jev_triage.main(
+                    ["--case", str(case_path), "--suggestion-out", str(suggestion_path)]
+                )
+            except SystemExit as error:
+                exit_code = error.code
+
+        self.assertNotEqual(exit_code, 0)
+        self.assertFalse(suggestion_path.exists())
+
     def test_budget_config_is_explicit_and_rejects_auto_recharge_fields(self) -> None:
         config_path = self.root / "explicit-budget.json"
         config = {
@@ -428,7 +482,7 @@ class JevTriageTests(unittest.TestCase):
         client = StubClient()
 
         result = jev_triage.triage_case(
-            make_case(["no_diagnostic"], case_id="synthetic-new"),
+            make_case(["module_missing", "timeout"], case_id="synthetic-new"),
             config=make_config(self.ledger_path, limit_nano_usd=reservation),
             api_key="local-test-key",
             client=client,
@@ -490,7 +544,7 @@ class JevTriageTests(unittest.TestCase):
         self.assertEqual(ledger.used_nano_usd(now=november), reservation)
 
     def test_timeout_reservation_is_kept_and_same_case_is_not_resent(self) -> None:
-        case = make_case(["no_diagnostic"], case_id="synthetic-timeout")
+        case = make_case(["module_missing", "timeout"], case_id="synthetic-timeout")
         config = make_config(self.ledger_path, timeout=0.05)
         with LocalJevServer(response_body(), delay_seconds=0.2) as server:
             client = jev_triage.JevClient(endpoint=server.endpoint)
@@ -516,7 +570,7 @@ class JevTriageTests(unittest.TestCase):
         )
 
     def test_confirmed_http_rejection_releases_reservation_without_retry(self) -> None:
-        case = make_case(["no_diagnostic"], case_id="synthetic-422")
+        case = make_case(["module_missing", "timeout"], case_id="synthetic-422")
         config = make_config(self.ledger_path)
         with LocalJevServer({"error": "synthetic validation rejection"}, status=422) as server:
             client = jev_triage.JevClient(endpoint=server.endpoint)
@@ -536,7 +590,7 @@ class JevTriageTests(unittest.TestCase):
         self.assertNotIn("synthetic validation rejection", json.dumps(result.to_dict()))
 
     def test_valid_usage_reconciles_reservation_and_duplicate_reuses_local_result(self) -> None:
-        case = make_case(["no_diagnostic"], case_id="synthetic-valid")
+        case = make_case(["module_missing", "timeout"], case_id="synthetic-valid")
         config = make_config(self.ledger_path)
         ledger = jev_triage.BudgetLedger(
             self.ledger_path,
@@ -583,7 +637,7 @@ class JevTriageTests(unittest.TestCase):
             with self.subTest(index=index):
                 ledger_path = self.root / f"invalid-{index}" / "ledger.json"
                 config = make_config(ledger_path)
-                case = make_case(["no_diagnostic"], case_id=f"synthetic-invalid-{index}")
+                case = make_case(["module_missing", "timeout"], case_id=f"synthetic-invalid-{index}")
                 with LocalJevServer(body) as server:
                     client = jev_triage.JevClient(endpoint=server.endpoint)
                     first = jev_triage.triage_case(
@@ -624,7 +678,12 @@ class JevTriageTests(unittest.TestCase):
             match = jev_triage.classify_deterministic(case)
             expected = item["expected_category"]
             if expected == "inconclusive":
-                self.assertIsNone(match, item["case"]["case_id"])
+                if case.symptom_codes == ("no_diagnostic",):
+                    self.assertIsNotNone(match, item["case"]["case_id"])
+                    self.assertEqual(match.category, "inconclusive", item["case"]["case_id"])
+                    self.assertEqual(match.rule_id, "no_diagnostic", item["case"]["case_id"])
+                else:
+                    self.assertIsNone(match, item["case"]["case_id"])
             else:
                 self.assertIsNotNone(match, item["case"]["case_id"])
                 self.assertEqual(match.category, expected, item["case"]["case_id"])

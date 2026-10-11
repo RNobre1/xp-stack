@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Jev Shadow Triage
 
-Use only when explicitly invoked for one selected synthetic case. This is an advisory sidecar; it is not a test, gate, queue, authorization, or root-cause mechanism.
+Use only when explicitly invoked for one selected synthetic case. This is an advisory sidecar; it is not a test, gate, queue, authorization, or root-cause mechanism, and this pilot does not establish improved triage.
 
 The `disable-model-invocation: true` metadata keeps this capability manual-only. In the xp-stack plugin, invoke `/xp-stack:jev-triage`; for a versioned copy, invoke the skill by the name registered by its host. Resolve the script as a sibling of the `SKILL.md` that supplied this instruction. Do not assume the current directory is the xp-stack source checkout.
 
@@ -27,9 +27,9 @@ python3 "$SKILL_DIR/jev_triage.py" \
   --config /absolute/path/to/explicit-budget.json
 ```
 
-`--suggestion-out` is required, must be a new file outside the checkout, and is written atomically with mode `0600`. The result is not printed to stdout and no runner reads this file. Do not pipe it into tests, queues, or gates.
+`--suggestion-out` is required and must be a new absolute file. The CLI checks `.git` markers along both the invocation directory and destination ancestors and refuses a sidecar inside a detected checkout. It is written atomically with mode `0600`. The result is not printed to stdout and no runner reads this file. Do not pipe it into tests, queues, or gates.
 
-`--config` is explicit and optional. Jev is considered only when local rules are ambiguous, `TYPESAFE_API_KEY` is set, and the coordinator-assigned monthly budget config is valid. No other environment variable, dotenv file, credential store, or config default is searched. The request is pinned to `jev-1.13.0`; no package is installed and the tool has no billing or auto-recharge integration.
+`--config` is explicit and optional. A case with only `no_diagnostic` resolves locally as `inconclusive`; Jev is considered for other ambiguous cases only when `TYPESAFE_API_KEY` is set and the coordinator-assigned monthly budget config is valid. No other environment variable, dotenv file, credential store, or config default is searched. The request is pinned to `jev-1.13.0`; no package is installed and the tool has no billing or auto-recharge integration. Any live contract check, if separately authorized, is limited to 1–3 selected synthetic calls for pin/request/response/usage, not accuracy or promotion.
 
 No key/config, exhausted or mismatched budget, HTTP rejection, timeout, invalid response, or uncertain request produces an `inconclusive` sidecar. No test status, queue, authorization, or application state is changed. A reserved or uncertain case ID is suppressed for the month; never rerun it to retry an uncertain call.
 

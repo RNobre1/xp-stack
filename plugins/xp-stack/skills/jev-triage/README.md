@@ -1,6 +1,6 @@
 # Jev triage — piloto opt-in em sombra
 
-Este recurso classifica um caso **sintético** selecionado pelo coordenador e grava uma sugestão separada. Ele não comprova causa, não declara um teste verde e não altera runner, fila, autorização, status ou aplicação.
+Este piloto manual recebe um caso **sintético** selecionado pelo coordenador e pode gravar uma sugestão separada. `no_diagnostic` sozinho resolve localmente como inconclusivo, sem chamada de API. O piloto não demonstra que a triagem melhora, não comprova causa, não declara um teste verde e não altera runner, fila, autorização, status ou aplicação.
 
 O `SKILL.md` é manual-only (`disable-model-invocation: true`) para preservar o opt-in. No plugin xp-stack, o nome de invocação é `/xp-stack:jev-triage`. Em uma cópia versionada, o host deve descobrir/invocar `jev-triage` pelo nome registrado e resolver `jev_triage.py` ao lado do `SKILL.md` carregado.
 
@@ -31,14 +31,14 @@ python3 "$SKILL_DIR/jev_triage.py" \
 
 Defina `SKILL_DIR` para o diretório do `SKILL.md` carregado antes do comando. Não derive o caminho do `cwd` nem presuma que o consumidor usa o checkout fonte `plugins/xp-stack`.
 
-`--case` e `--suggestion-out` são obrigatórios. O diretório de saída precisa existir; o arquivo de sugestão precisa ser novo, absoluto e fora do checkout. A gravação é atômica, usa modo `0600` e nunca sobrescreve outro arquivo. O resultado vai somente para esse sidecar; stdout fica vazio para que o resultado não seja acidentalmente encadeado ao runner. Nenhum runner consome esse arquivo.
+`--case` e `--suggestion-out` são obrigatórios. O diretório de saída precisa existir; o arquivo precisa ser novo e absoluto. O CLI verifica marcadores `.git` nos ancestrais do diretório de execução e do destino e recusa um sidecar dentro de qualquer checkout detectado. A gravação é atômica, usa modo `0600` e nunca sobrescreve outro arquivo. O resultado vai somente para esse sidecar; stdout fica vazio para que a sugestão não seja acidentalmente encadeada ao runner. Nenhum runner consome esse arquivo.
 
 O CLI não tem caminho padrão para config, ledger ou saída. Sem `--config`, uma chave ausente ou inválida, orçamento esgotado ou outra falha, grava-se apenas a sugestão `inconclusive` no sidecar explicitamente escolhido. A saída é uma dica, nunca um estado de execução.
 
 ## Fluxo de classificação
 
-1. Regras determinísticas locais classificam códigos inequívocos e não fazem chamada externa.
-2. Códigos que não têm categoria ou combinam categorias diferentes são ambíguos. Jev só é considerado então, com chave e orçamento configurado.
+1. Regras determinísticas locais classificam códigos inequívocos e não fazem chamada externa; `no_diagnostic` sozinho vira `inconclusive` local.
+2. Outros códigos que não têm categoria ou combinam categorias diferentes são ambíguos. Jev só é considerado então, com chave e orçamento configurado.
 3. A resposta aceita apenas `model == "jev-1.13.0"`, uma escolha em `CATEGORY_GUIDANCE`, probabilidades válidas e usage inteiro suportado. Texto livre da API nunca é convertido em instrução.
 4. O JSON lateral traz `category`, `suggestion`, `origin`, `inconclusive` e `version`. Nenhum campo afirma causa comprovada, aprovação ou resultado de teste.
 
@@ -67,7 +67,7 @@ Shape oficial consultado: [`POST /v1/systemone`](https://docs.typesafe.ai/api), 
 
 ## Avaliação local e limites
 
-`evaluation/cases.jsonl` tem dez casos sintéticos pequenos. O teste mede o mecanismo determinístico e os caminhos de abstenção; **não mede acurácia do Jev nem valida adequação a casos reais**. Nenhuma amostra real foi enviada. Antes de qualquer promoção, amplie para 100–200 exemplos sintéticos independentemente rotulados, separados entre calibração e validação, com métricas por classe, erros perigosos, abstenção e comparação com as regras locais. Não promova com base neste fixture mecânico.
+`evaluation/cases.jsonl` tem dez casos sintéticos pequenos. O teste mede o mecanismo determinístico e os caminhos de abstenção; **não mede acurácia do Jev, benefício sobre as regras locais nem adequação a casos reais**. Nenhuma amostra real foi enviada. Qualquer checagem de API ao vivo, se autorizada, fica limitada a 1–3 casos sintéticos escolhidos para confirmar pin, shape e usage; isso não é avaliação de acurácia nem promoção. Antes de qualquer promoção, amplie para 100–200 exemplos sintéticos independentemente rotulados, separados entre calibração e validação, com métricas por classe, erros perigosos, abstenção e comparação com as regras locais. Não promova com base neste fixture mecânico.
 
 ## Testes locais
 
