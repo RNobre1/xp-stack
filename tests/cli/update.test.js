@@ -189,4 +189,45 @@ describe('xp-stack update', () => {
     expect(() => execFileSync('node', [BIN, 'update', '--cwd', tmp, '--yes'], { stdio: 'pipe' })).toThrow(/Manifest invalido/);
     expect(readFileSync(join(tmp, RULES), 'utf8')).toBe('# An older installed release\n');
   });
+
+  it.each(['CLAUDE.md', '.claude/settings.json'])('preserva %s do projeto mesmo com take-theirs', (rel) => {
+    const local = rel.endsWith('.json') ? '{"permissions":{"deny":["Bash(rm:*)"]}}\n' : '# Projeto\nADR importante\n';
+    writeFileSync(join(tmp, rel), local);
+    const out = execFileSync('node', [BIN, 'update', '--cwd', tmp, '--yes', '--take-theirs'], { encoding: 'utf8' });
+    expect(readFileSync(join(tmp, rel), 'utf8')).toBe(local);
+    expect(out).toContain(rel);
+    expect(out).toMatch(/projeto.*preservado|preservado.*projeto/i);
+  });
+
+  it.each(['CLAUDE.md', '.claude/settings.json'])('não troca %s nem quando o source mudou e não há drift local', (rel) => {
+    const old = rel.endsWith('.json') ? '{"hooks":{}}\n' : '# Instruções de release anterior\n';
+    writeFileSync(join(tmp, rel), old);
+    const m = manifest();
+    m.files[rel].hash = hash(old);
+    saveManifest(m);
+    execFileSync('node', [BIN, 'update', '--cwd', tmp, '--yes'], { stdio: 'pipe' });
+    expect(readFileSync(join(tmp, rel), 'utf8')).toBe(old);
+  });
+
+  it('avisa exclusão local sem exigir take-theirs nem parar atualizações independentes', () => {
+    simulateOlderRules();
+    const rel = 'docs/pesquisas/_template/TEMPLATE-pesquisa.md';
+    rmSync(join(tmp, rel));
+    const out = execFileSync('node', [BIN, 'update', '--cwd', tmp], { encoding: 'utf8' });
+    expect(out).toContain('removido localmente');
+    expect(existsSync(join(tmp, rel))).toBe(false);
+    expect(readFileSync(join(tmp, RULES), 'utf8')).toBe(readFileSync(join(REPO_ROOT, SOURCE), 'utf8'));
+    expect(out).toContain(RULES);
+  });
+
+  it('descobre novo template somente dentro do diretório de templates já instalado', () => {
+    const rel = 'docs/tasks/_template/TEMPLATE-task.md';
+    const m = manifest();
+    delete m.files[rel];
+    rmSync(join(tmp, rel));
+    saveManifest(m);
+    execFileSync('node', [BIN, 'update', '--cwd', tmp, '--yes'], { stdio: 'pipe' });
+    expect(readFileSync(join(tmp, rel), 'utf8')).toBe(readFileSync(join(REPO_ROOT, 'plugins/xp-stack/templates/docs-tasks-template/TEMPLATE-task.md'), 'utf8'));
+    expect(manifest().files[rel].source).toBe('plugins/xp-stack/templates/docs-tasks-template/TEMPLATE-task.md');
+  });
 });

@@ -8,6 +8,11 @@ import { validate } from '../../lib/validators.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(__dirname, '..', '..', '..');
+const PROJECT_OWNED = new Set(['CLAUDE.md', 'AGENTS.md', '.claude/settings.json']);
+const TEMPLATE_TREES = [
+  ['docs/tasks/_template/', 'plugins/xp-stack/templates/docs-tasks-template/'],
+  ['docs/pesquisas/_template/', 'plugins/xp-stack/templates/docs-pesquisas-template/'],
+];
 
 // Validate every candidate before writing. A manifest is not permission to write
 // outside the selected project, nor to follow a user-created symbolic link.
@@ -21,7 +26,7 @@ function containedPath(root, rel) {
     current = join(current, part);
     try {
       if (lstatSync(current).isSymbolicLink()) {
-        throw new Error(`xp-stack update: symlink no caminho gerenciado: ${rel}`);
+        throw new Error(`xp-stack update: symlink no caminho gerenciado: ${rel}. Nenhum arquivo foi atualizado; reconcilie o mirror/manifest antes de repetir.`);
       }
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
@@ -32,19 +37,21 @@ function containedPath(root, rel) {
 
 function sourceFor(rel, source) {
   // init <= 2.2.0 recorded placeholders for these two template trees.
-  const legacy = [
-    ['docs/tasks/_template/', 'plugins/xp-stack/templates/docs-tasks-template/'],
-    ['docs/pesquisas/_template/', 'plugins/xp-stack/templates/docs-pesquisas-template/'],
-  ];
-  for (const [dest, src] of legacy) {
+  for (const [dest, src] of TEMPLATE_TREES) {
     if (source === `${src}...` && rel.startsWith(dest)) return `${src}${rel.slice(dest.length)}`;
   }
   return source;
 }
 
-function installedSkillGroups(files) {
+function installedContentGroups(files) {
   const groups = new Map();
   for (const [dest, entry] of Object.entries(files)) {
+    const source = sourceFor(dest, entry.source);
+    for (const [destPrefix, sourcePrefix] of TEMPLATE_TREES) {
+      if (dest.startsWith(destPrefix) && source === `${sourcePrefix}${dest.slice(destPrefix.length)}`) {
+        groups.set(destPrefix, sourcePrefix.slice(0, -1));
+      }
+    }
     const match = /^(plugins\/xp-stack\/skills|templates\/opt-in-skills)\/([^/]+)\/(.+)$/.exec(entry.source);
     if (!match) continue;
     const [, root, skill, suffix] = match;
@@ -84,6 +91,24 @@ async function runUpdate(opts) {
     }
     const sourceHash = hashFile(sourcePath);
     const currentHash = existsSync(destPath) ? hashFile(destPath) : null;
+    if (PROJECT_OWNED.has(relPath)) {
+      if (currentHash !== sourceHash) {
+        console.log(`Arquivo do projeto preservado: ${relPath}; compare manualmente o template ${source}.`);
+      }
+      if (currentHash !== entry.hash) {
+        modifiedCount++;
+        next.files[relPath].user_modified = true;
+        next.files[relPath].user_modified_detected_at = new Date().toISOString();
+      }
+      continue;
+    }
+    if (currentHash === null && autoMode !== 'take') {
+      modifiedCount++;
+      next.files[relPath].user_modified = true;
+      next.files[relPath].user_modified_detected_at = new Date().toISOString();
+      console.log(`Arquivo removido localmente; exclusão preservada: ${relPath}. Use --yes --take-theirs somente se quiser restaurá-lo.`);
+      continue;
+    }
     if (currentHash !== entry.hash && currentHash !== sourceHash) {
       modifiedCount++;
       if (!autoMode) {
@@ -96,14 +121,14 @@ async function runUpdate(opts) {
         continue;
       }
     }
-    if (currentHash !== sourceHash) copies.push({ sourcePath, destPath });
+    if (currentHash !== sourceHash) copies.push({ sourcePath, destPath, relPath });
     next.files[relPath] = { ...entry, hash: sourceHash, source, user_modified: false };
     delete next.files[relPath].user_modified_detected_at;
   }
 
-  // Discover only new files belonging to an already installed skill/mirror.
+  // Discover only new files in an already installed skill/mirror or template tree.
   // Unmanaged collisions are always preserved, even with --take-theirs.
-  for (const [destPrefix, sourcePrefix] of installedSkillGroups(manifest.files)) {
+  for (const [destPrefix, sourcePrefix] of installedContentGroups(manifest.files)) {
     const sourceDir = containedPath(PKG_ROOT, sourcePrefix);
     if (!existsSync(sourceDir)) continue;
     for (const relativeFile of walkDir(sourceDir)) {
@@ -117,7 +142,7 @@ async function runUpdate(opts) {
         console.warn(`Arquivo local não gerenciado; preservado: ${destRel}`);
         continue;
       }
-      copies.push({ sourcePath, destPath });
+      copies.push({ sourcePath, destPath, relPath: destRel });
       next.files[destRel] = { hash: hashFile(sourcePath), source, user_modified: false };
     }
   }
@@ -126,16 +151,17 @@ async function runUpdate(opts) {
     process.exitCode = 1;
     return;
   }
-  for (const { sourcePath, destPath } of copies) {
+  for (const { sourcePath, destPath, relPath } of copies) {
     mkdirSync(dirname(destPath), { recursive: true });
     copyFileSync(sourcePath, destPath);
+    console.log(`Atualizado: ${relPath}`);
   }
   next.installed_version = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')).version;
   writeManifest(projectRoot, next);
   if (copies.length === 0 && modifiedCount === 0) {
     console.log('xp-stack update: nothing to update (sem drift detectado)');
   } else {
-    console.log(`xp-stack update: ${copies.length} arquivos atualizados/adicionados; ${modifiedCount} alterações locais avaliadas.`);
+    console.log(`xp-stack update: ${copies.length} arquivos atualizados/adicionados; ${modifiedCount} alterações locais avaliadas; versão do pacote ${next.installed_version}. Consulte o manifest para arquivos preservados.`);
   }
 }
 
@@ -146,7 +172,7 @@ export function registerUpdate(program) {
     .option('--cwd <path>', 'project root (default: process.cwd())')
     .option('--yes', 'pula prompts interativos (requer --keep-mine ou --take-theirs)')
     .option('--keep-mine', 'mantem versao do user (marca user_modified=true)')
-    .option('--take-theirs', 'sobrescreve com versao nova')
+    .option('--take-theirs', 'restaura skills/templates gerenciados; CLAUDE.md, AGENTS.md e settings do projeto são sempre preservados')
     .action(async (opts) => {
       try {
         await runUpdate(opts);
