@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] — 2026-10-11
+
+- Copyright da licença MIT atualizado para Rafael Nobre de Souza, a pedido do titular, na licença raiz e na cópia distribuída com o plugin. Termos da licença preservados.
+- Plugin 0.7.1; nenhuma mudança no comportamento do CLI ou nas regras metodológicas da 2.3.0.
+
 ## [2.3.0] — 2026-10-11
 
 npm `2.3.0`; plugin `0.7.0`, com versões de distribuição independentes.

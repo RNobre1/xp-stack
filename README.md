@@ -4,7 +4,7 @@
 
 Stack metodológico **XP/Akita** para agentes de IA — TDD absoluto, pair programming, pesquisa formal triangulada, task decomposition rigorosa, evidências de entrega, revisão orientada por política, conventional commits e mecanismos opcionais de orquestração.
 
-> **Release v2.3.0** (2026-10-11): fluxo portátil de entrega, atualização segura das skills e auditoria do custo/valor dos testes. Veja [CHANGELOG.md](CHANGELOG.md). O pacote segue adotável em qualquer stack (TypeScript, Python, Go, bash, etc.).
+> **Release v2.3.1** (2026-10-11): fluxo portátil de entrega, atualização segura das skills e auditoria do custo/valor dos testes. Veja [CHANGELOG.md](CHANGELOG.md). O pacote segue adotável em qualquer stack (TypeScript, Python, Go, bash, etc.).
 
 ---
 
@@ -75,7 +75,7 @@ npx xp-stack add-skill debugging-discipline    # lembretes de fix-workflow (PR t
 Para atualizar o executável e, depois, as fontes gerenciadas do projeto:
 
 ```bash
-npm install -g xp-stack@2.3.0
+npm install -g xp-stack@2.3.1
 xp-stack update --cwd /caminho/do/projeto
 ```
 
